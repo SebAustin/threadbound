@@ -6,6 +6,6 @@
  */
 
 import { defineComponents } from '@iwsdk/core';
-import { Robot } from './robot-component.js';
+import { Chute, Marble, Peg, Thread } from './features/puzzle/components.js';
 
-export default defineComponents([Robot]);
+export default defineComponents([Peg, Thread, Marble, Chute]);

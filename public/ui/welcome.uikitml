@@ -57,11 +57,11 @@
 </style>
 <Panel class="panel-root">
   <div class="panel-content">
-    <div class="heading">Hello, Immersive Web!</div>
+    <div class="heading">Threadbound</div>
     <Divider></Divider>
     <div class="sub-heading">
-      Build interactive browser, mixed-reality, and virtual-reality experiences
-      with Immersive Web SDK.
+      Pinch a brass peg, pull, and release on another peg to stretch a thread.
+      Pinch the chute to drop marbles. Every bounce plays a note.
     </div>
   </div>
   <Button id="xr-button" class="button">
