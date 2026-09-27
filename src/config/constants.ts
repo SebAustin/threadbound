@@ -30,6 +30,8 @@ export const MARBLE = {
   gravityFactor: 0.6,
   /** Seconds between marbles when the chute releases a batch. */
   releaseInterval: 0.45,
+  /** Max horizontal spawn nudge so stacked marbles never balance in a column. */
+  spawnJitter: 0.002,
   /** Marbles further than this below the base are considered lost. */
   lostBelow: -0.15,
 } as const;

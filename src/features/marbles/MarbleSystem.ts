@@ -10,6 +10,7 @@ import {
 } from '@iwsdk/core';
 import { GOAL, MARBLE, THREAD_TUNING } from '../../config/constants';
 import { segmentDistanceSq2d } from '../../lib/segment2d';
+import { spawnOffsetX } from '../../lib/spawnOffset';
 import { stringSynth } from '../audio/stringSynth';
 import { GEOMETRIES, MATERIALS } from '../diorama/palette';
 import { Chute, Marble, Thread } from '../puzzle/components';
@@ -85,7 +86,9 @@ export class MarbleSystem extends createSystem({
     if (!level || !frame) return;
     const mesh = new Mesh(GEOMETRIES.marble, MATERIALS.marble);
     mesh.name = 'marble';
-    frame.localToWorld(level.chute.x, level.chute.y, 0, mesh.position);
+    const index = level.marbles - this.pending;
+    const x = level.chute.x + spawnOffsetX(index, MARBLE.spawnJitter);
+    frame.localToWorld(x, level.chute.y, 0, mesh.position);
     const entity = this.world.createTransformEntity(mesh);
     entity.addComponent(Marble, { scored: false });
     entity.addComponent(PhysicsShape, {
