@@ -1,26 +1,38 @@
-# IWSDK App
+# Threadbound
 
-This project uses `iwsdk.config.json` for declarative scene, asset, component,
-XR, and emulator configuration. Application systems remain explicit in
-`src/index.ts`.
+A hands-first mixed-reality puzzle for Meta Quest, built with the
+[Immersive Web SDK](https://iwsdk.dev) for the Meta VR Start Developer
+Competition 2026 (Gaming · New Experience).
+
+A small walnut-and-brass diorama sits on your real table. **Pinch a peg, pull,
+and release on another peg** to stretch an elastic thread. Pinch the chute to
+drop marbles: they bounce off your threads into the goal cups. Every thread is
+a string tuned by its length, so every solution plays as a melody.
+
+- Fully playable with hands (pinch + poke), seated, within arm's reach
+- Mixed reality on your table; a cozy VR study where passthrough isn't available
+- Also works with gaze + pinch (Meta VR Glasses) and a desktop mouse
+
+## Develop
 
 ```sh
 npm install
-npm run dev
+npm run dev          # IWSDK dev server + managed browser with the IWER XR emulator
+npm test             # unit tests (vitest)
+npm run coverage     # unit tests with coverage (80% threshold on src/lib)
+npm run test:e2e     # mouse E2E against the running dev server
+npm run test:e2e:hands  # hand pinch-pull E2E in an emulated Quest 3 session
+npm run build        # production build to dist/
 ```
 
-Use the Runtime and Editor controls in the managed browser to switch between
-the running experience and its authored scene.
+E2E scripts need the dev server started with browser automation:
+`npx @iwsdk/cli dev up --allow-browser-automation`.
 
-## Starter content
+## Layout
 
-The robot and welcome panel are small examples of authored scene content plus
-runtime systems. The robot turns toward the player's head and plays a sound
-when pressed. To remove the robot, delete its scene node, its `RobotSystem`
-registration from `src/index.ts` or `src/index.js`, and its `Robot` registration
-from `src/components.ts` or `src/components.js`; you can then delete the unused
-robot component and system files. To remove the welcome panel, delete its scene
-node and its `PanelSystem` registration from the application entry point.
-
-- Minimal scene walkthrough: https://iwsdk.dev/guides/01b-minimal-scene.html
-- XR-enabled projects — IWER emulator controls: https://iwsdk.dev/guides/02-testing-experience.html#iwer-controls
+```
+src/lib/        pure, unit-tested logic (geometry, tuning, rules, level schema)
+src/features/   ECS systems by feature (puzzle, threads, marbles, audio, environment)
+src/levels/     level data (JSON, validated with zod)
+tests/          unit (vitest) and e2e (IWSDK CLI + Playwright) tests
+```
