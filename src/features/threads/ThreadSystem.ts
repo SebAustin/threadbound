@@ -152,9 +152,16 @@ export class ThreadSystem extends createSystem({
       [this.tmpDir.x, this.tmpDir.y, this.tmpDir.z],
       0,
     );
-    if (!hit) return;
-    drag.endX = hit[0];
-    drag.endY = hit[1];
+    if (hit) {
+      drag.endX = hit[0];
+      drag.endY = hit[1];
+      return;
+    }
+    // Ray nearly parallel to (or level with) the diorama, e.g. a hand held beside
+    // the glass: fall back to the capture-plane hit, which sits just in front.
+    frame.worldToLocal(e.point, this.tmpOrigin);
+    drag.endX = this.tmpOrigin.x;
+    drag.endY = this.tmpOrigin.y;
   }
 
   private endDrag(e: SpatialPointerEvent): void {

@@ -15,7 +15,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "coverage": "vitest run --coverage",
-    "test:e2e": "iwsdk browser run tests/e2e/first-thread.e2e.mjs"
+    "test:e2e": "iwsdk browser run tests/e2e/first-thread.e2e.mjs",
+    "test:e2e:hands": "zsh tests/e2e/hand-pinch.sh"
   },
   "dependencies": {
     "@iwsdk/core": "1.0.0-rc.2",

@@ -49,6 +49,18 @@ export const GOAL = {
   floorThickness: 0.008,
 } as const;
 
+/** VR-fallback "cozy study" (world-space meters). Hidden over passthrough. */
+export const VIRTUAL_ROOM = {
+  background: 0x2b2130,
+  tableTop: [1.1, 0.035, 0.7] as const,
+  tableColor: 0x8a5a3c,
+  legSize: 0.05,
+  floorRadius: 4,
+  floorColor: 0x3d2f2a,
+  rugRadius: 1.1,
+  rugColor: 0x6b3f4a,
+} as const;
+
 /** Performance budget enforced by design (no headset available to measure fps). */
 export const PERF_BUDGET = {
   maxDrawCalls: 80,

@@ -8,6 +8,9 @@ export interface ThreadboundTestHook {
   chute(): { x: number; y: number } | null;
   state(): ReturnType<typeof puzzleStore.get>;
   marbles(): Array<{ x: number; y: number; z: number; scored: boolean }>;
+  /** World-space position of a diorama-local point (for aiming emulated hands). */
+  worldOf(x: number, y: number, z?: number): { x: number; y: number; z: number };
+  room(): { visible: boolean; background: boolean; blendMode: string | null };
 }
 
 declare global {
@@ -38,6 +41,17 @@ export function installTestHook(world: World): void {
       return level ? project(level.chute.x, level.chute.y + 0.02) : null;
     },
     state: () => puzzleStore.get(),
+    worldOf: (x: number, y: number, z = 0) => {
+      const frame = puzzleStore.frame;
+      if (!frame) return { x: 0, y: 0, z: 0 };
+      const v = frame.localToWorld(x, y, z, new Vector3());
+      return { x: v.x, y: v.y, z: v.z };
+    },
+    room: () => ({
+      visible: world.scene.getObjectByName('virtual-room')?.visible ?? false,
+      background: world.scene.background !== null,
+      blendMode: world.session?.environmentBlendMode ?? null,
+    }),
     marbles: () => {
       const frame = puzzleStore.frame;
       const world3 = new Vector3();

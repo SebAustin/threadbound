@@ -8,6 +8,7 @@
 import { World } from '@iwsdk/core';
 import projectOptions from 'virtual:iwsdk-project';
 import { installTestHook } from './features/debug/testHook.js';
+import { EnvironmentSystem } from './features/environment/EnvironmentSystem.js';
 import { MarbleSystem } from './features/marbles/MarbleSystem.js';
 import { PuzzleSystem } from './features/puzzle/PuzzleSystem.js';
 import { ThreadSystem } from './features/threads/ThreadSystem.js';
@@ -17,6 +18,7 @@ World.create(
   document.getElementById('scene-container') as HTMLDivElement,
   projectOptions,
 ).then((world) => {
+  world.registerSystem(EnvironmentSystem);
   world.registerSystem(PuzzleSystem);
   world.registerSystem(ThreadSystem);
   world.registerSystem(MarbleSystem);
