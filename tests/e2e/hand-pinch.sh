@@ -4,11 +4,16 @@ cd "$(dirname "$0")/../.."
 iw() { npx @iwsdk/cli "$@"; }
 iw browser reload --input-json '{}' >/dev/null 2>&1; sleep 7
 iw xr enter --input-json '{}' >/dev/null 2>&1; sleep 3
-iw xr set-input-mode --input-json '{"mode":"hand"}' >/dev/null 2>&1; sleep 1
+iw xr set-input-mode --input-json '{"mode":"hand"}' >/dev/null 2>&1
+# AR sessions re-place the diorama (table or in front of the player, ≤3 s search);
+# measure knob positions only after placement settles.
+sleep 4
 PROBE=$(iw browser run tests/e2e/hand-probe.e2e.mjs 2>/dev/null)
 knob() { echo "$PROBE" | python3 -c "import sys,json;k=json.load(sys.stdin)['data']['result']['knobs']['$1'];print(json.dumps(k))"; }
 A=$(knob a); B=$(knob b)
-iw xr set-transform --input-json "{\"device\":\"hand-right\",\"position\":{\"x\":0.12,\"y\":0.92,\"z\":-0.12}}" >/dev/null 2>&1; sleep 0.3
+# Hold the hand where a seated player would: below and in front of the pegs.
+HAND=$(python3 -c "import json;a=json.loads('$A');b=json.loads('$B');print(json.dumps({'x':(a['x']+b['x'])/2+0.1,'y':(a['y']+b['y'])/2-0.25,'z':(a['z']+b['z'])/2+0.3}))")
+iw xr set-transform --input-json "{\"device\":\"hand-right\",\"position\":$HAND}" >/dev/null 2>&1; sleep 0.3
 echo "knob a=$A b=$B"
 iw xr look-at --input-json "{\"device\":\"hand-right\",\"target\":$A}" >/dev/null 2>&1; sleep 0.5
 iw xr set-select-value --input-json '{"device":"hand-right","value":1}' >/dev/null 2>&1; sleep 0.4
