@@ -1,12 +1,24 @@
 import { Vector3, type World } from '@iwsdk/core';
-import { puzzleStore } from '../puzzle/puzzleStore';
+import { LEVELS } from '../../levels';
+import { puzzleStore, type PuzzleCommand } from '../puzzle/puzzleStore';
+
+interface ScreenPoint {
+  x: number;
+  y: number;
+}
 
 export interface ThreadboundTestHook {
   /** Canvas-relative CSS pixel position of a diorama-local point. */
-  project(x: number, y: number, z?: number): { x: number; y: number };
-  pegs(): Array<{ id: string; x: number; y: number }>;
-  chute(): { x: number; y: number } | null;
+  project(x: number, y: number, z?: number): ScreenPoint;
+  pegs(): Array<{ id: string } & ScreenPoint>;
+  chute(): ScreenPoint | null;
   state(): ReturnType<typeof puzzleStore.get>;
+  levels(): Array<{ id: string; name: string }>;
+  dispatch(command: PuzzleCommand): void;
+  /** Canvas position of a control button ('restart' | 'next'), null if absent. */
+  button(action: string): (ScreenPoint & { visible: boolean }) | null;
+  /** Current diorama frame: origin (bottom-left, world) and yaw. */
+  frame(): { origin: number[]; yaw: number } | null;
   marbles(): Array<{ x: number; y: number; z: number; scored: boolean }>;
   /** World-space position of a diorama-local point (for aiming emulated hands). */
   worldOf(x: number, y: number, z?: number): { x: number; y: number; z: number };
@@ -19,20 +31,27 @@ declare global {
   }
 }
 
+const round3 = (n: number) => Math.round(n * 1000) / 1000;
+
 /**
- * Dev-only E2E hook: lets Playwright aim real mouse input at pegs regardless of
- * camera framing. Stripped from production builds by the import.meta.env.DEV guard.
+ * Dev-only E2E hook: lets Playwright aim real input at pegs and buttons
+ * regardless of framing, and drive levels through the same command bus the
+ * player uses. Stripped from production builds by the import.meta.env.DEV guard.
  */
 export function installTestHook(world: World): void {
   if (!import.meta.env.DEV) return;
   const tmp = new Vector3();
-  const project = (x: number, y: number, z = 0) => {
-    const frame = puzzleStore.frame;
+  const toScreen = (worldPoint: Vector3): ScreenPoint => {
     const rect = world.renderer.domElement.getBoundingClientRect();
-    if (!frame) return { x: -1, y: -1 };
-    frame.localToWorld(x, y, z, tmp).project(world.camera);
-    return { x: ((tmp.x + 1) / 2) * rect.width, y: ((1 - tmp.y) / 2) * rect.height };
+    worldPoint.project(world.camera);
+    return { x: ((worldPoint.x + 1) / 2) * rect.width, y: ((1 - worldPoint.y) / 2) * rect.height };
   };
+  const project = (x: number, y: number, z = 0): ScreenPoint => {
+    const frame = puzzleStore.frame;
+    if (!frame) return { x: -1, y: -1 };
+    return toScreen(frame.localToWorld(x, y, z, tmp));
+  };
+
   window.__threadbound = {
     project,
     pegs: () => puzzleStore.get().level?.pegs.map((p) => ({ id: p.id, ...project(p.x, p.y) })) ?? [],
@@ -41,7 +60,32 @@ export function installTestHook(world: World): void {
       return level ? project(level.chute.x, level.chute.y + 0.02) : null;
     },
     state: () => puzzleStore.get(),
-    worldOf: (x: number, y: number, z = 0) => {
+    levels: () => LEVELS.map((l) => ({ id: l.id, name: l.name })),
+    dispatch: (command) => puzzleStore.dispatch(command),
+    button: (action) => {
+      const object = world.scene.getObjectByName(`button-${action}`);
+      if (!object) return null;
+      return { ...toScreen(object.getWorldPosition(new Vector3())), visible: object.visible };
+    },
+    frame: () => {
+      const anchor = puzzleStore.frame?.anchor;
+      if (!anchor) return null;
+      return { origin: anchor.position.toArray().map(round3), yaw: anchor.rotation.y };
+    },
+    marbles: () => {
+      const frame = puzzleStore.frame;
+      const found: Array<{ x: number; y: number; z: number; scored: boolean }> = [];
+      if (!frame) return found;
+      const worldPos = new Vector3();
+      const local = new Vector3();
+      world.scene.traverse((o) => {
+        if (o.name !== 'marble') return;
+        frame.worldToLocal(o.getWorldPosition(worldPos), local);
+        found.push({ x: round3(local.x), y: round3(local.y), z: round3(local.z), scored: false });
+      });
+      return found;
+    },
+    worldOf: (x, y, z = 0) => {
       const frame = puzzleStore.frame;
       if (!frame) return { x: 0, y: 0, z: 0 };
       const v = frame.localToWorld(x, y, z, new Vector3());
@@ -52,20 +96,5 @@ export function installTestHook(world: World): void {
       background: world.scene.background !== null,
       blendMode: world.session?.environmentBlendMode ?? null,
     }),
-    marbles: () => {
-      const frame = puzzleStore.frame;
-      const world3 = new Vector3();
-      const local = new Vector3();
-      return world.scene.children.flatMap((root) => {
-        const found: Array<{ x: number; y: number; z: number; scored: boolean }> = [];
-        root.traverse((o) => {
-          if (o.name !== 'marble' || !frame) return;
-          frame.worldToLocal(o.getWorldPosition(world3), local);
-          const round = (n: number) => Math.round(n * 1000) / 1000;
-          found.push({ x: round(local.x), y: round(local.y), z: round(local.z), scored: false });
-        });
-        return found;
-      });
-    },
   };
 }
