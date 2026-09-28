@@ -46,3 +46,11 @@ describe('checkNewThread', () => {
     ).toEqual({ ok: false, reason: 'limit' });
   });
 });
+
+describe('checkNewThread with preset threads', () => {
+  test('preset threads do not count toward the player limit', () => {
+    expect(
+      checkNewThread([{ from: 'a', to: 'c', preset: true }], 'a', 'b', 1),
+    ).toEqual({ ok: true });
+  });
+});

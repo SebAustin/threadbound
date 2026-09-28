@@ -9,6 +9,8 @@ export interface PegPoint {
 export interface ThreadLink {
   readonly from: string;
   readonly to: string;
+  /** Authored by the level (e.g. "snip me"); does not count toward the player's limit. */
+  readonly preset?: boolean;
 }
 
 export type ThreadCheck =
@@ -46,6 +48,7 @@ export function checkNewThread(
     (t) => (t.from === from && t.to === to) || (t.from === to && t.to === from),
   );
   if (isDuplicate) return { ok: false, reason: 'duplicate' };
-  if (existing.length >= maxThreads) return { ok: false, reason: 'limit' };
+  const playerThreads = existing.filter((t) => !t.preset).length;
+  if (playerThreads >= maxThreads) return { ok: false, reason: 'limit' };
   return { ok: true };
 }

@@ -23,6 +23,10 @@ const CONTACT_DIST_SQ = CONTACT_DIST * CONTACT_DIST;
 /** Marble speed (m/s) that plays a bounce at full volume. */
 const FULL_VOLUME_SPEED = 1.2;
 const MELODY_STEP_SECONDS = 0.22;
+/** Highest marble center that still counts as "in the cup" (one stacked layer). */
+const CUP_TOP = GOAL.wallHeight + MARBLE.radius;
+/** Marbles count once they have (nearly) come to rest, not while flying over. */
+const SETTLED_SPEED = 0.35;
 
 /**
  * Chute release, goal scoring, lost-marble cleanup and the bounce→note mapping.
@@ -49,6 +53,13 @@ export class MarbleSystem extends createSystem({
     this.cleanupFuncs.push(
       this.queries.chutes.subscribe('qualify', (chute) => this.attachChute(chute)),
       this.queries.marbles.subscribe('disqualify', (m) => this.contacts.delete(m.index)),
+      puzzleStore.onCommand((command) => {
+        if (command.type === 'drop') this.drop();
+        if (command.type === 'levelBuilt') {
+          this.pending = 0;
+          this.melody = [];
+        }
+      }),
     );
     // 'qualify' only fires for future matches; a chute built earlier needs wiring now.
     for (const chute of this.queries.chutes.entities) this.attachChute(chute);
@@ -57,11 +68,12 @@ export class MarbleSystem extends createSystem({
   private attachChute(chute: Entity): void {
     const object = chute.object3D;
     if (!object) return;
-    this.cleanupFuncs.push(onPointer(object, 'click', () => this.drop()));
+    // Listen on the chute mesh itself; IWSDK only stops down/up, not click.
+    onPointer(object, 'click', () => puzzleStore.dispatch({ type: 'drop' }));
   }
 
   /** Pinching the chute (re)starts a drop with the level's marbles. */
-  drop(): void {
+  private drop(): void {
     const level = puzzleStore.get().level;
     if (!level) return;
     stringSynth.unlock();
@@ -73,7 +85,7 @@ export class MarbleSystem extends createSystem({
     puzzleStore.update({ status: 'dropping', scored: 0 });
   }
 
-  clearMarbles(): void {
+  private clearMarbles(): void {
     for (const marble of [...this.queries.marbles.entities]) {
       marble.dispose({ disposeResources: false });
     }
@@ -166,8 +178,9 @@ export class MarbleSystem extends createSystem({
   private detectGoal(marble: Entity, x: number, y: number): void {
     if (marble.getValue(Marble, 'scored')) return;
     const goals = puzzleStore.diorama?.goals ?? [];
-    const index = goals.findIndex((g) => x > g.minX && x < g.maxX && y < GOAL.wallHeight);
-    if (index < 0) return;
+    // Settled inside the cup: allows a second stacked layer, ignores fly-overs.
+    const index = goals.findIndex((g) => x > g.minX && x < g.maxX && y < CUP_TOP);
+    if (index < 0 || this.speedOf(marble) > SETTLED_SPEED) return;
     marble.setValue(Marble, 'scored', true);
     const goalMesh = puzzleStore.diorama?.goalMeshes[index];
     if (goalMesh) goalMesh.material = MATERIALS.goalDone;

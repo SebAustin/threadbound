@@ -18,6 +18,8 @@ export const COLORS = {
   brassHot: 0xffd479,
   thread: 0xff6b5a,
   threadPreview: 0xffb3a8,
+  /** Authored "snip me" threads read differently from the player's coral strings. */
+  threadPreset: 0x9b7fd1,
   marble: 0x3fb7c6,
   goal: 0x8fd694,
   goalDone: 0xfff1a8,
@@ -38,6 +40,12 @@ export const MATERIALS = {
     color: COLORS.thread,
     emissive: COLORS.thread,
     emissiveIntensity: 0.25,
+    roughness: 0.5,
+  }),
+  threadPreset: new MeshStandardMaterial({
+    color: COLORS.threadPreset,
+    emissive: COLORS.threadPreset,
+    emissiveIntensity: 0.3,
     roughness: 0.5,
   }),
   threadPreview: new MeshStandardMaterial({

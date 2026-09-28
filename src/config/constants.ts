@@ -46,6 +46,15 @@ export const THREAD_TUNING = {
   friction: 0.05,
 } as const;
 
+/** Front ledge with pokeable Restart / Next buttons (no floating menus). */
+export const CONTROLS = {
+  ledgeDepth: 0.05,
+  buttonRadius: 0.017,
+  buttonHeight: 0.012,
+  /** Distance of each button from its side of the diorama. */
+  buttonInset: 0.05,
+} as const;
+
 export const GOAL = {
   wallHeight: 0.035,
   floorThickness: 0.008,

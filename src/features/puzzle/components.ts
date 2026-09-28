@@ -18,6 +18,8 @@ export const Thread = createComponent('Thread', {
   bx: { type: Types.Float32, default: 0 },
   by: { type: Types.Float32, default: 0 },
   pitch: { type: Types.Float32, default: 440 },
+  /** Authored by the level; does not count toward the player's thread limit. */
+  preset: { type: Types.Boolean, default: false },
 });
 
 export const Marble = createComponent('Marble', {
@@ -26,3 +28,10 @@ export const Marble = createComponent('Marble', {
 
 /** Pinching the chute releases the level's marbles. */
 export const Chute = createComponent('Chute', {});
+
+export const ControlActions = { Restart: 'restart', Next: 'next' } as const;
+
+/** A poke/pinch button on the diorama's front ledge. */
+export const ControlButton = createComponent('ControlButton', {
+  action: { type: Types.Enum, enum: ControlActions, default: ControlActions.Restart },
+});

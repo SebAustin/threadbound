@@ -1,0 +1,19 @@
+{
+  "id": "w1-05",
+  "name": "Snip",
+  "world": 1,
+  "size": [0.5, 0.4],
+  "chute": { "x": 0.25, "y": 0.37 },
+  "marbles": 3,
+  "maxThreads": 1,
+  "par": 1,
+  "pegs": [
+    { "id": "p", "x": 0.35, "y": 0.28 },
+    { "id": "q", "x": 0.1, "y": 0.18 },
+    { "id": "r", "x": 0.15, "y": 0.25 },
+    { "id": "s", "x": 0.4, "y": 0.14 }
+  ],
+  "presetThreads": [{ "from": "p", "to": "q" }],
+  "goals": [{ "x": 0.445, "width": 0.09 }],
+  "solution": [{ "from": "r", "to": "s" }]
+}

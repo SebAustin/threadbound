@@ -21,7 +21,7 @@ import { pitchForLength, restitutionForLength } from '../../lib/threadTuning';
 import { stringSynth } from '../audio/stringSynth';
 import { GEOMETRIES, MATERIALS } from '../diorama/palette';
 import { Peg, Thread } from '../puzzle/components';
-import { puzzleStore } from '../puzzle/puzzleStore';
+import { puzzleStore, type PuzzleCommand } from '../puzzle/puzzleStore';
 import {
   capturePointer,
   onPointer,
@@ -34,7 +34,6 @@ const UP = new Vector3(0, 1, 0);
 interface Drag {
   readonly pegId: string;
   readonly pointerId: number;
-  readonly source: Entity;
   /** Mesh holding pointer capture, so move/up keep arriving off-peg. */
   readonly captureTarget: Object3D;
   readonly fromX: number;
@@ -53,9 +52,6 @@ export class ThreadSystem extends createSystem({
   threads: { required: [Thread] },
 }) {
   private drag: Drag | null = null;
-  private pegPoints: PegPoint[] = [];
-  private pegUnsubs = new Map<number, () => void>();
-  private threadUnsubs = new Map<number, () => void>();
   private preview!: Mesh;
   private tmpOrigin = new Vector3();
   private tmpDir = new Vector3();
@@ -69,49 +65,36 @@ export class ThreadSystem extends createSystem({
 
     this.cleanupFuncs.push(
       this.queries.pegs.subscribe('qualify', (e) => this.attachPeg(e)),
-      this.queries.pegs.subscribe('disqualify', (e) => this.detachPeg(e)),
       this.queries.hoveredPegs.subscribe('qualify', (e) => this.setKnob(e, true)),
       this.queries.hoveredPegs.subscribe('disqualify', (e) => this.setKnob(e, false)),
       this.queries.threads.subscribe('qualify', (e) => this.attachThread(e)),
-      this.queries.threads.subscribe('disqualify', (e) => this.detachThread(e)),
-      () => this.pegUnsubs.forEach((off) => off()),
-      () => this.threadUnsubs.forEach((off) => off()),
+      puzzleStore.onCommand((command) => this.handleCommand(command)),
     );
     // 'qualify' only fires for future matches; pegs built earlier need wiring now.
     for (const peg of this.queries.pegs.entities) this.attachPeg(peg);
     for (const thread of this.queries.threads.entities) this.attachThread(thread);
   }
 
+  /** Snap targets come from level data, not ECS bookkeeping (no lifecycle races). */
+  private get pegPoints(): readonly PegPoint[] {
+    return puzzleStore.get().level?.pegs ?? [];
+  }
+
+  /**
+   * Pointer listeners live on the peg's own meshes, which are discarded when the
+   * level is torn down, so they need no explicit unsubscribe.
+   */
   private attachPeg(entity: Entity): void {
     const object = entity.object3D;
     if (!object) return;
-    this.pegPoints = [
-      ...this.pegPoints,
-      {
-        id: entity.getValue(Peg, 'pegId') ?? '',
-        x: entity.getValue(Peg, 'x') ?? 0,
-        y: entity.getValue(Peg, 'y') ?? 0,
-      },
-    ];
     // Listen on the child meshes: events bubble from the hit mesh upward, and
     // IWSDK's InputSystem stops them at the entity root after tagging Pressed.
-    const offs: Array<() => void> = [];
     object.traverse((child) => {
       if (child === object || !(child as Mesh).isMesh) return;
-      offs.push(
-        onPointer(child, 'pointerdown', (e) => this.startDrag(entity, child, e)),
-        onPointer(child, 'pointermove', (e) => this.moveDrag(e)),
-        onPointer(child, 'pointerup', (e) => this.endDrag(e)),
-      );
+      onPointer(child, 'pointerdown', (e) => this.startDrag(entity, child, e));
+      onPointer(child, 'pointermove', (e) => this.moveDrag(e));
+      onPointer(child, 'pointerup', (e) => this.endDrag(e));
     });
-    this.pegUnsubs.set(entity.index, () => offs.forEach((off) => off()));
-  }
-
-  private detachPeg(entity: Entity): void {
-    const id = entity.getValue(Peg, 'pegId');
-    this.pegPoints = this.pegPoints.filter((p) => p.id !== id);
-    this.pegUnsubs.get(entity.index)?.();
-    this.pegUnsubs.delete(entity.index);
   }
 
   private setKnob(entity: Entity, hot: boolean): void {
@@ -128,7 +111,6 @@ export class ThreadSystem extends createSystem({
     this.drag = {
       pegId: source.getValue(Peg, 'pegId') ?? '',
       pointerId: e.pointerId,
-      source,
       fromX: x,
       fromY: y,
       endX: x,
@@ -177,25 +159,55 @@ export class ThreadSystem extends createSystem({
       console.info(`[Threadbound] released at (${drag.endX.toFixed(3)}, ${drag.endY.toFixed(3)}) — no peg in reach`);
       return;
     }
+    this.tryAddThread(drag.pegId, targetId);
+  }
+
+  /** Player (or test/hint) thread: validated against the level's rules. */
+  private tryAddThread(fromId: string, toId: string): void {
     const state = puzzleStore.get();
-    const check = checkNewThread(state.threads, drag.pegId, targetId, state.level?.maxThreads ?? 0);
+    const check = checkNewThread(state.threads, fromId, toId, state.level?.maxThreads ?? 0);
     if (!check.ok) {
       console.info(`[Threadbound] thread rejected: ${check.reason}`);
       return;
     }
-    const from = this.pegPoints.find((p) => p.id === drag.pegId);
-    const to = this.pegPoints.find((p) => p.id === targetId);
-    if (from && to) this.createThread(from, to);
+    const from = this.pegPoints.find((p) => p.id === fromId);
+    const to = this.pegPoints.find((p) => p.id === toId);
+    if (from && to) this.createThread(from, to, false);
   }
 
-  private createThread(from: PegPoint, to: PegPoint): void {
+  private createPresetThreads(): void {
+    for (const link of puzzleStore.get().level?.presetThreads ?? []) {
+      const from = this.pegPoints.find((p) => p.id === link.from);
+      const to = this.pegPoints.find((p) => p.id === link.to);
+      if (from && to) this.createThread(from, to, true);
+    }
+  }
+
+  private handleCommand(command: PuzzleCommand): void {
+    if (command.type === 'levelBuilt') {
+      this.drag = null;
+      this.preview.visible = false;
+      this.createPresetThreads();
+    } else if (command.type === 'addThread') {
+      this.tryAddThread(command.from, command.to);
+    } else if (command.type === 'snip') {
+      const match = [...this.queries.threads.entities].find((t) => {
+        const a = t.getValue(Thread, 'fromPeg');
+        const b = t.getValue(Thread, 'toPeg');
+        return (a === command.from && b === command.to) || (a === command.to && b === command.from);
+      });
+      if (match) this.snip(match);
+    }
+  }
+
+  private createThread(from: PegPoint, to: PegPoint, preset: boolean): void {
     const frame = puzzleStore.frame;
     const seg = segmentTransform([from.x, from.y, 0], [to.x, to.y, 0]);
     if (!frame || !seg) return;
 
     const group = new Group();
     group.name = `thread-${from.id}-${to.id}`;
-    const mesh = new Mesh(GEOMETRIES.unitCylinder, MATERIALS.thread);
+    const mesh = new Mesh(GEOMETRIES.unitCylinder, preset ? MATERIALS.threadPreset : MATERIALS.thread);
     mesh.scale.set(THREAD_TUNING.radius, seg.length, THREAD_TUNING.radius);
     group.add(mesh);
     frame.localToWorld(seg.midpoint[0], seg.midpoint[1], 0, group.position);
@@ -212,6 +224,7 @@ export class ThreadSystem extends createSystem({
       bx: to.x,
       by: to.y,
       pitch,
+      preset,
     });
     entity.addComponent(RayInteractable);
     entity.addComponent(PhysicsShape, {
@@ -222,23 +235,19 @@ export class ThreadSystem extends createSystem({
     });
     entity.addComponent(PhysicsBody, { state: PhysicsState.Static });
 
-    puzzleStore.update({ threads: [...puzzleStore.get().threads, { from: from.id, to: to.id }] });
-    stringSynth.pluck(pitch, 0.8);
+    puzzleStore.update({
+      threads: [...puzzleStore.get().threads, { from: from.id, to: to.id, preset }],
+    });
+    if (!preset) stringSynth.pluck(pitch, 0.8);
   }
 
   private attachThread(entity: Entity): void {
     const object = entity.object3D;
     if (!object) return;
-    const off = onPointer(object, 'click', (e) => {
+    onPointer(object, 'click', (e) => {
       e.stopPropagation();
       this.snip(entity);
     });
-    this.threadUnsubs.set(entity.index, off);
-  }
-
-  private detachThread(entity: Entity): void {
-    this.threadUnsubs.get(entity.index)?.();
-    this.threadUnsubs.delete(entity.index);
   }
 
   private snip(entity: Entity): void {

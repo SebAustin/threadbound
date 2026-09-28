@@ -9,6 +9,9 @@ export default async function run({ page, frame }) {
   const logs = [];
   page.on('console', (m) => m.text().includes('[Threadbound]') && logs.push(m.text()));
 
+  // Progress persists (resume at furthest level); these checks are for level 1.
+  await app.evaluate(() => window.__threadbound.dispatch({ type: 'load', index: 0 }));
+  await sleep(200);
   const el = await app.frameElement().catch(() => null);
   const fb = el ? await el.boundingBox() : { x: 0, y: 0 };
   const cb = await app.locator('canvas').first().boundingBox();

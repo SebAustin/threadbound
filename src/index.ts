@@ -8,8 +8,10 @@
 import { World } from '@iwsdk/core';
 import projectOptions from 'virtual:iwsdk-project';
 import { installTestHook } from './features/debug/testHook.js';
+import { ControlsSystem } from './features/controls/ControlsSystem.js';
 import { EnvironmentSystem } from './features/environment/EnvironmentSystem.js';
 import { MarbleSystem } from './features/marbles/MarbleSystem.js';
+import { PlacementSystem } from './features/placement/PlacementSystem.js';
 import { PuzzleSystem } from './features/puzzle/PuzzleSystem.js';
 import { ThreadSystem } from './features/threads/ThreadSystem.js';
 import { PanelSystem } from './panel.js';
@@ -22,6 +24,8 @@ World.create(
   world.registerSystem(PuzzleSystem);
   world.registerSystem(ThreadSystem);
   world.registerSystem(MarbleSystem);
+  world.registerSystem(ControlsSystem);
+  world.registerSystem(PlacementSystem);
   world.registerSystem(PanelSystem);
   installTestHook(world);
 });

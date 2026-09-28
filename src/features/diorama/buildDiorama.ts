@@ -1,5 +1,6 @@
 import {
   BoxGeometry,
+  ConeGeometry,
   CylinderGeometry,
   Group,
   Mesh,
@@ -7,17 +8,19 @@ import {
   PhysicsShape,
   PhysicsShapeType,
   PhysicsState,
+  PokeInteractable,
   Quaternion,
   RayInteractable,
+  TorusGeometry,
   Vector3,
   type Entity,
   type Material,
   type Object3D,
   type World,
 } from '@iwsdk/core';
-import { DIORAMA, GOAL, PEG } from '../../config/constants';
+import { CONTROLS, DIORAMA, GOAL, PEG } from '../../config/constants';
 import type { Level } from '../../lib/levelSchema';
-import { Chute, Peg } from '../puzzle/components';
+import { Chute, ControlActions, ControlButton, Peg } from '../puzzle/components';
 import type { DioramaFrame } from './dioramaFrame';
 import { GEOMETRIES, MATERIALS } from './palette';
 
@@ -31,6 +34,8 @@ export interface BuiltDiorama {
   readonly entities: readonly Entity[];
   readonly goals: readonly GoalRange[];
   readonly goalMeshes: readonly Mesh[];
+  /** Shown only once the puzzle is solved. */
+  readonly nextButton: Entity;
 }
 
 const PEG_ROTATION = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), Math.PI / 2);
@@ -138,16 +143,66 @@ function buildChute(world: World, frame: DioramaFrame, level: Level): Entity {
   return entity;
 }
 
+function buildWalls(world: World, frame: DioramaFrame, level: Level): Entity[] {
+  const depth = DIORAMA.channelHalfDepth * 2;
+  return level.walls.map((wall) =>
+    staticBox(world, frame, [wall.w, wall.h, depth], [wall.x + wall.w / 2, wall.y + wall.h / 2, 0], MATERIALS.walnut),
+  );
+}
+
+/** Pokeable (near) and pinchable (ray) button resting on the front ledge. */
+function buildButton(
+  world: World,
+  frame: DioramaFrame,
+  x: number,
+  action: (typeof ControlActions)[keyof typeof ControlActions],
+): Entity {
+  const { buttonRadius: r, buttonHeight: h, ledgeDepth } = CONTROLS;
+  const z = DIORAMA.channelHalfDepth + DIORAMA.slab + ledgeDepth / 2;
+  const group = new Group();
+  group.name = `button-${action}`;
+  const cap = new Mesh(new CylinderGeometry(r, r, h, 24), action === 'next' ? MATERIALS.goal : MATERIALS.cream);
+  cap.position.y = h / 2;
+  const icon =
+    action === 'next'
+      ? new Mesh(new ConeGeometry(r * 0.45, r * 0.9, 3), MATERIALS.walnut)
+      : new Mesh(new TorusGeometry(r * 0.45, r * 0.12, 6, 20, Math.PI * 1.6), MATERIALS.walnut);
+  if (action === 'next') icon.rotation.z = -Math.PI / 2; // arrow points to the right
+  else icon.rotation.x = -Math.PI / 2; // circular arrow lies flat on the cap
+  icon.position.y = h + 0.002;
+  group.add(cap, icon);
+  const entity = place(world, frame, group, [x, 0, z]);
+  entity.addComponent(ControlButton, { action });
+  entity.addComponent(RayInteractable);
+  entity.addComponent(PokeInteractable);
+  return entity;
+}
+
+function buildLedge(world: World, frame: DioramaFrame, level: Level): Entity[] {
+  const { ledgeDepth } = CONTROLS;
+  const w = level.size[0] + DIORAMA.wallThickness * 2;
+  const ledge = new Mesh(new BoxGeometry(w, DIORAMA.slab, ledgeDepth), MATERIALS.walnut);
+  const z = DIORAMA.channelHalfDepth + DIORAMA.slab + ledgeDepth / 2;
+  return [place(world, frame, ledge, [level.size[0] / 2, -DIORAMA.slab / 2, z])];
+}
+
 export function buildDiorama(world: World, frame: DioramaFrame, level: Level): BuiltDiorama {
   const goals = level.goals.map((g) => buildGoal(world, frame, g));
+  const inset = CONTROLS.buttonInset;
+  const nextButton = buildButton(world, frame, level.size[0] - inset, ControlActions.Next);
   return {
     entities: [
       ...buildCase(world, frame, level),
+      ...buildWalls(world, frame, level),
       ...level.pegs.map((p) => buildPeg(world, frame, p)),
       ...goals.flatMap((g) => g.entities),
       buildChute(world, frame, level),
+      ...buildLedge(world, frame, level),
+      buildButton(world, frame, inset, ControlActions.Restart),
+      nextButton,
     ],
     goals: goals.map((g) => g.range),
     goalMeshes: goals.map((g) => g.mesh),
+    nextButton,
   };
 }

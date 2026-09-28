@@ -34,6 +34,9 @@ export default async function run({ page, frame }) {
   check('level loaded', hookReady);
   if (!hookReady) return results;
 
+  // Progress persists (resume at furthest level); these checks are for level 1.
+  await app.evaluate(() => window.__threadbound.dispatch({ type: 'load', index: 0 }));
+  await sleep(200);
   const origin = await canvasOrigin(app);
   const pegs = await app.evaluate(() => window.__threadbound.pegs());
   const peg = (id) => pegs.find((p) => p.id === id);
