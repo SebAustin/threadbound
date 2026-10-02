@@ -9,6 +9,10 @@ import fork from './world2/01-fork.json';
 import overAndUnder from './world2/02-over-and-under.json';
 import duet from './world2/03-duet.json';
 import mixedUp from './world2/04-mixed-up.json';
+import slide from './world3/01-slide.json';
+import lift from './world3/02-lift.json';
+import twoRails from './world3/03-two-rails.json';
+import crossfade from './world3/04-crossfade.json';
 
 const RAW_LEVELS: readonly unknown[] = [
   firstThread,
@@ -21,6 +25,10 @@ const RAW_LEVELS: readonly unknown[] = [
   overAndUnder,
   duet,
   mixedUp,
+  slide,
+  lift,
+  twoRails,
+  crossfade,
 ];
 
 /** All levels, validated at startup: a broken level file fails fast and loudly. */

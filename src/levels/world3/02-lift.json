@@ -1,0 +1,17 @@
+{
+  "id": "w3-02",
+  "name": "Lift",
+  "world": 3,
+  "size": [0.5, 0.4],
+  "chutes": [{ "x": 0.1, "y": 0.37, "color": "teal", "count": 3 }],
+  "maxThreads": 1,
+  "par": 1,
+  "pegs": [
+    { "id": "a", "x": 0.05, "y": 0.24 },
+    { "id": "b", "x": 0.3, "y": 0.26, "rail": { "axis": "y", "min": 0.08, "max": 0.3 } },
+    { "id": "c", "x": 0.42, "y": 0.32 }
+  ],
+  "goals": [{ "x": 0.445, "width": 0.09 }],
+  "solution": [{ "from": "a", "to": "b" }],
+  "slides": [{ "peg": "b", "to": 0.13 }]
+}

@@ -18,6 +18,8 @@ export interface ThreadboundTestHook {
   dispatch(command: PuzzleCommand): void;
   /** Canvas position of a control button ('restart' | 'next'), null if absent. */
   button(action: string): (ScreenPoint & { visible: boolean }) | null;
+  /** Canvas position of a rail peg's slider tab, null if the peg has no rail. */
+  handle(pegId: string): ScreenPoint | null;
   /** Current diorama frame: origin (bottom-left, world) and yaw. */
   frame(): { origin: number[]; yaw: number } | null;
   marbles(): Array<{ x: number; y: number; z: number; scored: boolean; color: string }>;
@@ -68,6 +70,10 @@ export function installTestHook(world: World): void {
       const object = world.scene.getObjectByName(`button-${action}`);
       if (!object) return null;
       return { ...toScreen(object.getWorldPosition(new Vector3())), visible: object.visible };
+    },
+    handle: (pegId) => {
+      const object = world.scene.getObjectByName(`handle-${pegId}`);
+      return object ? toScreen(object.getWorldPosition(new Vector3())) : null;
     },
     frame: () => {
       const anchor = puzzleStore.frame?.anchor;

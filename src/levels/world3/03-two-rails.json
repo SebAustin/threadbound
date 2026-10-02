@@ -1,0 +1,21 @@
+{
+  "id": "w3-03",
+  "name": "Two Rails",
+  "world": 3,
+  "size": [0.5, 0.4],
+  "chutes": [{ "x": 0.25, "y": 0.37, "color": "teal", "count": 3 }],
+  "maxThreads": 1,
+  "par": 1,
+  "pegs": [
+    { "id": "a", "x": 0.45, "y": 0.28, "rail": { "axis": "x", "min": 0.04, "max": 0.46 } },
+    { "id": "b", "x": 0.35, "y": 0.18, "rail": { "axis": "x", "min": 0.04, "max": 0.46 } },
+    { "id": "c", "x": 0.08, "y": 0.12 }
+  ],
+  "presetThreads": [{ "from": "a", "to": "b" }],
+  "goals": [{ "x": 0.445, "width": 0.09 }],
+  "solution": [{ "from": "a", "to": "b" }],
+  "slides": [
+    { "peg": "a", "to": 0.2 },
+    { "peg": "b", "to": 0.45 }
+  ]
+}

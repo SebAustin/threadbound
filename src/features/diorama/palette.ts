@@ -23,7 +23,7 @@ export const COLORS = {
   threadPreset: 0x9b7fd1,
   marble: 0x3fb7c6,
   /** World 2 sorting colors: amber vs azure stay distinct under common color-vision deficiencies. */
-  amber: 0xf2a33a,
+  amber: 0xff6f1a,
   azure: 0x3f7fd6,
   goal: 0x8fd694,
   goalDone: 0xfff1a8,
