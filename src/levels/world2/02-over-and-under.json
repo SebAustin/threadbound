@@ -1,0 +1,27 @@
+{
+  "id": "w2-02",
+  "name": "Over and Under",
+  "world": 2,
+  "size": [0.5, 0.4],
+  "chutes": [
+    { "x": 0.1, "y": 0.37, "color": "amber", "count": 2 },
+    { "x": 0.4, "y": 0.37, "color": "azure", "count": 2 }
+  ],
+  "maxThreads": 2,
+  "par": 2,
+  "pegs": [
+    { "id": "p", "x": 0.47, "y": 0.3 },
+    { "id": "q", "x": 0.2, "y": 0.25 },
+    { "id": "r", "x": 0.08, "y": 0.14 },
+    { "id": "s", "x": 0.42, "y": 0.07 },
+    { "id": "t", "x": 0.3, "y": 0.33 }
+  ],
+  "goals": [
+    { "x": 0.055, "width": 0.09, "color": "azure" },
+    { "x": 0.445, "width": 0.09, "color": "amber" }
+  ],
+  "solution": [
+    { "from": "p", "to": "q" },
+    { "from": "r", "to": "s" }
+  ]
+}

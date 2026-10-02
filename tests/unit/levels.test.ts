@@ -1,13 +1,15 @@
 import { describe, expect, test } from 'vitest';
 import { LEVELS } from '../../src/levels';
 
-describe('World 1 level data', () => {
-  test('all six levels parse', () => {
-    expect(LEVELS).toHaveLength(6);
+describe('level data', () => {
+  test('ids are unique', () => {
+    const ids = LEVELS.map((l) => l.id);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 
-  test('ids are unique and ordered', () => {
-    expect(LEVELS.map((l) => l.id)).toEqual(['w1-01', 'w1-02', 'w1-03', 'w1-04', 'w1-05', 'w1-06']);
+  test('levels are ordered by world, then by id', () => {
+    const ids = LEVELS.map((l) => l.id);
+    expect([...ids].sort()).toEqual(ids);
   });
 
   test('every level stays within the physics body budget', () => {

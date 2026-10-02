@@ -1,0 +1,29 @@
+{
+  "id": "w2-04",
+  "name": "Mixed Up",
+  "world": 2,
+  "size": [0.5, 0.4],
+  "chutes": [
+    { "x": 0.2, "y": 0.37, "color": "amber", "count": 2 },
+    { "x": 0.3, "y": 0.37, "color": "azure", "count": 2 }
+  ],
+  "maxThreads": 2,
+  "par": 2,
+  "pegs": [
+    { "id": "p", "x": 0.38, "y": 0.29 },
+    { "id": "q", "x": 0.06, "y": 0.2 },
+    { "id": "a", "x": 0.26, "y": 0.22 },
+    { "id": "b", "x": 0.06, "y": 0.13 },
+    { "id": "c", "x": 0.24, "y": 0.18 },
+    { "id": "d", "x": 0.44, "y": 0.1 }
+  ],
+  "presetThreads": [{ "from": "p", "to": "q" }],
+  "goals": [
+    { "x": 0.055, "width": 0.09, "color": "amber" },
+    { "x": 0.445, "width": 0.09, "color": "azure" }
+  ],
+  "solution": [
+    { "from": "a", "to": "b" },
+    { "from": "c", "to": "d" }
+  ]
+}

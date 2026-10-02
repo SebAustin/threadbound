@@ -1,4 +1,5 @@
-import { Vector3, type World } from '@iwsdk/core';
+import { Vector3, type Mesh, type World } from '@iwsdk/core';
+import { COLORS } from '../diorama/palette';
 import { LEVELS } from '../../levels';
 import { puzzleStore, type PuzzleCommand } from '../puzzle/puzzleStore';
 
@@ -19,7 +20,7 @@ export interface ThreadboundTestHook {
   button(action: string): (ScreenPoint & { visible: boolean }) | null;
   /** Current diorama frame: origin (bottom-left, world) and yaw. */
   frame(): { origin: number[]; yaw: number } | null;
-  marbles(): Array<{ x: number; y: number; z: number; scored: boolean }>;
+  marbles(): Array<{ x: number; y: number; z: number; scored: boolean; color: string }>;
   /** World-space position of a diorama-local point (for aiming emulated hands). */
   worldOf(x: number, y: number, z?: number): { x: number; y: number; z: number };
   room(): { visible: boolean; background: boolean; blendMode: string | null };
@@ -75,14 +76,16 @@ export function installTestHook(world: World): void {
     },
     marbles: () => {
       const frame = puzzleStore.frame;
-      const found: Array<{ x: number; y: number; z: number; scored: boolean }> = [];
+      const found: Array<{ x: number; y: number; z: number; scored: boolean; color: string }> = [];
       if (!frame) return found;
       const worldPos = new Vector3();
       const local = new Vector3();
       world.scene.traverse((o) => {
         if (o.name !== 'marble') return;
         frame.worldToLocal(o.getWorldPosition(worldPos), local);
-        found.push({ x: round3(local.x), y: round3(local.y), z: round3(local.z), scored: false });
+        const hex = ((o as Mesh).material as { color?: { getHex(): number } }).color?.getHex();
+        const color = hex === COLORS.amber ? 'amber' : hex === COLORS.azure ? 'azure' : 'teal';
+        found.push({ x: round3(local.x), y: round3(local.y), z: round3(local.z), scored: false, color });
       });
       return found;
     },

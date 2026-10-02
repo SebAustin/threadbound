@@ -3,7 +3,7 @@
 # Usage: zsh tests/e2e/levels.sh [levelIndex ...]   (default: all six)
 cd "$(dirname "$0")/../.."
 iw() { npx @iwsdk/cli "$@"; }
-levels=("$@"); (( ${#levels} )) || levels=(0 1 2 3 4 5)
+levels=("$@"); (( ${#levels} )) || levels=($(seq 0 $(( $(grep -c "^  [a-zA-Z]*,$" src/levels/index.ts) - 1 ))))
 fail=0
 for i in $levels; do
   iw browser reload --input-json '{}' >/dev/null 2>&1; sleep 7

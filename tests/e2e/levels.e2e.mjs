@@ -36,6 +36,13 @@ export default async function run({ page, frame }) {
       const hook = window.__threadbound;
       const level = hook.state().level;
       const same = (a, b) => (a.from === b.from && a.to === b.to) || (a.from === b.to && a.to === b.from);
+      // Rail slides first: threads attached to a moved peg are rebuilt at its new spot.
+      for (const slide of level.slides) {
+        const peg = level.pegs.find((p) => p.id === slide.peg);
+        const x = peg.rail.axis === 'x' ? slide.to : peg.x;
+        const y = peg.rail.axis === 'y' ? slide.to : peg.y;
+        hook.dispatch({ type: 'movePeg', pegId: slide.peg, x, y });
+      }
       for (const p of level.presetThreads) {
         if (!level.solution.some((s) => same(s, p))) hook.dispatch({ type: 'snip', from: p.from, to: p.to });
       }
