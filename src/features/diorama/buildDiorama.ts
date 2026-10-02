@@ -18,15 +18,18 @@ import {
   type Object3D,
   type World,
 } from '@iwsdk/core';
-import { CONTROLS, DIORAMA, GOAL, PEG } from '../../config/constants';
-import type { Level } from '../../lib/levelSchema';
-import { Chute, ControlActions, ControlButton, Peg } from '../puzzle/components';
+import { CONTROLS, DIORAMA, GOAL, PEG, SLIDER } from '../../config/constants';
+import type { MarbleColor } from '../../lib/goalMatch';
+import type { Chute as ChuteSpec, Level } from '../../lib/levelSchema';
+import { Chute, ControlActions, ControlButton, Peg, SliderHandle } from '../puzzle/components';
 import type { DioramaFrame } from './dioramaFrame';
-import { GEOMETRIES, MATERIALS } from './palette';
+import { GEOMETRIES, goalMaterial, MATERIALS, marbleMaterial } from './palette';
 
 export interface GoalRange {
   readonly minX: number;
   readonly maxX: number;
+  /** Only marbles of this color score here; undefined accepts every color. */
+  readonly color?: MarbleColor;
 }
 
 export interface BuiltDiorama {
@@ -124,20 +127,25 @@ function buildGoal(
   const right = staticBox(world, frame, [wall, GOAL.wallHeight, depth], [goal.x + half + wall / 2, wallY, 0], MATERIALS.walnut);
 
   // Glowing floor inset: purely visual, the base slab is the collider.
-  const floor = new Mesh(new BoxGeometry(goal.width, 0.002, depth), MATERIALS.goal);
+  const floor = new Mesh(new BoxGeometry(goal.width, 0.002, depth), goalMaterial(goal.color, false));
   floor.name = 'goal-floor';
   const floorEntity = place(world, frame, floor, [goal.x, 0.001, 0]);
   return {
     entities: [left, right, floorEntity],
-    range: { minX: goal.x - half, maxX: goal.x + half },
+    range: { minX: goal.x - half, maxX: goal.x + half, color: goal.color },
     mesh: floor,
   };
 }
 
-function buildChute(world: World, frame: DioramaFrame, level: Level): Entity {
+function buildChute(world: World, frame: DioramaFrame, chute: ChuteSpec, index: number): Entity {
   const funnel = new Mesh(new CylinderGeometry(0.03, 0.014, 0.035, 16, 1, true), MATERIALS.brass);
-  funnel.name = 'chute';
-  const entity = place(world, frame, funnel, [level.chute.x, level.chute.y + 0.02, 0]);
+  funnel.name = index === 0 ? 'chute' : `chute-${index}`;
+  // A rim in the marble color tells the player what this chute releases.
+  const rim = new Mesh(new TorusGeometry(0.03, 0.004, 6, 24), marbleMaterial(chute.color));
+  rim.rotation.x = Math.PI / 2;
+  rim.position.y = 0.0175;
+  funnel.add(rim);
+  const entity = place(world, frame, funnel, [chute.x, chute.y + 0.02, 0]);
   entity.addComponent(Chute);
   entity.addComponent(RayInteractable);
   return entity;
@@ -186,6 +194,38 @@ function buildLedge(world: World, frame: DioramaFrame, level: Level): Entity[] {
   return [place(world, frame, ledge, [level.size[0] / 2, -DIORAMA.slab / 2, z])];
 }
 
+/** Where a rail peg's handle sits relative to the peg: below x-rails, right of y-rails. */
+export function handleOffset(axis: 'x' | 'y'): [number, number] {
+  return axis === 'x' ? [0, -SLIDER.handleOffset] : [SLIDER.handleOffset, 0];
+}
+
+/** Visual rail (no collider) just in front of the back panel, clear of the marble channel. */
+function buildRail(world: World, frame: DioramaFrame, peg: Level['pegs'][number]): Entity[] {
+  const rail = peg.rail!;
+  const length = rail.max - rail.min;
+  const rod = new Mesh(new CylinderGeometry(SLIDER.railRadius, SLIDER.railRadius, length, 8), MATERIALS.brass);
+  rod.name = `rail-${peg.id}`;
+  const mid = (rail.min + rail.max) / 2;
+  const z = -DIORAMA.channelHalfDepth + SLIDER.railRadius;
+  const along = rail.axis === 'x'
+    ? new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), Math.PI / 2)
+    : IDENTITY;
+  const railEntity = place(world, frame, rod, rail.axis === 'x' ? [mid, peg.y, z] : [peg.x, mid, z], along);
+
+  const [ox, oy] = handleOffset(rail.axis);
+  const [w, h, d] = SLIDER.handleSize;
+  const tab = new Group();
+  tab.name = `handle-${peg.id}`;
+  const body = new Mesh(new BoxGeometry(w, h, d), MATERIALS.brass);
+  const grip = new Mesh(new BoxGeometry(w * 0.7, h * 0.25, d * 1.1), MATERIALS.walnut);
+  tab.add(body, grip);
+  const handleZ = DIORAMA.channelHalfDepth + PEG.radius;
+  const handle = place(world, frame, tab, [peg.x + ox, peg.y + oy, handleZ]);
+  handle.addComponent(SliderHandle, { pegId: peg.id });
+  handle.addComponent(RayInteractable);
+  return [railEntity, handle];
+}
+
 export function buildDiorama(world: World, frame: DioramaFrame, level: Level): BuiltDiorama {
   const goals = level.goals.map((g) => buildGoal(world, frame, g));
   const inset = CONTROLS.buttonInset;
@@ -195,8 +235,9 @@ export function buildDiorama(world: World, frame: DioramaFrame, level: Level): B
       ...buildCase(world, frame, level),
       ...buildWalls(world, frame, level),
       ...level.pegs.map((p) => buildPeg(world, frame, p)),
+      ...level.pegs.filter((p) => p.rail).flatMap((p) => buildRail(world, frame, p)),
       ...goals.flatMap((g) => g.entities),
-      buildChute(world, frame, level),
+      ...level.chutes.map((c, i) => buildChute(world, frame, c, i)),
       ...buildLedge(world, frame, level),
       buildButton(world, frame, inset, ControlActions.Restart),
       nextButton,

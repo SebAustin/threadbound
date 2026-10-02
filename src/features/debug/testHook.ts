@@ -57,7 +57,8 @@ export function installTestHook(world: World): void {
     pegs: () => puzzleStore.get().level?.pegs.map((p) => ({ id: p.id, ...project(p.x, p.y) })) ?? [],
     chute: () => {
       const level = puzzleStore.get().level;
-      return level ? project(level.chute.x, level.chute.y + 0.02) : null;
+      const chute = level?.chutes[0];
+      return chute ? project(chute.x, chute.y + 0.02) : null;
     },
     state: () => puzzleStore.get(),
     levels: () => LEVELS.map((l) => ({ id: l.id, name: l.name })),

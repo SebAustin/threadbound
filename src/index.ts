@@ -13,6 +13,7 @@ import { EnvironmentSystem } from './features/environment/EnvironmentSystem.js';
 import { MarbleSystem } from './features/marbles/MarbleSystem.js';
 import { PlacementSystem } from './features/placement/PlacementSystem.js';
 import { PuzzleSystem } from './features/puzzle/PuzzleSystem.js';
+import { SliderSystem } from './features/sliders/SliderSystem.js';
 import { ThreadSystem } from './features/threads/ThreadSystem.js';
 import { PanelSystem } from './panel.js';
 
@@ -25,6 +26,7 @@ World.create(
   world.registerSystem(ThreadSystem);
   world.registerSystem(MarbleSystem);
   world.registerSystem(ControlsSystem);
+  world.registerSystem(SliderSystem);
   world.registerSystem(PlacementSystem);
   world.registerSystem(PanelSystem);
   installTestHook(world);

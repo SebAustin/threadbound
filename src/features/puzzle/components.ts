@@ -20,10 +20,15 @@ export const Thread = createComponent('Thread', {
   pitch: { type: Types.Float32, default: 440 },
   /** Authored by the level; does not count toward the player's thread limit. */
   preset: { type: Types.Boolean, default: false },
+  /** Vibration energy from the last pluck (0..1), decays over time. */
+  energy: { type: Types.Float32, default: 0 },
 });
+
+export const MarbleColors = { Teal: 'teal', Amber: 'amber', Azure: 'azure' } as const;
 
 export const Marble = createComponent('Marble', {
   scored: { type: Types.Boolean, default: false },
+  color: { type: Types.Enum, enum: MarbleColors, default: MarbleColors.Teal },
 });
 
 /** Pinching the chute releases the level's marbles. */
@@ -34,4 +39,9 @@ export const ControlActions = { Restart: 'restart', Next: 'next' } as const;
 /** A poke/pinch button on the diorama's front ledge. */
 export const ControlButton = createComponent('ControlButton', {
   action: { type: Types.Enum, enum: ControlActions, default: ControlActions.Restart },
+});
+
+/** The pinchable tab of a rail peg; dragging it slides the peg along its rail. */
+export const SliderHandle = createComponent('SliderHandle', {
+  pegId: { type: Types.String, default: '' },
 });

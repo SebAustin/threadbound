@@ -9,10 +9,12 @@ import {
   type Entity,
 } from '@iwsdk/core';
 import { GOAL, MARBLE, THREAD_TUNING } from '../../config/constants';
+import { goalAccepts, type MarbleColor } from '../../lib/goalMatch';
+import { releaseOrder, type Release } from '../../lib/releaseOrder';
 import { segmentDistanceSq2d } from '../../lib/segment2d';
 import { spawnOffsetX } from '../../lib/spawnOffset';
 import { stringSynth } from '../audio/stringSynth';
-import { GEOMETRIES, MATERIALS } from '../diorama/palette';
+import { GEOMETRIES, goalMaterial, marbleMaterial } from '../diorama/palette';
 import { Chute, Marble, Thread } from '../puzzle/components';
 import { puzzleStore } from '../puzzle/puzzleStore';
 import { onPointer } from '../threads/pointerEvents';
@@ -38,7 +40,8 @@ export class MarbleSystem extends createSystem({
   marbles: { required: [Marble] },
   threads: { required: [Thread] },
 }) {
-  private pending = 0;
+  /** Marbles still to release this drop, in round-robin chute order. */
+  private queue: Release[] = [];
   private releaseTimer = 0;
   /** Thread entity indices each marble is currently touching, keyed by marble index. */
   private contacts = new Map<number, Set<number>>();
@@ -56,7 +59,7 @@ export class MarbleSystem extends createSystem({
       puzzleStore.onCommand((command) => {
         if (command.type === 'drop') this.drop();
         if (command.type === 'levelBuilt') {
-          this.pending = 0;
+          this.queue = [];
           this.melody = [];
         }
       }),
@@ -80,7 +83,7 @@ export class MarbleSystem extends createSystem({
     this.clearMarbles();
     this.resetGoalGlow();
     this.melody = [];
-    this.pending = level.marbles;
+    this.queue = releaseOrder(level.chutes);
     this.releaseTimer = 0;
     puzzleStore.update({ status: 'dropping', scored: 0 });
   }
@@ -89,20 +92,19 @@ export class MarbleSystem extends createSystem({
     for (const marble of [...this.queries.marbles.entities]) {
       marble.dispose({ disposeResources: false });
     }
-    this.pending = 0;
+    this.queue = [];
   }
 
-  private spawnMarble(): void {
-    const level = puzzleStore.get().level;
+  private spawnMarble(release: Release): void {
+    const chute = puzzleStore.get().level?.chutes[release.chute];
     const frame = puzzleStore.frame;
-    if (!level || !frame) return;
-    const mesh = new Mesh(GEOMETRIES.marble, MATERIALS.marble);
+    if (!chute || !frame) return;
+    const mesh = new Mesh(GEOMETRIES.marble, marbleMaterial(chute.color));
     mesh.name = 'marble';
-    const index = level.marbles - this.pending;
-    const x = level.chute.x + spawnOffsetX(index, MARBLE.spawnJitter);
-    frame.localToWorld(x, level.chute.y, 0, mesh.position);
+    const x = chute.x + spawnOffsetX(release.nth, MARBLE.spawnJitter);
+    frame.localToWorld(x, chute.y, 0, mesh.position);
     const entity = this.world.createTransformEntity(mesh);
-    entity.addComponent(Marble, { scored: false });
+    entity.addComponent(Marble, { scored: false, color: chute.color });
     entity.addComponent(PhysicsShape, {
       shape: PhysicsShapeType.Sphere,
       dimensions: [MARBLE.radius, 0, 0],
@@ -119,11 +121,11 @@ export class MarbleSystem extends createSystem({
   }
 
   update(delta: number): void {
-    if (this.pending > 0) {
+    if (this.queue.length > 0) {
       this.releaseTimer -= delta;
       if (this.releaseTimer <= 0) {
-        this.spawnMarble();
-        this.pending -= 1;
+        this.spawnMarble(this.queue[0]);
+        this.queue = this.queue.slice(1);
         this.releaseTimer = MARBLE.releaseInterval;
       }
     }
@@ -162,7 +164,9 @@ export class MarbleSystem extends createSystem({
       if (inContact && !wasInContact) {
         touching.add(thread.index);
         const pitch = thread.getValue(Thread, 'pitch') ?? 440;
-        stringSynth.pluck(pitch, this.speedOf(marble) / FULL_VOLUME_SPEED);
+        const strength = this.speedOf(marble) / FULL_VOLUME_SPEED;
+        stringSynth.pluck(pitch, strength);
+        thread.setValue(Thread, 'energy', Math.min(1, Math.max(0.3, strength)));
         this.melody.push(pitch);
       } else if (!inContact && wasInContact) {
         touching.delete(thread.index);
@@ -179,11 +183,14 @@ export class MarbleSystem extends createSystem({
     if (marble.getValue(Marble, 'scored')) return;
     const goals = puzzleStore.diorama?.goals ?? [];
     // Settled inside the cup: allows a second stacked layer, ignores fly-overs.
-    const index = goals.findIndex((g) => x > g.minX && x < g.maxX && y < CUP_TOP);
+    const color = marble.getValue(Marble, 'color') as MarbleColor;
+    const index = goals.findIndex(
+      (g) => x > g.minX && x < g.maxX && y < CUP_TOP && goalAccepts(g.color, color),
+    );
     if (index < 0 || this.speedOf(marble) > SETTLED_SPEED) return;
     marble.setValue(Marble, 'scored', true);
     const goalMesh = puzzleStore.diorama?.goalMeshes[index];
-    if (goalMesh) goalMesh.material = MATERIALS.goalDone;
+    if (goalMesh) goalMesh.material = goalMaterial(goals[index].color, true);
 
     const state = puzzleStore.get();
     const scored = state.scored + 1;
@@ -202,6 +209,9 @@ export class MarbleSystem extends createSystem({
   }
 
   private resetGoalGlow(): void {
-    for (const mesh of puzzleStore.diorama?.goalMeshes ?? []) mesh.material = MATERIALS.goal;
+    const diorama = puzzleStore.diorama;
+    diorama?.goalMeshes.forEach((mesh, i) => {
+      mesh.material = goalMaterial(diorama.goals[i]?.color, false);
+    });
   }
 }

@@ -80,7 +80,8 @@ export class PuzzleSystem extends createSystem({
     puzzleStore.frame = frame;
     puzzleStore.diorama = buildDiorama(this.world, frame, level);
     puzzleStore.diorama.nextButton.object3D!.visible = false;
-    puzzleStore.update({ level, levelIndex: index, threads: [], status: 'idle', scored: 0, stars: 0 });
+    const pegPositions = Object.fromEntries(level.pegs.map((p) => [p.id, { x: p.x, y: p.y }]));
+    puzzleStore.update({ level, levelIndex: index, threads: [], status: 'idle', scored: 0, stars: 0, pegPositions });
     puzzleStore.dispatch({ type: 'levelBuilt' });
   }
 

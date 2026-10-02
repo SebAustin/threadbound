@@ -14,7 +14,6 @@ import {
   type Object3D,
 } from '@iwsdk/core';
 import { PEG, THREAD_TUNING } from '../../config/constants';
-import { intersectRayWithPlaneZ } from '../../lib/rayPlane';
 import { segmentTransform } from '../../lib/threadGeometry';
 import { checkNewThread, findSnapPeg, type PegPoint } from '../../lib/threadRules';
 import { pitchForLength, restitutionForLength } from '../../lib/threadTuning';
@@ -22,6 +21,7 @@ import { stringSynth } from '../audio/stringSynth';
 import { GEOMETRIES, MATERIALS } from '../diorama/palette';
 import { Peg, Thread } from '../puzzle/components';
 import { puzzleStore, type PuzzleCommand } from '../puzzle/puzzleStore';
+import { pointerToDiorama } from './pointerToDiorama';
 import {
   capturePointer,
   onPointer,
@@ -53,7 +53,7 @@ export class ThreadSystem extends createSystem({
 }) {
   private drag: Drag | null = null;
   private preview!: Mesh;
-  private tmpOrigin = new Vector3();
+  private dragPoint = { x: 0, y: 0 };
   private tmpDir = new Vector3();
   private tmpQuat = new Quaternion();
 
@@ -75,9 +75,13 @@ export class ThreadSystem extends createSystem({
     for (const thread of this.queries.threads.entities) this.attachThread(thread);
   }
 
-  /** Snap targets come from level data, not ECS bookkeeping (no lifecycle races). */
+  /**
+   * Snap targets come from level data plus live rail positions, not ECS
+   * bookkeeping (no lifecycle races).
+   */
   private get pegPoints(): readonly PegPoint[] {
-    return puzzleStore.get().level?.pegs ?? [];
+    const { level, pegPositions } = puzzleStore.get();
+    return (level?.pegs ?? []).map((p) => ({ id: p.id, ...(pegPositions[p.id] ?? p) }));
   }
 
   /**
@@ -124,26 +128,9 @@ export class ThreadSystem extends createSystem({
     const drag = this.drag;
     const frame = puzzleStore.frame;
     if (!drag || !frame || e.pointerId !== drag.pointerId) return;
-    // Ray from the pointer origin through its live capture-plane hit. For the
-    // desktop mouse the origin is the camera; for hands/controllers it's the ray pose.
-    frame.worldToLocal(e.pointerPosition, this.tmpOrigin);
-    this.tmpDir.subVectors(e.point, e.pointerPosition);
-    frame.directionToLocal(this.tmpDir, this.tmpDir);
-    const hit = intersectRayWithPlaneZ(
-      [this.tmpOrigin.x, this.tmpOrigin.y, this.tmpOrigin.z],
-      [this.tmpDir.x, this.tmpDir.y, this.tmpDir.z],
-      0,
-    );
-    if (hit) {
-      drag.endX = hit[0];
-      drag.endY = hit[1];
-      return;
-    }
-    // Ray nearly parallel to (or level with) the diorama, e.g. a hand held beside
-    // the glass: fall back to the capture-plane hit, which sits just in front.
-    frame.worldToLocal(e.point, this.tmpOrigin);
-    drag.endX = this.tmpOrigin.x;
-    drag.endY = this.tmpOrigin.y;
+    pointerToDiorama(e, frame, this.dragPoint);
+    drag.endX = this.dragPoint.x;
+    drag.endY = this.dragPoint.y;
   }
 
   private endDrag(e: SpatialPointerEvent): void {
@@ -197,6 +184,61 @@ export class ThreadSystem extends createSystem({
         return (a === command.from && b === command.to) || (a === command.to && b === command.from);
       });
       if (match) this.snip(match);
+    } else if (command.type === 'pegPreview') {
+      this.previewPeg(command.pegId, command.x, command.y);
+    } else if (command.type === 'pegMoved') {
+      this.rebuildThreadsAt(command.pegId);
+    }
+  }
+
+  /** Positions a thread's group and stretches its child mesh between two local points. */
+  private layoutThread(group: Object3D, ax: number, ay: number, bx: number, by: number): void {
+    const frame = puzzleStore.frame;
+    if (!frame) return;
+    this.tmpDir.set(bx - ax, by - ay, 0);
+    const len = this.tmpDir.length();
+    if (len < 1e-4) return;
+    frame.localToWorld((ax + bx) / 2, (ay + by) / 2, 0, group.position);
+    this.tmpQuat.setFromUnitVectors(UP, this.tmpDir.divideScalar(len));
+    frame.worldQuaternion(this.tmpQuat, group.quaternion);
+    group.children[0]?.scale.set(THREAD_TUNING.radius, len, THREAD_TUNING.radius);
+  }
+
+  private threadsTouching(pegId: string): Entity[] {
+    return [...this.queries.threads.entities].filter(
+      (t) => t.getValue(Thread, 'fromPeg') === pegId || t.getValue(Thread, 'toPeg') === pegId,
+    );
+  }
+
+  /** Live drag preview: re-lay out attached threads (colliders follow on release). */
+  private previewPeg(pegId: string, x: number, y: number): void {
+    for (const thread of this.threadsTouching(pegId)) {
+      const fromIsPeg = thread.getValue(Thread, 'fromPeg') === pegId;
+      const ax = fromIsPeg ? x : thread.getValue(Thread, 'ax') ?? 0;
+      const ay = fromIsPeg ? y : thread.getValue(Thread, 'ay') ?? 0;
+      const bx = fromIsPeg ? thread.getValue(Thread, 'bx') ?? 0 : x;
+      const by = fromIsPeg ? thread.getValue(Thread, 'by') ?? 0 : y;
+      if (thread.object3D) this.layoutThread(thread.object3D, ax, ay, bx, by);
+    }
+  }
+
+  /** A rail peg settled: rebuild its threads so colliders, bounce and pitch match. */
+  private rebuildThreadsAt(pegId: string): void {
+    const touching = this.threadsTouching(pegId).map((t) => ({
+      entity: t,
+      from: t.getValue(Thread, 'fromPeg') ?? '',
+      to: t.getValue(Thread, 'toPeg') ?? '',
+      preset: t.getValue(Thread, 'preset') ?? false,
+    }));
+    if (touching.length === 0) return;
+    const gone = (l: { from: string; to: string }) => touching.some((t) => t.from === l.from && t.to === l.to);
+    puzzleStore.update({ threads: puzzleStore.get().threads.filter((l) => !gone(l)) });
+    for (const t of touching) t.entity.dispose({ disposeResources: false });
+    const points = this.pegPoints;
+    for (const t of touching) {
+      const from = points.find((p) => p.id === t.from);
+      const to = points.find((p) => p.id === t.to);
+      if (from && to) this.createThread(from, to, t.preset);
     }
   }
 
@@ -208,11 +250,8 @@ export class ThreadSystem extends createSystem({
     const group = new Group();
     group.name = `thread-${from.id}-${to.id}`;
     const mesh = new Mesh(GEOMETRIES.unitCylinder, preset ? MATERIALS.threadPreset : MATERIALS.thread);
-    mesh.scale.set(THREAD_TUNING.radius, seg.length, THREAD_TUNING.radius);
     group.add(mesh);
-    frame.localToWorld(seg.midpoint[0], seg.midpoint[1], 0, group.position);
-    this.tmpQuat.set(...seg.quaternion);
-    frame.worldQuaternion(this.tmpQuat, group.quaternion);
+    this.layoutThread(group, from.x, from.y, to.x, to.y);
 
     const pitch = pitchForLength(seg.length);
     const entity = this.world.createTransformEntity(group);
@@ -260,8 +299,29 @@ export class ThreadSystem extends createSystem({
     entity.dispose({ disposeResources: false });
   }
 
+  update(delta: number, time: number): void {
+    this.vibrate(delta, time);
+    this.updatePreview();
+  }
+
+  /** Plucked strings shimmer: thickness oscillates while energy decays. Allocation-free. */
+  private vibrate(delta: number, time: number): void {
+    const { vibrationDecay, vibrationRate, vibrationGain, radius } = THREAD_TUNING;
+    for (const thread of this.queries.threads.entities) {
+      const energy = thread.getValue(Thread, 'energy') ?? 0;
+      if (energy <= 0) continue;
+      const next = Math.max(0, energy - vibrationDecay * delta);
+      thread.setValue(Thread, 'energy', next);
+      const mesh = thread.object3D?.children[0];
+      if (!mesh) continue;
+      const r = radius * (1 + vibrationGain * next * Math.abs(Math.sin(time * vibrationRate)));
+      mesh.scale.x = r;
+      mesh.scale.z = r;
+    }
+  }
+
   /** Live preview while dragging. Allocation-free: runs every frame of a drag. */
-  update(): void {
+  private updatePreview(): void {
     const drag = this.drag;
     const frame = puzzleStore.frame;
     if (!drag || !frame) return;

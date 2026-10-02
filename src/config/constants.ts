@@ -21,6 +21,14 @@ export const PEG = {
   snapRadius: 0.035,
 } as const;
 
+/** Rail pegs (World 3): brass rail behind the channel, tab to pinch-and-slide. */
+export const SLIDER = {
+  railRadius: 0.003,
+  /** Distance from the peg to its handle, perpendicular to the rail. */
+  handleOffset: 0.03,
+  handleSize: [0.024, 0.016, 0.01] as const,
+} as const;
+
 export const MARBLE = {
   radius: 0.013,
   restitution: 0.4,
@@ -44,6 +52,10 @@ export const THREAD_TUNING = {
   maxRestitution: 0.95,
   minRestitution: 0.3,
   friction: 0.05,
+  /** Visible string vibration after a pluck: decay per second, wobble speed, thickness gain. */
+  vibrationDecay: 3.5,
+  vibrationRate: 55,
+  vibrationGain: 0.9,
 } as const;
 
 /** Front ledge with pokeable Restart / Next buttons (no floating menus). */

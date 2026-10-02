@@ -16,6 +16,8 @@ export interface PuzzleState {
   /** Stars earned by the most recent completion of this level, 0 if unsolved. */
   readonly stars: number;
   readonly progress: Progress;
+  /** Live peg positions (diorama-local); rail pegs move away from their level data. */
+  readonly pegPositions: Readonly<Record<string, { readonly x: number; readonly y: number }>>;
 }
 
 /** Everything that changes the puzzle goes through here: buttons, placement, tests. */
@@ -29,6 +31,12 @@ export type PuzzleCommand =
   | { readonly type: 'place'; readonly origin: Vec3; readonly yaw: number }
   /** Back to the virtual table (leaving mixed reality). */
   | { readonly type: 'resetPlacement' }
+  /** Final slide of a rail peg (player release, or a solution replay). Clamped to the rail. */
+  | { readonly type: 'movePeg'; readonly pegId: string; readonly x: number; readonly y: number }
+  /** Live preview while a rail peg is dragged: visuals only, physics catches up on release. */
+  | { readonly type: 'pegPreview'; readonly pegId: string; readonly x: number; readonly y: number }
+  /** Emitted after a rail peg's position (and collider) changed. */
+  | { readonly type: 'pegMoved'; readonly pegId: string }
   /** Emitted after a level's diorama is (re)built. */
   | { readonly type: 'levelBuilt' };
 
@@ -43,6 +51,7 @@ const INITIAL: PuzzleState = {
   scored: 0,
   stars: 0,
   progress: INITIAL_PROGRESS,
+  pegPositions: {},
 };
 
 /**
