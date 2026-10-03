@@ -7,6 +7,7 @@ import {
   PhysicsShape,
   PhysicsShapeType,
   PhysicsState,
+  Pressed,
   Quaternion,
   RayInteractable,
   Vector3,
@@ -61,8 +62,12 @@ export class ThreadSystem extends createSystem({
   pegs: { required: [Peg] },
   hoveredPegs: { required: [Peg, Hovered] },
   threads: { required: [Thread] },
+  /** A thread pinched, poked or clicked is snipped on release (works for every input kind). */
+  pressedThreads: { required: [Thread, Pressed] },
 }) {
   private drag: Drag | null = null;
+  /** Threads released after a press this frame; snipped at the start of the next update. */
+  private pendingSnips: Entity[] = [];
   private preview!: Mesh;
   private dragPoint = { x: 0, y: 0 };
   private tmpDir = new Vector3();
@@ -78,12 +83,13 @@ export class ThreadSystem extends createSystem({
       this.queries.pegs.subscribe('qualify', (e) => this.attachPeg(e)),
       this.queries.hoveredPegs.subscribe('qualify', (e) => this.setKnob(e, true)),
       this.queries.hoveredPegs.subscribe('disqualify', (e) => this.setKnob(e, false)),
-      this.queries.threads.subscribe('qualify', (e) => this.attachThread(e)),
+      // Snip after release, next frame: disposing a thread while a hand still holds it
+      // leaves that pointer captured on a dead object and swallows its next pinch.
+      this.queries.pressedThreads.subscribe('disqualify', (e) => this.pendingSnips.push(e)),
       puzzleStore.onCommand((command) => this.handleCommand(command)),
     );
     // 'qualify' only fires for future matches; pegs built earlier need wiring now.
     for (const peg of this.queries.pegs.entities) this.attachPeg(peg);
-    for (const thread of this.queries.threads.entities) this.attachThread(thread);
   }
 
   /**
@@ -301,15 +307,6 @@ export class ThreadSystem extends createSystem({
     if (pluck) stringSynth.pluck(pitch, CREATE_VOLUME);
   }
 
-  private attachThread(entity: Entity): void {
-    const object = entity.object3D;
-    if (!object) return;
-    onPointer(object, 'click', (e) => {
-      e.stopPropagation();
-      this.snip(entity);
-    });
-  }
-
   private snip(entity: Entity): void {
     const from = entity.getValue(Thread, 'fromPeg');
     const to = entity.getValue(Thread, 'toPeg');
@@ -321,7 +318,16 @@ export class ThreadSystem extends createSystem({
   }
 
   update(): void {
+    this.snipReleased();
     this.updatePreview();
+  }
+
+  private snipReleased(): void {
+    if (this.pendingSnips.length === 0) return;
+    for (const entity of this.pendingSnips) {
+      if (entity.active && entity.hasComponent(Thread)) this.snip(entity);
+    }
+    this.pendingSnips.length = 0;
   }
 
   /** Live preview while dragging. Allocation-free: runs every frame of a drag. */

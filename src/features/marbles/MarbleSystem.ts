@@ -6,6 +6,7 @@ import {
   PhysicsShape,
   PhysicsShapeType,
   PhysicsState,
+  Pressed,
   Vector3,
   type Entity,
 } from '@iwsdk/core';
@@ -21,7 +22,6 @@ import { stringSynth } from '../audio/stringSynth';
 import { GEOMETRIES, goalMaterial, marbleMaterial } from '../diorama/palette';
 import { Chute, Marble, Thread } from '../puzzle/components';
 import { puzzleStore } from '../puzzle/puzzleStore';
-import { onPointer } from '../input/pointerEvents';
 
 /** Contact band around a thread that counts as a "pluck". */
 const CONTACT_DIST = MARBLE.radius + THREAD_TUNING.radius + 0.004;
@@ -50,7 +50,8 @@ const NUDGE_SPEED = 0.12;
  * the diorama plane each frame (allocation-free).
  */
 export class MarbleSystem extends createSystem({
-  chutes: { required: [Chute] },
+  /** Pinch (ray/gaze), poke or click a chute: IWSDK tags it Pressed for every input kind. */
+  pressedChutes: { required: [Chute, Pressed] },
   marbles: { required: [Marble] },
   threads: { required: [Thread] },
 }) {
@@ -80,7 +81,7 @@ export class MarbleSystem extends createSystem({
 
   init(): void {
     this.cleanupFuncs.push(
-      this.queries.chutes.subscribe('qualify', (chute) => this.attachChute(chute)),
+      this.queries.pressedChutes.subscribe('qualify', () => puzzleStore.dispatch({ type: 'drop' })),
       this.queries.marbles.subscribe('disqualify', (m) => {
         this.contacts.delete(m.index);
         this.rest.delete(m.index);
@@ -96,15 +97,6 @@ export class MarbleSystem extends createSystem({
         }
       }),
     );
-    // 'qualify' only fires for future matches; a chute built earlier needs wiring now.
-    for (const chute of this.queries.chutes.entities) this.attachChute(chute);
-  }
-
-  private attachChute(chute: Entity): void {
-    const object = chute.object3D;
-    if (!object) return;
-    // Listen on the chute mesh itself; IWSDK only stops down/up, not click.
-    onPointer(object, 'click', () => puzzleStore.dispatch({ type: 'drop' }));
   }
 
   /** Pinching the chute (re)starts a drop with the level's marbles. */

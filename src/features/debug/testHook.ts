@@ -1,4 +1,5 @@
 import { Object3D, Vector3, type UIKitMLAsset, type World } from '@iwsdk/core';
+import { AIM_PLANE_Z } from '../../config/constants';
 import { LEVELS } from '../../levels';
 import { handleOffset } from '../../lib/rail';
 import { solutionSteps } from '../../lib/solutionSteps';
@@ -19,6 +20,8 @@ export interface ThreadboundTestHook {
   dispatch(command: PuzzleCommand): void;
   /** Canvas position of a control button ('restart' | 'next'), null if absent. */
   button(action: string): (ScreenPoint & { visible: boolean }) | null;
+  /** World position of a ledge button ('restart' | 'next' | 'settings'), for aiming emulated hands. */
+  buttonWorld(action: string): { x: number; y: number; z: number } | null;
   /** Canvas position of a rail peg's slider tab, null if the peg has no rail. */
   handle(pegId: string): ScreenPoint | null;
   /** Where that tab would be on screen with its peg at `along` on the rail. */
@@ -38,6 +41,9 @@ export interface ThreadboundTestHook {
   /** Which plaque face is showing, and where a plaque element is on screen (for real clicks). */
   plaque(): { face: string; resetLabel: string } | null;
   plaqueElement(id: string): ScreenPoint | null;
+  plaqueElementWorld(id: string): { x: number; y: number; z: number } | null;
+  /** Whether the active XR session exposes a gaze input source (eye-tracked devices). */
+  gazeAvailable(): boolean;
   /** Ghost-hand tutorial: current step and whether it is drawn. */
   ghost(): { step: string; visible: boolean } | null;
 }
@@ -71,7 +77,8 @@ export function installTestHook(world: World): void {
 
   window.__threadbound = {
     project,
-    pegs: () => puzzleStore.get().level?.pegs.map((p) => ({ id: p.id, ...project(p.x, p.y) })) ?? [],
+    // Project the knob faces: the surface players aim at (see AIM_PLANE_Z).
+    pegs: () => puzzleStore.get().level?.pegs.map((p) => ({ id: p.id, ...project(p.x, p.y, AIM_PLANE_Z) })) ?? [],
     chute: () => {
       const level = puzzleStore.get().level;
       const chute = level?.chutes[0];
@@ -84,6 +91,12 @@ export function installTestHook(world: World): void {
       const object = world.scene.getObjectByName(`button-${action}`);
       if (!object) return null;
       return { ...toScreen(object.getWorldPosition(new Vector3())), visible: object.visible };
+    },
+    buttonWorld: (action) => {
+      const object = world.scene.getObjectByName(`button-${action}`);
+      if (!object) return null;
+      const v = object.getWorldPosition(new Vector3());
+      return { x: v.x, y: v.y, z: v.z };
     },
     handle: (pegId) => {
       const object = world.scene.getObjectByName(`handle-${pegId}`);
@@ -149,6 +162,13 @@ export function installTestHook(world: World): void {
       // UIKit elements are scene objects; their world position is the element's centre.
       if (!(element instanceof Object3D)) return null;
       return toScreen(element.getWorldPosition(new Vector3()));
+    },
+    gazeAvailable: () => [...(world.session?.inputSources ?? [])].some((s) => s.targetRayMode === 'gaze'),
+    plaqueElementWorld: (id) => {
+      const element = world.getSceneObject<UIKitMLAsset>('hud-plaque')?.getElementById(id) as unknown;
+      if (!(element instanceof Object3D)) return null;
+      const v = element.getWorldPosition(new Vector3());
+      return { x: v.x, y: v.y, z: v.z };
     },
     ghost: () => {
       const root = world.scene.getObjectByName('onboarding-ghost');

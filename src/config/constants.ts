@@ -21,6 +21,13 @@ export const PEG = {
   snapRadius: 0.035,
 } as const;
 
+/**
+ * Depth (diorama-local z) of the peg knobs and rail tabs: the surface players
+ * actually aim at. Drag rays are intersected here, not with the back panel, or
+ * a hand pointing up from below would land centimetres past the knob.
+ */
+export const AIM_PLANE_Z = DIORAMA.channelHalfDepth + PEG.radius;
+
 /** Rail pegs (World 3): brass rail behind the channel, tab to pinch-and-slide. */
 export const SLIDER = {
   railRadius: 0.003,

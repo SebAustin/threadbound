@@ -3,6 +3,7 @@ import { settingsModel } from '../../lib/hud';
 import { DISARMED, RESET_WINDOW_SECONDS, resetLabel, resetPoke, type ResetGuard } from '../../lib/resetGuard';
 import type { DioramaOffset } from '../../lib/placement';
 import { stepOffset, type Settings } from '../../lib/settings';
+import { onTap } from '../input/onTap';
 import { puzzleStore } from '../puzzle/puzzleStore';
 
 /** The plaque's settings face: each control dispatches a settings change on the bus. */
@@ -17,40 +18,32 @@ export class SettingsFace {
 
   /** Wires the controls; returns the teardown. */
   bind(): () => void {
-    const slow = this.panel.getElementById('set-slow');
-    const toggleSlow = () => {
-      const { slowMotion } = puzzleStore.get().settings;
-      puzzleStore.dispatch({ type: 'settings', patch: { slowMotion: !slowMotion } });
-    };
-    const reset = this.panel.getElementById('set-reset');
-    const pokeReset = () => this.pokeReset();
-    slow?.addEventListener('click', toggleSlow);
-    reset?.addEventListener('click', pokeReset);
-    const unbindMoves = (
-      [
-        ['set-up', 'up', 1],
-        ['set-down', 'up', -1],
-        ['set-near', 'near', 1],
-        ['set-far', 'near', -1],
-      ] as const
-    ).map(([id, axis, direction]) => this.bindMove(id, axis, direction));
+    const element = (id: string) => this.panel.getElementById(id);
+    const unbind = [
+      onTap(element('set-slow'), () => {
+        const { slowMotion } = puzzleStore.get().settings;
+        puzzleStore.dispatch({ type: 'settings', patch: { slowMotion: !slowMotion } });
+      }),
+      onTap(element('set-reset'), () => this.pokeReset()),
+      ...(
+        [
+          ['set-up', 'up', 1],
+          ['set-down', 'up', -1],
+          ['set-near', 'near', 1],
+          ['set-far', 'near', -1],
+        ] as const
+      ).map(([id, axis, direction]) => onTap(element(id), () => this.move(axis, direction))),
+    ];
     return () => {
-      slow?.removeEventListener('click', toggleSlow);
-      reset?.removeEventListener('click', pokeReset);
-      for (const unbind of unbindMoves) unbind();
+      for (const off of unbind) off();
       clearTimeout(this.disarmTimer);
     };
   }
 
   /** One-handed diorama adjustment: each poke is one clamped step. */
-  private bindMove(id: string, axis: keyof DioramaOffset, direction: 1 | -1): () => void {
-    const button = this.panel.getElementById(id);
-    const move = () => {
-      const offset = stepOffset(puzzleStore.get().settings.offset, axis, direction);
-      puzzleStore.dispatch({ type: 'settings', patch: { offset } });
-    };
-    button?.addEventListener('click', move);
-    return () => button?.removeEventListener('click', move);
+  private move(axis: keyof DioramaOffset, direction: 1 | -1): void {
+    const offset = stepOffset(puzzleStore.get().settings.offset, axis, direction);
+    puzzleStore.dispatch({ type: 'settings', patch: { offset } });
   }
 
   /** First poke arms, a second within the window wipes progress (and brings the tutorial back). */

@@ -17,7 +17,7 @@ export interface SpatialPointerEvent {
   stopPropagation(): void;
 }
 
-type PointerType = 'pointerdown' | 'pointermove' | 'pointerup' | 'click';
+type PointerType = 'pointerdown' | 'pointermove' | 'pointerup';
 
 interface PointerTarget {
   addEventListener(type: PointerType, listener: (e: SpatialPointerEvent) => void): void;
