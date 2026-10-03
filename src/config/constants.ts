@@ -27,6 +27,13 @@ export const SLIDER = {
   /** Distance from the peg to its handle, perpendicular to the rail. */
   handleOffset: 0.03,
   handleSize: [0.024, 0.016, 0.01] as const,
+  /** Walnut grip stripe on the tab, as a fraction of the tab's size (proud of its face). */
+  gripScale: [0.7, 0.25, 1.1] as const,
+  /** Rail segments; the rod is thin enough that 8 reads as round. */
+  railSegments: 8,
+  /** Soft G4 "click" when a slid peg settles into place. */
+  settleHz: 392.0,
+  settleVolume: 0.35,
 } as const;
 
 export const MARBLE = {
@@ -56,6 +63,13 @@ export const THREAD_TUNING = {
   vibrationDecay: 3.5,
   vibrationRate: 55,
   vibrationGain: 0.9,
+} as const;
+
+/** Shape glyphs paired with sorting colors (colorblind-safe). */
+export const GLYPH = {
+  radius: 0.011,
+  /** Gap in front of the chute / ledge face so the glyph never z-fights. */
+  standoff: 0.002,
 } as const;
 
 /** Front ledge with pokeable Restart / Next buttons (no floating menus). */

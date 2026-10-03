@@ -1,4 +1,5 @@
 import { createComponent, Types } from '@iwsdk/core';
+import { MARBLE_COLORS, type MarbleColor } from '../../lib/marbleColors';
 
 // System-free declarations: the editor imports this module via src/components.ts.
 
@@ -24,11 +25,14 @@ export const Thread = createComponent('Thread', {
   energy: { type: Types.Float32, default: 0 },
 });
 
-export const MarbleColors = { Teal: 'teal', Amber: 'amber', Azure: 'azure' } as const;
+/** ECS enum view of MARBLE_COLORS (value → value). */
+export const MarbleColors = Object.fromEntries(MARBLE_COLORS.map((c) => [c, c])) as {
+  readonly [K in MarbleColor]: K;
+};
 
 export const Marble = createComponent('Marble', {
   scored: { type: Types.Boolean, default: false },
-  color: { type: Types.Enum, enum: MarbleColors, default: MarbleColors.Teal },
+  color: { type: Types.Enum, enum: MarbleColors, default: MarbleColors.teal },
 });
 
 /** Pinching the chute releases the level's marbles. */

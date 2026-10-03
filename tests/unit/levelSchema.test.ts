@@ -6,8 +6,7 @@ const valid = {
   name: 'First Thread',
   world: 1,
   size: [0.5, 0.4],
-  chute: { x: 0.12, y: 0.36 },
-  marbles: 2,
+  chutes: [{ x: 0.12, y: 0.36, count: 2 }],
   maxThreads: 2,
   par: 1,
   pegs: [

@@ -1,19 +1,18 @@
 import {
   createSystem,
   PhysicsSystem,
+  Vector3,
   type Entity,
   type Mesh,
   type Object3D,
 } from '@iwsdk/core';
-import { clampToRail, type Rail } from '../../lib/rail';
+import { SLIDER } from '../../config/constants';
+import { clampToRailInto, handleOffset, type Rail } from '../../lib/rail';
 import { stringSynth } from '../audio/stringSynth';
-import { handleOffset } from '../diorama/buildDiorama';
+import { capturePointer, onPointer, releasePointer, type SpatialPointerEvent } from '../input/pointerEvents';
+import { pointerToDiorama } from '../input/pointerToDiorama';
 import { Peg, SliderHandle } from '../puzzle/components';
 import { puzzleStore, type PuzzleCommand } from '../puzzle/puzzleStore';
-import { capturePointer, onPointer, releasePointer, type SpatialPointerEvent } from '../threads/pointerEvents';
-import { pointerToDiorama } from '../threads/pointerToDiorama';
-
-const SETTLE_HZ = 392.0;
 
 interface SlideDrag {
   readonly pegId: string;
@@ -34,7 +33,10 @@ export class SliderSystem extends createSystem({
   pegs: { required: [Peg] },
 }) {
   private drag: SlideDrag | null = null;
+  /** Scratch values reused on every pointer move (the drag path must not allocate). */
   private point = { x: 0, y: 0 };
+  private clamped = { x: 0, y: 0 };
+  private handleLocal = new Vector3();
 
   init(): void {
     this.cleanupFuncs.push(
@@ -83,11 +85,11 @@ export class SliderSystem extends createSystem({
     pointerToDiorama(e, frame, this.point);
     // The pointer holds the tab, not the peg: remove the tab's offset first.
     const [ox, oy] = handleOffset(rail.axis);
-    const next = clampToRail(drag, rail, [this.point.x - ox, this.point.y - oy]);
-    drag.x = next.x;
-    drag.y = next.y;
-    this.placeVisuals(drag.pegId, next.x, next.y);
-    puzzleStore.dispatch({ type: 'pegPreview', pegId: drag.pegId, x: next.x, y: next.y });
+    clampToRailInto(drag.x, drag.y, rail, this.point.x - ox, this.point.y - oy, this.clamped);
+    drag.x = this.clamped.x;
+    drag.y = this.clamped.y;
+    this.placeVisuals(drag.pegId, drag.x, drag.y);
+    puzzleStore.dispatch({ type: 'pegPreview', pegId: drag.pegId, x: drag.x, y: drag.y });
   }
 
   private end(e: SpatialPointerEvent): void {
@@ -104,25 +106,29 @@ export class SliderSystem extends createSystem({
     if (command.type !== 'movePeg') return;
     const rail = this.railOf(command.pegId);
     const current = this.positionOf(command.pegId);
-    if (!rail || !current) {
-      console.info(`[Threadbound] peg "${command.pegId}" has no rail`);
-      return;
-    }
-    const next = clampToRail(current, rail, [command.x, command.y]);
+    // Fixed pegs ignore movePeg; the schema guarantees solution slides target rail pegs.
+    if (!rail || !current) return;
+    const next = clampToRailInto(current.x, current.y, rail, command.x, command.y, { x: 0, y: 0 });
     const { pegPositions } = puzzleStore.get();
     puzzleStore.update({ pegPositions: { ...pegPositions, [command.pegId]: next } });
     this.placeVisuals(command.pegId, next.x, next.y);
     this.commitPhysics(command.pegId, next.x, next.y);
-    stringSynth.pluck(SETTLE_HZ, 0.35);
+    stringSynth.pluck(SLIDER.settleHz, SLIDER.settleVolume);
     puzzleStore.dispatch({ type: 'pegMoved', pegId: command.pegId });
   }
 
   private findPeg(pegId: string): Entity | undefined {
-    return [...this.queries.pegs.entities].find((p) => p.getValue(Peg, 'pegId') === pegId);
+    for (const peg of this.queries.pegs.entities) {
+      if (peg.getValue(Peg, 'pegId') === pegId) return peg;
+    }
+    return undefined;
   }
 
   private findHandle(pegId: string): Entity | undefined {
-    return [...this.queries.handles.entities].find((h) => h.getValue(SliderHandle, 'pegId') === pegId);
+    for (const handle of this.queries.handles.entities) {
+      if (handle.getValue(SliderHandle, 'pegId') === pegId) return handle;
+    }
+    return undefined;
   }
 
   /** Moves the peg and its tab (render transforms only). */
@@ -136,7 +142,7 @@ export class SliderSystem extends createSystem({
     if (handle) {
       const [ox, oy] = handleOffset(rail.axis);
       // Keep the tab's depth; only slide it in the diorama plane.
-      const local = frame.worldToLocal(handle.position, handle.position.clone());
+      const local = frame.worldToLocal(handle.position, this.handleLocal);
       frame.localToWorld(x + ox, y + oy, local.z, handle.position);
     }
   }

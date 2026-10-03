@@ -1,6 +1,7 @@
-import { Vector3, type Mesh, type World } from '@iwsdk/core';
-import { COLORS } from '../diorama/palette';
+import { Vector3, type World } from '@iwsdk/core';
 import { LEVELS } from '../../levels';
+import { handleOffset } from '../../lib/rail';
+import { solutionSteps } from '../../lib/solutionSteps';
 import { puzzleStore, type PuzzleCommand } from '../puzzle/puzzleStore';
 
 interface ScreenPoint {
@@ -20,6 +21,12 @@ export interface ThreadboundTestHook {
   button(action: string): (ScreenPoint & { visible: boolean }) | null;
   /** Canvas position of a rail peg's slider tab, null if the peg has no rail. */
   handle(pegId: string): ScreenPoint | null;
+  /** Where that tab would be on screen with its peg at `along` on the rail. */
+  handleAt(pegId: string, along: number): ScreenPoint | null;
+  /** Slides a rail peg to `along` (clamped to its rail) through the command bus. */
+  slide(pegId: string, along: number): void;
+  /** Applies the current level's stored solution (slides, snips, threads); does not drop. */
+  solve(): void;
   /** Current diorama frame: origin (bottom-left, world) and yaw. */
   frame(): { origin: number[]; yaw: number } | null;
   marbles(): Array<{ x: number; y: number; z: number; scored: boolean; color: string }>;
@@ -75,6 +82,23 @@ export function installTestHook(world: World): void {
       const object = world.scene.getObjectByName(`handle-${pegId}`);
       return object ? toScreen(object.getWorldPosition(new Vector3())) : null;
     },
+    handleAt: (pegId, along) => {
+      const frame = puzzleStore.frame;
+      const peg = puzzleStore.get().level?.pegs.find((p) => p.id === pegId);
+      const object = world.scene.getObjectByName(`handle-${pegId}`);
+      if (!frame || !peg?.rail || !object) return null;
+      const depth = frame.worldToLocal(object.getWorldPosition(new Vector3()), new Vector3()).z;
+      const [ox, oy] = handleOffset(peg.rail.axis);
+      const x = peg.rail.axis === 'x' ? along : peg.x;
+      const y = peg.rail.axis === 'y' ? along : peg.y;
+      return project(x + ox, y + oy, depth);
+    },
+    // Rails clamp the off-axis coordinate back to the peg, so `along` serves for both.
+    slide: (pegId, along) => puzzleStore.dispatch({ type: 'movePeg', pegId, x: along, y: along }),
+    solve: () => {
+      const level = puzzleStore.get().level;
+      if (level) for (const step of solutionSteps(level)) puzzleStore.dispatch(step);
+    },
     frame: () => {
       const anchor = puzzleStore.frame?.anchor;
       if (!anchor) return null;
@@ -89,8 +113,7 @@ export function installTestHook(world: World): void {
       world.scene.traverse((o) => {
         if (o.name !== 'marble') return;
         frame.worldToLocal(o.getWorldPosition(worldPos), local);
-        const hex = ((o as Mesh).material as { color?: { getHex(): number } }).color?.getHex();
-        const color = hex === COLORS.amber ? 'amber' : hex === COLORS.azure ? 'azure' : 'teal';
+        const color = String(o.userData.color ?? 'teal');
         found.push({ x: round3(local.x), y: round3(local.y), z: round3(local.z), scored: false, color });
       });
       return found;

@@ -7,6 +7,7 @@ import {
   type PlaneCandidate,
 } from '../../lib/placement';
 import { shouldShowVirtualRoom } from '../../lib/xrMode';
+import { devLog } from '../debug/devLog';
 import { puzzleStore } from '../puzzle/puzzleStore';
 
 /** How long to wait for a table plane before placing in front of the player. */
@@ -74,7 +75,7 @@ export class PlacementSystem extends createSystem({
       const lines = candidates
         .filter((c) => c.orientation === 'horizontal')
         .map((c) => `${c.label || '?'} [${fmt(c.min)}]..[${fmt(c.max)}]`);
-      console.info(`[Threadbound] placement candidates: ${lines.join(' | ')}`);
+      devLog(`placement candidates: ${lines.join(' | ')}`);
     }
     if (onTable) {
       this.place(onTable, level.size[0], 'table');
@@ -110,7 +111,7 @@ export class PlacementSystem extends createSystem({
   private place(placement: Placement, width: number, where: string): void {
     this.phase = 'placed';
     const origin = originFromCenter(placement.center, placement.yaw, width);
-    console.info(`[Threadbound] diorama placed ${where}`);
+    devLog(`diorama placed ${where}`);
     puzzleStore.dispatch({ type: 'place', origin, yaw: placement.yaw });
   }
 }

@@ -15,6 +15,7 @@ import { PlacementSystem } from './features/placement/PlacementSystem.js';
 import { PuzzleSystem } from './features/puzzle/PuzzleSystem.js';
 import { SliderSystem } from './features/sliders/SliderSystem.js';
 import { ThreadSystem } from './features/threads/ThreadSystem.js';
+import { ThreadVibrationSystem } from './features/threads/ThreadVibrationSystem.js';
 import { PanelSystem } from './panel.js';
 
 World.create(
@@ -24,6 +25,7 @@ World.create(
   world.registerSystem(EnvironmentSystem);
   world.registerSystem(PuzzleSystem);
   world.registerSystem(ThreadSystem);
+  world.registerSystem(ThreadVibrationSystem);
   world.registerSystem(MarbleSystem);
   world.registerSystem(ControlsSystem);
   world.registerSystem(SliderSystem);

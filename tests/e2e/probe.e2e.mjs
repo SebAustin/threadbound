@@ -1,7 +1,7 @@
 // Level-design probe: load LEVEL, apply SLIDES ([[pegId, to], ...]), snip presets
 // unless KEEP_PRESETS=1, add THREADS ([[from, to], ...]), drop, and sample marble
 // positions every 150 ms for SECONDS. Marbles are tagged e=teal, m=amber, z=azure.
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+import { sleep } from './lib.mjs';
 
 export default async function run({ page, frame }) {
   const app = frame ?? page.mainFrame();
@@ -16,12 +16,7 @@ export default async function run({ page, frame }) {
     const hook = window.__threadbound;
     hook.dispatch({ type: 'load', index });
     const level = hook.state().level;
-    for (const [pegId, to] of slides) {
-      const peg = level.pegs.find((p) => p.id === pegId);
-      const x = peg.rail.axis === 'x' ? to : peg.x;
-      const y = peg.rail.axis === 'y' ? to : peg.y;
-      hook.dispatch({ type: 'movePeg', pegId, x, y });
-    }
+    for (const [pegId, to] of slides) hook.slide(pegId, to);
     if (!keepPresets) for (const p of level.presetThreads) hook.dispatch({ type: 'snip', from: p.from, to: p.to });
     for (const [from, to] of threads) hook.dispatch({ type: 'addThread', from, to });
     hook.dispatch({ type: 'drop' });

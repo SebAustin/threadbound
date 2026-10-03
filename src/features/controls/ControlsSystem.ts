@@ -2,7 +2,7 @@ import { createSystem, type Entity, type Mesh } from '@iwsdk/core';
 import { stringSynth } from '../audio/stringSynth';
 import { ControlActions, ControlButton } from '../puzzle/components';
 import { puzzleStore } from '../puzzle/puzzleStore';
-import { onPointer } from '../threads/pointerEvents';
+import { onPointer } from '../input/pointerEvents';
 
 const PRESS_HZ = 587.33;
 

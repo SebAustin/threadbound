@@ -6,11 +6,7 @@
     0.5,
     0.4
   ],
-  "chute": {
-    "x": 0.17,
-    "y": 0.37
-  },
-  "marbles": 3,
+  "chutes": [{ "x": 0.17, "y": 0.37, "count": 3 }],
   "maxThreads": 2,
   "par": 2,
   "pegs": [

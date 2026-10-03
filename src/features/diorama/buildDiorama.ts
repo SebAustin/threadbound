@@ -18,18 +18,19 @@ import {
   type Object3D,
   type World,
 } from '@iwsdk/core';
-import { CONTROLS, DIORAMA, GOAL, PEG, SLIDER } from '../../config/constants';
-import type { MarbleColor } from '../../lib/goalMatch';
+import { CONTROLS, DIORAMA, GLYPH, GOAL, PEG, SLIDER } from '../../config/constants';
+import type { SortingColor } from '../../lib/marbleColors';
 import type { Chute as ChuteSpec, Level } from '../../lib/levelSchema';
+import { handleOffset, type Rail } from '../../lib/rail';
 import { Chute, ControlActions, ControlButton, Peg, SliderHandle } from '../puzzle/components';
 import type { DioramaFrame } from './dioramaFrame';
-import { GEOMETRIES, goalMaterial, MATERIALS, marbleMaterial } from './palette';
+import { GEOMETRIES, glyphMesh, goalMaterial, MATERIALS, marbleMaterial } from './palette';
 
 export interface GoalRange {
   readonly minX: number;
   readonly maxX: number;
   /** Only marbles of this color score here; undefined accepts every color. */
-  readonly color?: MarbleColor;
+  readonly color?: SortingColor;
 }
 
 export interface BuiltDiorama {
@@ -130,8 +131,13 @@ function buildGoal(
   const floor = new Mesh(new BoxGeometry(goal.width, 0.002, depth), goalMaterial(goal.color, false));
   floor.name = 'goal-floor';
   const floorEntity = place(world, frame, floor, [goal.x, 0.001, 0]);
+  // Shape marker on the front ledge, under the cup: visible even when the cup is full.
+  const marker = goal.color ? glyphMesh(goal.color) : null;
+  const markerEntities = marker
+    ? [place(world, frame, marker, [goal.x, -DIORAMA.slab / 2, DIORAMA.channelHalfDepth + DIORAMA.slab + CONTROLS.ledgeDepth + GLYPH.standoff])]
+    : [];
   return {
-    entities: [left, right, floorEntity],
+    entities: [left, right, floorEntity, ...markerEntities],
     range: { minX: goal.x - half, maxX: goal.x + half, color: goal.color },
     mesh: floor,
   };
@@ -145,6 +151,12 @@ function buildChute(world: World, frame: DioramaFrame, chute: ChuteSpec, index: 
   rim.rotation.x = Math.PI / 2;
   rim.position.y = 0.0175;
   funnel.add(rim);
+  const glyph = glyphMesh(chute.color);
+  if (glyph) {
+    // In front of the funnel, facing the player, so the chute's color is also a shape.
+    glyph.position.set(0, 0, 0.03 + GLYPH.standoff);
+    funnel.add(glyph);
+  }
   const entity = place(world, frame, funnel, [chute.x, chute.y + 0.02, 0]);
   entity.addComponent(Chute);
   entity.addComponent(RayInteractable);
@@ -194,16 +206,10 @@ function buildLedge(world: World, frame: DioramaFrame, level: Level): Entity[] {
   return [place(world, frame, ledge, [level.size[0] / 2, -DIORAMA.slab / 2, z])];
 }
 
-/** Where a rail peg's handle sits relative to the peg: below x-rails, right of y-rails. */
-export function handleOffset(axis: 'x' | 'y'): [number, number] {
-  return axis === 'x' ? [0, -SLIDER.handleOffset] : [SLIDER.handleOffset, 0];
-}
-
 /** Visual rail (no collider) just in front of the back panel, clear of the marble channel. */
-function buildRail(world: World, frame: DioramaFrame, peg: Level['pegs'][number]): Entity[] {
-  const rail = peg.rail!;
+function buildRail(world: World, frame: DioramaFrame, peg: Level['pegs'][number], rail: Rail): Entity[] {
   const length = rail.max - rail.min;
-  const rod = new Mesh(new CylinderGeometry(SLIDER.railRadius, SLIDER.railRadius, length, 8), MATERIALS.brass);
+  const rod = new Mesh(new CylinderGeometry(SLIDER.railRadius, SLIDER.railRadius, length, SLIDER.railSegments), MATERIALS.brass);
   rod.name = `rail-${peg.id}`;
   const mid = (rail.min + rail.max) / 2;
   const z = -DIORAMA.channelHalfDepth + SLIDER.railRadius;
@@ -217,7 +223,8 @@ function buildRail(world: World, frame: DioramaFrame, peg: Level['pegs'][number]
   const tab = new Group();
   tab.name = `handle-${peg.id}`;
   const body = new Mesh(new BoxGeometry(w, h, d), MATERIALS.brass);
-  const grip = new Mesh(new BoxGeometry(w * 0.7, h * 0.25, d * 1.1), MATERIALS.walnut);
+  const [gw, gh, gd] = SLIDER.gripScale;
+  const grip = new Mesh(new BoxGeometry(w * gw, h * gh, d * gd), MATERIALS.walnut);
   tab.add(body, grip);
   const handleZ = DIORAMA.channelHalfDepth + PEG.radius;
   const handle = place(world, frame, tab, [peg.x + ox, peg.y + oy, handleZ]);
@@ -235,7 +242,7 @@ export function buildDiorama(world: World, frame: DioramaFrame, level: Level): B
       ...buildCase(world, frame, level),
       ...buildWalls(world, frame, level),
       ...level.pegs.map((p) => buildPeg(world, frame, p)),
-      ...level.pegs.filter((p) => p.rail).flatMap((p) => buildRail(world, frame, p)),
+      ...level.pegs.flatMap((p) => (p.rail ? buildRail(world, frame, p, p.rail) : [])),
       ...goals.flatMap((g) => g.entities),
       ...level.chutes.map((c, i) => buildChute(world, frame, c, i)),
       ...buildLedge(world, frame, level),

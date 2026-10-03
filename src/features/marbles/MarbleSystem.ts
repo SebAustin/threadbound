@@ -9,7 +9,8 @@ import {
   type Entity,
 } from '@iwsdk/core';
 import { GOAL, MARBLE, THREAD_TUNING } from '../../config/constants';
-import { goalAccepts, type MarbleColor } from '../../lib/goalMatch';
+import { goalAccepts } from '../../lib/goalMatch';
+import { isMarbleColor } from '../../lib/marbleColors';
 import { releaseOrder, type Release } from '../../lib/releaseOrder';
 import { segmentDistanceSq2d } from '../../lib/segment2d';
 import { spawnOffsetX } from '../../lib/spawnOffset';
@@ -17,7 +18,7 @@ import { stringSynth } from '../audio/stringSynth';
 import { GEOMETRIES, goalMaterial, marbleMaterial } from '../diorama/palette';
 import { Chute, Marble, Thread } from '../puzzle/components';
 import { puzzleStore } from '../puzzle/puzzleStore';
-import { onPointer } from '../threads/pointerEvents';
+import { onPointer } from '../input/pointerEvents';
 
 /** Contact band around a thread that counts as a "pluck". */
 const CONTACT_DIST = MARBLE.radius + THREAD_TUNING.radius + 0.004;
@@ -29,6 +30,14 @@ const MELODY_STEP_SECONDS = 0.22;
 const CUP_TOP = GOAL.wallHeight + MARBLE.radius;
 /** Marbles count once they have (nearly) come to rest, not while flying over. */
 const SETTLED_SPEED = 0.35;
+/** A visible wobble even for a gentle touch. */
+const MIN_PLUCK_ENERGY = 0.3;
+/** Longest replayed melody; a busy drop would otherwise drone on. */
+const MAX_MELODY_NOTES = 16;
+/** C5 "ding" when a puzzle is solved without touching any thread. */
+const FALLBACK_NOTE_HZ = 523.25;
+const MELODY_VOLUME = 0.7;
+const MARBLE_ANGULAR_DAMPING = 0.2;
 
 /**
  * Chute release, goal scoring, lost-marble cleanup and the bounce→note mapping.
@@ -40,8 +49,9 @@ export class MarbleSystem extends createSystem({
   marbles: { required: [Marble] },
   threads: { required: [Thread] },
 }) {
-  /** Marbles still to release this drop, in round-robin chute order. */
-  private queue: Release[] = [];
+  /** This drop's releases in round-robin chute order; `released` counts those spawned. */
+  private queue: readonly Release[] = [];
+  private released = 0;
   private releaseTimer = 0;
   /** Thread entity indices each marble is currently touching, keyed by marble index. */
   private contacts = new Map<number, Set<number>>();
@@ -60,6 +70,7 @@ export class MarbleSystem extends createSystem({
         if (command.type === 'drop') this.drop();
         if (command.type === 'levelBuilt') {
           this.queue = [];
+          this.released = 0;
           this.melody = [];
         }
       }),
@@ -84,6 +95,7 @@ export class MarbleSystem extends createSystem({
     this.resetGoalGlow();
     this.melody = [];
     this.queue = releaseOrder(level.chutes);
+    this.released = 0;
     this.releaseTimer = 0;
     puzzleStore.update({ status: 'dropping', scored: 0 });
   }
@@ -93,6 +105,7 @@ export class MarbleSystem extends createSystem({
       marble.dispose({ disposeResources: false });
     }
     this.queue = [];
+    this.released = 0;
   }
 
   private spawnMarble(release: Release): void {
@@ -101,6 +114,7 @@ export class MarbleSystem extends createSystem({
     if (!chute || !frame) return;
     const mesh = new Mesh(GEOMETRIES.marble, marbleMaterial(chute.color));
     mesh.name = 'marble';
+    mesh.userData.color = chute.color;
     const x = chute.x + spawnOffsetX(release.nth, MARBLE.spawnJitter);
     frame.localToWorld(x, chute.y, 0, mesh.position);
     const entity = this.world.createTransformEntity(mesh);
@@ -115,17 +129,17 @@ export class MarbleSystem extends createSystem({
     entity.addComponent(PhysicsBody, {
       state: PhysicsState.Dynamic,
       gravityFactor: MARBLE.gravityFactor,
-      angularDamping: 0.2,
+      angularDamping: MARBLE_ANGULAR_DAMPING,
     });
     this.contacts.set(entity.index, new Set());
   }
 
   update(delta: number): void {
-    if (this.queue.length > 0) {
+    if (this.released < this.queue.length) {
       this.releaseTimer -= delta;
       if (this.releaseTimer <= 0) {
-        this.spawnMarble(this.queue[0]);
-        this.queue = this.queue.slice(1);
+        this.spawnMarble(this.queue[this.released]);
+        this.released += 1;
         this.releaseTimer = MARBLE.releaseInterval;
       }
     }
@@ -166,7 +180,7 @@ export class MarbleSystem extends createSystem({
         const pitch = thread.getValue(Thread, 'pitch') ?? 440;
         const strength = this.speedOf(marble) / FULL_VOLUME_SPEED;
         stringSynth.pluck(pitch, strength);
-        thread.setValue(Thread, 'energy', Math.min(1, Math.max(0.3, strength)));
+        thread.setValue(Thread, 'energy', Math.min(1, Math.max(MIN_PLUCK_ENERGY, strength)));
         this.melody.push(pitch);
       } else if (!inContact && wasInContact) {
         touching.delete(thread.index);
@@ -183,7 +197,8 @@ export class MarbleSystem extends createSystem({
     if (marble.getValue(Marble, 'scored')) return;
     const goals = puzzleStore.diorama?.goals ?? [];
     // Settled inside the cup: allows a second stacked layer, ignores fly-overs.
-    const color = marble.getValue(Marble, 'color') as MarbleColor;
+    const raw = marble.getValue(Marble, 'color');
+    const color = isMarbleColor(raw) ? raw : 'teal';
     const index = goals.findIndex(
       (g) => x > g.minX && x < g.maxX && y < CUP_TOP && goalAccepts(g.color, color),
     );
@@ -201,11 +216,10 @@ export class MarbleSystem extends createSystem({
 
   /** Replays the bounces that solved the puzzle: every solution is a song. */
   private playMelody(): void {
-    const notes = this.melody.length > 0 ? this.melody.slice(0, 16) : [523.25];
+    const notes = this.melody.length > 0 ? this.melody.slice(0, MAX_MELODY_NOTES) : [FALLBACK_NOTE_HZ];
     notes.forEach((hz, i) => {
-      setTimeout(() => stringSynth.pluck(hz, 0.7), (i + 1) * MELODY_STEP_SECONDS * 1000);
+      setTimeout(() => stringSynth.pluck(hz, MELODY_VOLUME), (i + 1) * MELODY_STEP_SECONDS * 1000);
     });
-    console.info(`[Threadbound] puzzle complete — melody of ${notes.length} notes`);
   }
 
   private resetGoalGlow(): void {

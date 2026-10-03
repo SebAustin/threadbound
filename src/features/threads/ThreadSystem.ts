@@ -15,21 +15,29 @@ import {
 } from '@iwsdk/core';
 import { PEG, THREAD_TUNING } from '../../config/constants';
 import { segmentTransform } from '../../lib/threadGeometry';
-import { checkNewThread, findSnapPeg, type PegPoint } from '../../lib/threadRules';
+import { checkNewThread, findSnapPeg, sameThread, type PegPoint } from '../../lib/threadRules';
 import { pitchForLength, restitutionForLength } from '../../lib/threadTuning';
 import { stringSynth } from '../audio/stringSynth';
+import { devLog } from '../debug/devLog';
 import { GEOMETRIES, MATERIALS } from '../diorama/palette';
 import { Peg, Thread } from '../puzzle/components';
 import { puzzleStore, type PuzzleCommand } from '../puzzle/puzzleStore';
-import { pointerToDiorama } from './pointerToDiorama';
+import { pointerToDiorama } from '../input/pointerToDiorama';
 import {
   capturePointer,
   onPointer,
   releasePointer,
   type SpatialPointerEvent,
-} from './pointerEvents';
+} from '../input/pointerEvents';
 
 const UP = new Vector3(0, 1, 0);
+/** The drag preview is drawn thinner than a real thread. */
+const PREVIEW_RADIUS = THREAD_TUNING.radius * 0.7;
+const CREATE_VOLUME = 0.8;
+const SNIP_VOLUME = 0.4;
+
+const touchesPeg = (thread: Entity, pegId: string) =>
+  thread.getValue(Thread, 'fromPeg') === pegId || thread.getValue(Thread, 'toPeg') === pegId;
 
 interface Drag {
   readonly pegId: string;
@@ -143,7 +151,7 @@ export class ThreadSystem extends createSystem({
 
     const targetId = findSnapPeg([drag.endX, drag.endY], this.pegPoints, drag.pegId, PEG.snapRadius);
     if (!targetId) {
-      console.info(`[Threadbound] released at (${drag.endX.toFixed(3)}, ${drag.endY.toFixed(3)}) — no peg in reach`);
+      devLog(`released at (${drag.endX.toFixed(3)}, ${drag.endY.toFixed(3)}) — no peg in reach`);
       return;
     }
     this.tryAddThread(drag.pegId, targetId);
@@ -154,19 +162,19 @@ export class ThreadSystem extends createSystem({
     const state = puzzleStore.get();
     const check = checkNewThread(state.threads, fromId, toId, state.level?.maxThreads ?? 0);
     if (!check.ok) {
-      console.info(`[Threadbound] thread rejected: ${check.reason}`);
+      devLog(`thread rejected: ${check.reason}`);
       return;
     }
     const from = this.pegPoints.find((p) => p.id === fromId);
     const to = this.pegPoints.find((p) => p.id === toId);
-    if (from && to) this.createThread(from, to, false);
+    if (from && to) this.createThread(from, to, { preset: false, pluck: true });
   }
 
   private createPresetThreads(): void {
     for (const link of puzzleStore.get().level?.presetThreads ?? []) {
       const from = this.pegPoints.find((p) => p.id === link.from);
       const to = this.pegPoints.find((p) => p.id === link.to);
-      if (from && to) this.createThread(from, to, true);
+      if (from && to) this.createThread(from, to, { preset: true, pluck: false });
     }
   }
 
@@ -178,12 +186,10 @@ export class ThreadSystem extends createSystem({
     } else if (command.type === 'addThread') {
       this.tryAddThread(command.from, command.to);
     } else if (command.type === 'snip') {
-      const match = [...this.queries.threads.entities].find((t) => {
-        const a = t.getValue(Thread, 'fromPeg');
-        const b = t.getValue(Thread, 'toPeg');
-        return (a === command.from && b === command.to) || (a === command.to && b === command.from);
-      });
-      if (match) this.snip(match);
+      for (const t of this.queries.threads.entities) {
+        const link = { from: t.getValue(Thread, 'fromPeg') ?? '', to: t.getValue(Thread, 'toPeg') ?? '' };
+        if (sameThread(link, command)) return this.snip(t);
+      }
     } else if (command.type === 'pegPreview') {
       this.previewPeg(command.pegId, command.x, command.y);
     } else if (command.type === 'pegMoved') {
@@ -204,15 +210,10 @@ export class ThreadSystem extends createSystem({
     group.children[0]?.scale.set(THREAD_TUNING.radius, len, THREAD_TUNING.radius);
   }
 
-  private threadsTouching(pegId: string): Entity[] {
-    return [...this.queries.threads.entities].filter(
-      (t) => t.getValue(Thread, 'fromPeg') === pegId || t.getValue(Thread, 'toPeg') === pegId,
-    );
-  }
-
-  /** Live drag preview: re-lay out attached threads (colliders follow on release). */
+  /** Live drag preview: re-lay out attached threads (colliders follow on release). Allocation-free. */
   private previewPeg(pegId: string, x: number, y: number): void {
-    for (const thread of this.threadsTouching(pegId)) {
+    for (const thread of this.queries.threads.entities) {
+      if (!touchesPeg(thread, pegId)) continue;
       const fromIsPeg = thread.getValue(Thread, 'fromPeg') === pegId;
       const ax = fromIsPeg ? x : thread.getValue(Thread, 'ax') ?? 0;
       const ay = fromIsPeg ? y : thread.getValue(Thread, 'ay') ?? 0;
@@ -224,7 +225,7 @@ export class ThreadSystem extends createSystem({
 
   /** A rail peg settled: rebuild its threads so colliders, bounce and pitch match. */
   private rebuildThreadsAt(pegId: string): void {
-    const touching = this.threadsTouching(pegId).map((t) => ({
+    const touching = [...this.queries.threads.entities].filter((t) => touchesPeg(t, pegId)).map((t) => ({
       entity: t,
       from: t.getValue(Thread, 'fromPeg') ?? '',
       to: t.getValue(Thread, 'toPeg') ?? '',
@@ -238,11 +239,16 @@ export class ThreadSystem extends createSystem({
     for (const t of touching) {
       const from = points.find((p) => p.id === t.from);
       const to = points.find((p) => p.id === t.to);
-      if (from && to) this.createThread(from, to, t.preset);
+      // Silent: the slider already plays its settle click; a pluck per thread would double up.
+      if (from && to) this.createThread(from, to, { preset: t.preset, pluck: false });
     }
   }
 
-  private createThread(from: PegPoint, to: PegPoint, preset: boolean): void {
+  private createThread(
+    from: PegPoint,
+    to: PegPoint,
+    { preset, pluck }: { readonly preset: boolean; readonly pluck: boolean },
+  ): void {
     const frame = puzzleStore.frame;
     const seg = segmentTransform([from.x, from.y, 0], [to.x, to.y, 0]);
     if (!frame || !seg) return;
@@ -277,7 +283,7 @@ export class ThreadSystem extends createSystem({
     puzzleStore.update({
       threads: [...puzzleStore.get().threads, { from: from.id, to: to.id, preset }],
     });
-    if (!preset) stringSynth.pluck(pitch, 0.8);
+    if (pluck) stringSynth.pluck(pitch, CREATE_VOLUME);
   }
 
   private attachThread(entity: Entity): void {
@@ -295,29 +301,12 @@ export class ThreadSystem extends createSystem({
     puzzleStore.update({
       threads: puzzleStore.get().threads.filter((t) => !(t.from === from && t.to === to)),
     });
-    stringSynth.pluck(pitchForLength(THREAD_TUNING.maxLength), 0.4);
+    stringSynth.pluck(pitchForLength(THREAD_TUNING.maxLength), SNIP_VOLUME);
     entity.dispose({ disposeResources: false });
   }
 
-  update(delta: number, time: number): void {
-    this.vibrate(delta, time);
+  update(): void {
     this.updatePreview();
-  }
-
-  /** Plucked strings shimmer: thickness oscillates while energy decays. Allocation-free. */
-  private vibrate(delta: number, time: number): void {
-    const { vibrationDecay, vibrationRate, vibrationGain, radius } = THREAD_TUNING;
-    for (const thread of this.queries.threads.entities) {
-      const energy = thread.getValue(Thread, 'energy') ?? 0;
-      if (energy <= 0) continue;
-      const next = Math.max(0, energy - vibrationDecay * delta);
-      thread.setValue(Thread, 'energy', next);
-      const mesh = thread.object3D?.children[0];
-      if (!mesh) continue;
-      const r = radius * (1 + vibrationGain * next * Math.abs(Math.sin(time * vibrationRate)));
-      mesh.scale.x = r;
-      mesh.scale.z = r;
-    }
   }
 
   /** Live preview while dragging. Allocation-free: runs every frame of a drag. */
@@ -332,7 +321,7 @@ export class ThreadSystem extends createSystem({
       return;
     }
     this.preview.visible = true;
-    this.preview.scale.set(THREAD_TUNING.radius * 0.7, len, THREAD_TUNING.radius * 0.7);
+    this.preview.scale.set(PREVIEW_RADIUS, len, PREVIEW_RADIUS);
     frame.localToWorld((drag.fromX + drag.endX) / 2, (drag.fromY + drag.endY) / 2, 0, this.preview.position);
     this.tmpQuat.setFromUnitVectors(UP, this.tmpDir.divideScalar(len));
     frame.worldQuaternion(this.tmpQuat, this.preview.quaternion);

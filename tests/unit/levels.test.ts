@@ -21,3 +21,15 @@ describe('level data', () => {
     }
   });
 });
+
+describe('level registry', () => {
+  test('every level file under src/levels is registered', async () => {
+    const { readdirSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const root = join(__dirname, '../../src/levels');
+    const files = readdirSync(root, { withFileTypes: true })
+      .filter((d) => d.isDirectory())
+      .flatMap((d) => readdirSync(join(root, d.name)).filter((f) => f.endsWith('.json')));
+    expect(LEVELS).toHaveLength(files.length);
+  });
+});

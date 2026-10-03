@@ -1,10 +1,12 @@
 import {
+  CircleGeometry,
   CylinderGeometry,
+  Mesh,
   MeshStandardMaterial,
   SphereGeometry,
 } from '@iwsdk/core';
-import { MARBLE, PEG } from '../../config/constants';
-import type { MarbleColor } from '../../lib/goalMatch';
+import { GLYPH, MARBLE, PEG } from '../../config/constants';
+import { colorGlyph, type MarbleColor, type SortingColor } from '../../lib/marbleColors';
 
 /**
  * Art direction: a warm walnut-and-brass music box. Threads are coral "strings",
@@ -87,9 +89,9 @@ const cupMaterial = (color: number, done: boolean) =>
     roughness: 0.8,
   });
 
-const GOAL_MATERIALS: Record<MarbleColor | 'any', { idle: MeshStandardMaterial; done: MeshStandardMaterial }> = {
+/** Uncolored cups accept any marble; colored cups exist only for sorting colors. */
+const GOAL_MATERIALS: Record<SortingColor | 'any', { idle: MeshStandardMaterial; done: MeshStandardMaterial }> = {
   any: { idle: MATERIALS.goal, done: MATERIALS.goalDone },
-  teal: { idle: MATERIALS.goal, done: MATERIALS.goalDone },
   amber: { idle: cupMaterial(COLORS.amber, false), done: cupMaterial(COLORS.amber, true) },
   azure: { idle: cupMaterial(COLORS.azure, false), done: cupMaterial(COLORS.azure, true) },
 };
@@ -99,7 +101,28 @@ export function marbleMaterial(color: MarbleColor): MeshStandardMaterial {
 }
 
 /** Cup floor material: tinted by the color it accepts, brighter once filled. */
-export function goalMaterial(color: MarbleColor | undefined, done: boolean): MeshStandardMaterial {
+export function goalMaterial(color: SortingColor | undefined, done: boolean): MeshStandardMaterial {
   const set = GOAL_MATERIALS[color ?? 'any'];
   return done ? set.done : set.idle;
+}
+
+const GLYPH_GEOMETRIES = {
+  triangle: new CircleGeometry(GLYPH.radius, 3),
+  circle: new CircleGeometry(GLYPH.radius, 24),
+} as const;
+
+const GLYPH_MATERIALS: Partial<Record<MarbleColor, MeshStandardMaterial>> = {
+  amber: new MeshStandardMaterial({ color: COLORS.amber, emissive: COLORS.amber, emissiveIntensity: 0.6 }),
+  azure: new MeshStandardMaterial({ color: COLORS.azure, emissive: COLORS.azure, emissiveIntensity: 0.6 }),
+};
+
+/** A flat, player-facing shape for a sorting color, or null for colors without one. */
+export function glyphMesh(color: MarbleColor): Mesh | null {
+  const glyph = colorGlyph(color);
+  const material = GLYPH_MATERIALS[color];
+  if (!glyph || !material) return null;
+  const mesh = new Mesh(GLYPH_GEOMETRIES[glyph], material);
+  if (glyph === 'triangle') mesh.rotation.z = Math.PI / 2; // point up
+  mesh.name = `glyph-${glyph}`;
+  return mesh;
 }

@@ -13,6 +13,11 @@ export interface ThreadLink {
   readonly preset?: boolean;
 }
 
+/** Threads are undirected: a→b and b→a are the same thread. */
+export function sameThread(a: Omit<ThreadLink, 'preset'>, b: Omit<ThreadLink, 'preset'>): boolean {
+  return (a.from === b.from && a.to === b.to) || (a.from === b.to && a.to === b.from);
+}
+
 export type ThreadCheck =
   | { readonly ok: true }
   | { readonly ok: false; readonly reason: 'same-peg' | 'duplicate' | 'limit' };
@@ -44,10 +49,7 @@ export function checkNewThread(
   maxThreads: number,
 ): ThreadCheck {
   if (from === to) return { ok: false, reason: 'same-peg' };
-  const isDuplicate = existing.some(
-    (t) => (t.from === from && t.to === to) || (t.from === to && t.to === from),
-  );
-  if (isDuplicate) return { ok: false, reason: 'duplicate' };
+  if (existing.some((t) => sameThread(t, { from, to }))) return { ok: false, reason: 'duplicate' };
   const playerThreads = existing.filter((t) => !t.preset).length;
   if (playerThreads >= maxThreads) return { ok: false, reason: 'limit' };
   return { ok: true };
