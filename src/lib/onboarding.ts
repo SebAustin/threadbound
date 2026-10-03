@@ -32,11 +32,11 @@ export function onboardingHint(step: OnboardingStep): string {
 
 export interface GhostPose {
   /** 0 at the first peg, 1 at the second. */
-  readonly along: number;
+  along: number;
   /** 0 = fingertips open, 1 = pinched together. */
-  readonly pinch: number;
-  readonly thread: boolean;
-  readonly opacity: number;
+  pinch: number;
+  thread: boolean;
+  opacity: number;
 }
 
 /** Keyframes (seconds): fade in, pinch, pull, release, hold, fade out. */
@@ -53,10 +53,15 @@ const span = (t: number, start: number, end: number) => clamp01((t - start) / (e
 /** Smoothstep: slow in, slow out, so the pull reads as a deliberate hand motion. */
 const ease = (v: number) => v * v * (3 - 2 * v);
 
-export function ghostPose(seconds: number): GhostPose {
+/** Pose at `seconds` into the loop. Pass `out` to reuse one object per frame (no allocation). */
+export function ghostPose(
+  seconds: number,
+  out: GhostPose = { along: 0, pinch: 0, thread: false, opacity: 0 },
+): GhostPose {
   const t = ((seconds % GHOST_LOOP_SECONDS) + GHOST_LOOP_SECONDS) % GHOST_LOOP_SECONDS;
-  const along = ease(span(t, PULL_START, PULL_END));
-  const pinch = t < PULL_END ? ease(span(t, FADE_IN_END, PINCH_END)) : 1 - ease(span(t, PULL_END, RELEASE_END));
-  const opacity = Math.min(span(t, 0, FADE_IN_END), 1 - span(t, FADE_OUT_START, GHOST_LOOP_SECONDS));
-  return { along, pinch, thread: t >= PULL_START, opacity };
+  out.along = ease(span(t, PULL_START, PULL_END));
+  out.pinch = t < PULL_END ? ease(span(t, FADE_IN_END, PINCH_END)) : 1 - ease(span(t, PULL_END, RELEASE_END));
+  out.thread = t >= PULL_START;
+  out.opacity = Math.min(span(t, 0, FADE_IN_END), 1 - span(t, FADE_OUT_START, GHOST_LOOP_SECONDS));
+  return out;
 }

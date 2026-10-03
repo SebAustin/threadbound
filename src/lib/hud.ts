@@ -22,19 +22,18 @@ export interface HudModel {
   readonly hint: string;
 }
 
-const MAX_STARS = 3;
 
 /** Plaque copy: plain ASCII, because the panel font has no typographic glyphs. */
 export function hudModel(input: HudInput): HudModel {
   const world = input.levels[input.levelIndex]?.world ?? 1;
   const inWorld = input.levels.filter((l) => l.world === world).length;
   const position = input.levels.slice(0, input.levelIndex + 1).filter((l) => l.world === world).length;
-  const lit = (n: number) => input.bestStars >= n;
+  const lit = (star: 1 | 2 | 3) => input.bestStars >= star;
   return {
     title: input.title,
     worldLabel: `World ${world} - ${position}/${inWorld}`,
     threadsLabel: `Threads ${input.threadsUsed}/${input.maxThreads} - par ${input.par}`,
-    stars: [lit(1), lit(2), lit(MAX_STARS)],
+    stars: [lit(1), lit(2), lit(3)],
     status: input.solved ? 'solved' : 'playing',
     hint: input.hint,
   };

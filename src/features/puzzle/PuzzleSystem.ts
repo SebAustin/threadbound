@@ -4,6 +4,7 @@ import type { Level } from '../../lib/levelSchema';
 import { originFromCenter } from '../../lib/placement';
 import { browserStorage, INITIAL_PROGRESS, loadProgress, recordCompletion, saveProgress } from '../../lib/progress';
 import { starsFor } from '../../lib/scoring';
+import { playerThreadCount } from '../../lib/threadRules';
 import type { Vec3 } from '../../lib/vec';
 import { LEVELS } from '../../levels';
 import { buildDiorama } from '../diorama/buildDiorama';
@@ -96,7 +97,7 @@ export class PuzzleSystem extends createSystem({
     if (next) next.visible = state.status === 'complete' && hasNext;
     if (state.status !== 'complete' || state.stars > 0 || !state.level) return;
 
-    const used = state.threads.filter((t) => !t.preset).length;
+    const used = playerThreadCount(state.threads);
     const stars = starsFor(used, state.level.par);
     const progress = recordCompletion(state.progress, state.level.id, state.levelIndex, stars, LEVELS.length);
     saveProgress(this.storage, progress);

@@ -3,6 +3,7 @@ import { HUD } from '../../config/constants';
 import { hudModel, type HudModel } from '../../lib/hud';
 import { onboardingHint } from '../../lib/onboarding';
 import { onboardingStepOf } from '../onboarding/onboardingState';
+import { playerThreadCount } from '../../lib/threadRules';
 import { LEVELS } from '../../levels';
 import { puzzleStore, type PuzzleState } from '../puzzle/puzzleStore';
 
@@ -14,8 +15,11 @@ const STAR_IDS = ['hud-star-1', 'hud-star-2', 'hud-star-3'] as const;
  */
 export class HudSystem extends createSystem({}) {
   private panel: UIKitMLAsset | undefined;
-  /** Last rendered copy; the store fires often, the panel only changes rarely. */
-  private shown = '';
+  /**
+   * State the plaque was last rendered from. The store fires on every change
+   * (rail drags fire per frame); the plaque only depends on these snapshots.
+   */
+  private shownFrom: Pick<PuzzleState, 'level' | 'levelIndex' | 'threads' | 'status' | 'progress'> | null = null;
 
   init(): void {
     this.panel = this.world.getSceneObject<UIKitMLAsset>('hud-plaque');
@@ -41,22 +45,33 @@ export class HudSystem extends createSystem({}) {
 
   private render(state: PuzzleState): void {
     const { level } = state;
-    if (!this.panel || !level) return;
+    if (!this.panel || !level || !this.changed(state)) return;
+    this.shownFrom = state;
     const hud = hudModel({
       levels: LEVELS,
       levelIndex: state.levelIndex,
       title: level.name,
-      threadsUsed: state.threads.filter((t) => !t.preset).length,
+      threadsUsed: playerThreadCount(state.threads),
       maxThreads: level.maxThreads,
       par: level.par,
       bestStars: state.progress.best[level.id] ?? 0,
       solved: state.status === 'complete',
       hint: onboardingHint(onboardingStepOf(state)),
     });
-    const key = JSON.stringify(hud);
-    if (key === this.shown) return;
-    this.shown = key;
     this.apply(hud);
+  }
+
+  /** Snapshots are immutable, so identity tells whether anything shown changed. */
+  private changed(state: PuzzleState): boolean {
+    const last = this.shownFrom;
+    return (
+      last === null ||
+      last.level !== state.level ||
+      last.levelIndex !== state.levelIndex ||
+      last.threads !== state.threads ||
+      last.status !== state.status ||
+      last.progress !== state.progress
+    );
   }
 
   private apply(hud: HudModel): void {

@@ -1,5 +1,5 @@
 // E2E: Restart / Next ledge buttons with real mouse clicks, plus stars + progress.
-import { canvasMapper, checks, click, isComplete, loadIndex, sleep, waitFor } from './lib.mjs';
+import { canvasMapper, checks, click, isComplete, loadIndex, waitFor } from './lib.mjs';
 
 export default async function run({ page, frame }) {
   const app = frame ?? page.mainFrame();
@@ -32,7 +32,7 @@ export default async function run({ page, frame }) {
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'addThread', from: 'a', to: 'b' }));
   const restart = await app.evaluate(() => window.__threadbound.button('restart'));
   await click(page, at(restart));
-  await sleep(300);
+  await waitFor(app, () => window.__threadbound.state().threads.length === 0, 3000);
   const reset = await app.evaluate(() => {
     const s = window.__threadbound.state();
     return { index: s.levelIndex, threads: s.threads.length, status: s.status };

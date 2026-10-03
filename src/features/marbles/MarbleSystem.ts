@@ -2,6 +2,7 @@ import {
   createSystem,
   Mesh,
   PhysicsBody,
+  PhysicsManipulation,
   PhysicsShape,
   PhysicsShapeType,
   PhysicsState,
@@ -9,6 +10,7 @@ import {
   type Entity,
 } from '@iwsdk/core';
 import { GOAL, MARBLE, THREAD_TUNING } from '../../config/constants';
+import { dropOver, isStalled, restTimer } from '../../lib/dropWatch';
 import { goalAccepts } from '../../lib/goalMatch';
 import { isMarbleColor } from '../../lib/marbleColors';
 import { releaseOrder, type Release } from '../../lib/releaseOrder';
@@ -38,6 +40,8 @@ const MAX_MELODY_NOTES = 16;
 const FALLBACK_NOTE_HZ = 523.25;
 const MELODY_VOLUME = 0.7;
 const MARBLE_ANGULAR_DAMPING = 0.2;
+/** Sideways speed (m/s) that tips a marble off an unstable perch, like a real wobble. */
+const NUDGE_SPEED = 0.12;
 
 /**
  * Chute release, goal scoring, lost-marble cleanup and the bounce→note mapping.
@@ -61,17 +65,30 @@ export class MarbleSystem extends createSystem({
   private lost: Entity[] = [];
   private tmpWorld = new Vector3();
   private tmpLocal = new Vector3();
+  private tmpNudge = new Vector3();
+  /** Seconds each marble has been at rest, keyed by marble index. */
+  private rest = new Map<number, number>();
+  /** Seconds every marble of the drop has been at rest at once. */
+  private quiet = 0;
+  /** Solved melody being replayed, one note per step (paused with the system). */
+  private replay: readonly number[] = [];
+  private replayNext = 0;
+  private replayTimer = 0;
 
   init(): void {
     this.cleanupFuncs.push(
       this.queries.chutes.subscribe('qualify', (chute) => this.attachChute(chute)),
-      this.queries.marbles.subscribe('disqualify', (m) => this.contacts.delete(m.index)),
+      this.queries.marbles.subscribe('disqualify', (m) => {
+        this.contacts.delete(m.index);
+        this.rest.delete(m.index);
+      }),
       puzzleStore.onCommand((command) => {
         if (command.type === 'drop') this.drop();
         if (command.type === 'levelBuilt') {
           this.queue = [];
           this.released = 0;
           this.melody = [];
+          this.replay = [];
         }
       }),
     );
@@ -97,6 +114,8 @@ export class MarbleSystem extends createSystem({
     this.queue = releaseOrder(level.chutes);
     this.released = 0;
     this.releaseTimer = 0;
+    this.quiet = 0;
+    this.replay = [];
     puzzleStore.update({ status: 'dropping', scored: 0 });
   }
 
@@ -135,16 +154,11 @@ export class MarbleSystem extends createSystem({
   }
 
   update(delta: number): void {
-    if (this.released < this.queue.length) {
-      this.releaseTimer -= delta;
-      if (this.releaseTimer <= 0) {
-        this.spawnMarble(this.queue[this.released]);
-        this.released += 1;
-        this.releaseTimer = MARBLE.releaseInterval;
-      }
-    }
+    this.releaseDue(delta);
+    this.replayDue(delta);
     const frame = puzzleStore.frame;
     if (!frame) return;
+    let allResting = true;
     for (const marble of this.queries.marbles.entities) {
       const object = marble.object3D;
       if (!object) continue;
@@ -156,9 +170,51 @@ export class MarbleSystem extends createSystem({
       }
       this.detectPlucks(marble, this.tmpLocal.x, this.tmpLocal.y);
       this.detectGoal(marble, this.tmpLocal.x, this.tmpLocal.y);
+      allResting = this.watchRest(marble, this.tmpLocal.x, this.tmpLocal.y, delta) && allResting;
     }
     for (const marble of this.lost) marble.dispose({ disposeResources: false });
     this.lost.length = 0;
+    this.endDropIfSettled(allResting, delta);
+  }
+
+  private releaseDue(delta: number): void {
+    if (this.released >= this.queue.length) return;
+    this.releaseTimer -= delta;
+    if (this.releaseTimer > 0) return;
+    this.spawnMarble(this.queue[this.released]);
+    this.released += 1;
+    this.releaseTimer = MARBLE.releaseInterval;
+  }
+
+  /** Tracks rest, nudging a marble off an unstable perch. Returns whether it is at rest. */
+  private watchRest(marble: Entity, x: number, y: number, delta: number): boolean {
+    const resting = restTimer(this.rest.get(marble.index) ?? 0, delta, this.speedOf(marble));
+    const inCup = this.cupAt(x, y) >= 0;
+    if (!isStalled({ restSeconds: resting, y, inCup })) {
+      this.rest.set(marble.index, resting);
+      return resting > 0;
+    }
+    this.nudge(marble);
+    this.rest.set(marble.index, 0);
+    return false;
+  }
+
+  /** Alternating sideways push in the diorama plane. */
+  private nudge(marble: Entity): void {
+    const frame = puzzleStore.frame;
+    if (!frame) return;
+    const side = marble.index % 2 === 0 ? 1 : -1;
+    this.tmpNudge.set(side * NUDGE_SPEED, 0, 0).applyQuaternion(frame.anchor.quaternion);
+    marble.addComponent(PhysicsManipulation, { linearVelocity: [this.tmpNudge.x, this.tmpNudge.y, this.tmpNudge.z] });
+  }
+
+  /** An unsolved drop whose marbles have all stopped is over: the player can try again. */
+  private endDropIfSettled(allResting: boolean, delta: number): void {
+    if (puzzleStore.get().status !== 'dropping') return;
+    this.quiet = allResting ? this.quiet + delta : 0;
+    if (dropOver({ allReleased: this.released >= this.queue.length, quietSeconds: this.quiet })) {
+      puzzleStore.update({ status: 'idle' });
+    }
   }
 
   private detectPlucks(marble: Entity, x: number, y: number): void {
@@ -199,10 +255,8 @@ export class MarbleSystem extends createSystem({
     // Settled inside the cup: allows a second stacked layer, ignores fly-overs.
     const raw = marble.getValue(Marble, 'color');
     const color = isMarbleColor(raw) ? raw : 'teal';
-    const index = goals.findIndex(
-      (g) => x > g.minX && x < g.maxX && y < CUP_TOP && goalAccepts(g.color, color),
-    );
-    if (index < 0 || this.speedOf(marble) > SETTLED_SPEED) return;
+    const index = this.cupAt(x, y);
+    if (index < 0 || !goalAccepts(goals[index].color, color) || this.speedOf(marble) > SETTLED_SPEED) return;
     marble.setValue(Marble, 'scored', true);
     const goalMesh = puzzleStore.diorama?.goalMeshes[index];
     if (goalMesh) goalMesh.material = goalMaterial(goals[index].color, true);
@@ -214,12 +268,30 @@ export class MarbleSystem extends createSystem({
     if (complete) this.playMelody();
   }
 
+  /** Index of the cup a marble centre at (x, y) sits in, or -1 (one stacked layer allowed). */
+  private cupAt(x: number, y: number): number {
+    const goals = puzzleStore.diorama?.goals ?? [];
+    if (y >= CUP_TOP) return -1;
+    for (let i = 0; i < goals.length; i++) {
+      if (x > goals[i].minX && x < goals[i].maxX) return i;
+    }
+    return -1;
+  }
+
   /** Replays the bounces that solved the puzzle: every solution is a song. */
   private playMelody(): void {
-    const notes = this.melody.length > 0 ? this.melody.slice(0, MAX_MELODY_NOTES) : [FALLBACK_NOTE_HZ];
-    notes.forEach((hz, i) => {
-      setTimeout(() => stringSynth.pluck(hz, MELODY_VOLUME), (i + 1) * MELODY_STEP_SECONDS * 1000);
-    });
+    this.replay = this.melody.length > 0 ? this.melody.slice(0, MAX_MELODY_NOTES) : [FALLBACK_NOTE_HZ];
+    this.replayNext = 0;
+    this.replayTimer = MELODY_STEP_SECONDS;
+  }
+
+  private replayDue(delta: number): void {
+    if (this.replayNext >= this.replay.length) return;
+    this.replayTimer -= delta;
+    if (this.replayTimer > 0) return;
+    stringSynth.pluck(this.replay[this.replayNext], MELODY_VOLUME);
+    this.replayNext += 1;
+    this.replayTimer = MELODY_STEP_SECONDS;
   }
 
   private resetGoalGlow(): void {

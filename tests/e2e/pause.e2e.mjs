@@ -20,7 +20,7 @@ export default async function run({ page, frame }) {
   await sleep(300);
 
   await app.evaluate(setHidden, true);
-  await sleep(200);
+  await waitFor(app, () => window.__threadbound.state().paused, 2000);
   const paused = await app.evaluate(() => window.__threadbound.state().paused);
   const before = await app.evaluate(marbleSnapshot);
   await sleep(1000);

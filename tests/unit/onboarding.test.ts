@@ -52,6 +52,12 @@ describe('ghostPose: the looping pinch-pull demonstration', () => {
     expect(ghostPose(2.5)).toMatchObject({ along: 1, pinch: 0 });
   });
 
+  test('can write into a reused pose, so the frame loop never allocates', () => {
+    const out = { along: 0, pinch: 0, thread: false, opacity: 0 };
+    expect(ghostPose(1.55, out)).toBe(out);
+    expect(out).toEqual(ghostPose(1.55));
+  });
+
   test('loops', () => {
     expect(ghostPose(GHOST_LOOP_SECONDS + 1.55)).toEqual(ghostPose(1.55));
   });

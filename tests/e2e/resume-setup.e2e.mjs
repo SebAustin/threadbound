@@ -1,6 +1,6 @@
 // E2E (part 1 of resume): fresh save, solve the first three levels.
 // Part 2 (resume-check) runs after run.sh reloads the page.
-import { checks, isComplete, loadIndex, sleep, waitFor } from './lib.mjs';
+import { checks, freshSave, isComplete, loadIndex, waitFor } from './lib.mjs';
 
 export const SOLVED = 3;
 
@@ -8,7 +8,7 @@ export default async function run({ page, frame }) {
   const app = frame ?? page.mainFrame();
   const { results, check } = checks();
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'resetProgress' }));
-  await sleep(300);
+  await waitFor(app, freshSave, 3000);
   for (let i = 0; i < SOLVED; i++) {
     await loadIndex(app, i);
     await app.evaluate(() => {

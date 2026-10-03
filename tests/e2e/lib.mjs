@@ -15,6 +15,11 @@ export async function waitFor(app, predicate, timeoutMs, arg) {
 
 export const isComplete = () => window.__threadbound.state().status === 'complete';
 export const hookReady = () => Boolean(window.__threadbound?.state().level);
+/** True once a resetProgress has landed: level 1, no stars. */
+export const freshSave = () => {
+  const s = window.__threadbound.state();
+  return s.levelIndex === 0 && Object.keys(s.progress.best).length === 0 && s.threads.length === 0;
+};
 
 /** Collects PASS/FAIL checks in the shape run.sh prints. */
 export function checks() {

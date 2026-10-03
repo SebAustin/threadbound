@@ -107,6 +107,13 @@ export const ONBOARDING = {
   threadRadius: 0.003,
   /** Pinch point above a chute's mouth. */
   chuteLift: 0.035,
+  emissiveIntensity: 0.8,
+  /** Target rings glow steadily (independent of the ghost's fade) with a slow pulse. */
+  ringOpacity: 0.55,
+  ringPulse: 0.25,
+  ringPulseRate: 3,
+  tipSegments: [16, 12] as const,
+  ringSegments: [8, 32] as const,
 } as const;
 
 export const GOAL = {

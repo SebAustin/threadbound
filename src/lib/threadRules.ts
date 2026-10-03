@@ -18,6 +18,13 @@ export function sameThread(a: Omit<ThreadLink, 'preset'>, b: Omit<ThreadLink, 'p
   return (a.from === b.from && a.to === b.to) || (a.from === b.to && a.to === b.from);
 }
 
+/** Threads the player made: presets never count toward limits, par or stars. */
+export function playerThreadCount(threads: readonly ThreadLink[]): number {
+  let count = 0;
+  for (const t of threads) if (!t.preset) count += 1;
+  return count;
+}
+
 export type ThreadCheck =
   | { readonly ok: true }
   | { readonly ok: false; readonly reason: 'same-peg' | 'duplicate' | 'limit' };
@@ -50,7 +57,6 @@ export function checkNewThread(
 ): ThreadCheck {
   if (from === to) return { ok: false, reason: 'same-peg' };
   if (existing.some((t) => sameThread(t, { from, to }))) return { ok: false, reason: 'duplicate' };
-  const playerThreads = existing.filter((t) => !t.preset).length;
-  if (playerThreads >= maxThreads) return { ok: false, reason: 'limit' };
+  if (playerThreadCount(existing) >= maxThreads) return { ok: false, reason: 'limit' };
   return { ok: true };
 }

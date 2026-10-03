@@ -1,6 +1,6 @@
 // E2E (real input): a first-time player is walked through thread -> drop -> melody
 // by the ghost hand and plaque hints, and is never shown it again after solving.
-import { canvasMapper, checks, drag, isComplete, sleep, waitFor } from './lib.mjs';
+import { canvasMapper, checks, drag, freshSave, isComplete, loadIndex, waitFor } from './lib.mjs';
 
 const ghost = () => window.__threadbound.ghost();
 
@@ -8,7 +8,9 @@ export default async function run({ page, frame }) {
   const app = frame ?? page.mainFrame();
   const { results, check } = checks();
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'resetProgress' }));
-  await sleep(300);
+  await waitFor(app, freshSave, 3000);
+  // The ghost is drawn from the next frame on.
+  await waitFor(app, () => window.__threadbound.ghost()?.visible === true, 2000);
 
   const first = await app.evaluate(() => ({
     ghost: window.__threadbound.ghost(),
@@ -37,8 +39,7 @@ export default async function run({ page, frame }) {
   const after = await app.evaluate(ghost);
   check('onboarding is over after the first solve', after?.step === 'done' && !after.visible, JSON.stringify(after));
 
-  await app.evaluate(() => window.__threadbound.dispatch({ type: 'load', index: 0 }));
-  await sleep(250);
+  await loadIndex(app, 0);
   const again = await app.evaluate(ghost);
   check('replaying level 1 does not show the demo again', again?.step === 'done' && !again.visible, JSON.stringify(again));
   return results;

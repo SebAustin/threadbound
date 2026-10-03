@@ -1,6 +1,6 @@
 // E2E (seam 2): a marble resting in a cup of another color must NOT score.
 // "Duet" with the tight A→B trampoline throws amber into azure's corner cup.
-import { checks, loadLevel, sleep } from './lib.mjs';
+import { checks, loadLevel, waitFor } from './lib.mjs';
 
 const AZURE_CUP = { minX: 0.4, maxX: 0.49 };
 
@@ -13,7 +13,9 @@ export default async function run({ page, frame }) {
     window.__threadbound.dispatch({ type: 'addThread', from: 'a', to: 'b' });
     window.__threadbound.dispatch({ type: 'drop' });
   });
-  await sleep(6000);
+  // A mis-sorted drop ends by itself once every marble is at rest.
+  const ended = await waitFor(app, () => window.__threadbound.state().status === 'idle', 15000);
+  check('the mis-sorted drop ends unsolved', ended);
   const marbles = await app.evaluate(() => window.__threadbound.marbles());
   const state = await app.evaluate(() => {
     const s = window.__threadbound.state();

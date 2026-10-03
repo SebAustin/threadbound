@@ -129,7 +129,7 @@ export function installTestHook(world: World): void {
       return { x: v.x, y: v.y, z: v.z };
     },
     hud: () => {
-      const plaque = world.scene.getObjectByName('HUD Plaque') ?? world.getSceneObject('hud-plaque');
+      const plaque = world.getSceneObject('hud-plaque');
       const frame = puzzleStore.frame;
       if (!plaque || !frame) return null;
       const local = frame.worldToLocal(plaque.getWorldPosition(new Vector3()), new Vector3());

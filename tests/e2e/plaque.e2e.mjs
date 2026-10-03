@@ -32,5 +32,14 @@ export default async function run({ page, frame }) {
   const solved = await app.evaluate(hud);
   check('solving lights the header and the earned stars',
     solved.model.status === 'solved' && solved.model.stars.every(Boolean), JSON.stringify(solved.model));
+  // Mixed reality: the diorama moves to the player's table; the plaque must follow.
+  const placed = { origin: [0.2, 0.7, -0.5], yaw: 0.6 };
+  await app.evaluate((p) => window.__threadbound.dispatch({ type: 'place', ...p }), placed);
+  await waitFor(app, (yaw) => Math.abs((window.__threadbound.frame()?.yaw ?? 0) - yaw) < 1e-3, 3000, placed.yaw);
+  const onTable = await app.evaluate(hud);
+  const tableSize = await app.evaluate(() => window.__threadbound.state().level.size);
+  check('plaque follows the diorama onto the table',
+    Math.abs(onTable.local.x - tableSize[0] / 2) < 0.005 && onTable.local.y > tableSize[1] && Math.abs(onTable.local.z) < 0.05, JSON.stringify(onTable.local));
+  await app.evaluate(() => window.__threadbound.dispatch({ type: 'resetPlacement' }));
   return results;
 }

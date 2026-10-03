@@ -55,7 +55,11 @@ export class PanelSystem extends createSystem({}) {
       this.world.visibilityState.subscribe((visibilityState) => {
         const is2D = visibilityState === VisibilityState.NonImmersive;
         // In XR the plaque on the diorama carries the game state; no floating menu.
-        if (panel) panel.visible = is2D;
+        if (panel) {
+          panel.visible = is2D;
+          // Invisible objects still intersect rays; take it out of pointer hit-testing too.
+          (panel as typeof panel & { pointerEvents?: string }).pointerEvents = is2D ? 'auto' : 'none';
+        }
         xrButton.setProperties({ display: is2D ? 'flex' : 'none' });
         exitButton.setProperties({ display: is2D ? 'none' : 'flex' });
       }),

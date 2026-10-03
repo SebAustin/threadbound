@@ -10,7 +10,7 @@ import {
   type Object3D,
 } from '@iwsdk/core';
 import { DIORAMA, ONBOARDING, PEG } from '../../config/constants';
-import { ghostPose, type OnboardingStep } from '../../lib/onboarding';
+import { ghostPose, type GhostPose, type OnboardingStep } from '../../lib/onboarding';
 import { GEOMETRIES } from '../diorama/palette';
 import { puzzleStore } from '../puzzle/puzzleStore';
 import { onboardingStepOf } from './onboardingState';
@@ -39,27 +39,31 @@ export class OnboardingSystem extends createSystem({}) {
   private thread!: Mesh;
   private rings: Mesh[] = [];
   private material!: MeshStandardMaterial;
+  private ringMaterial!: MeshStandardMaterial;
+  private pose: GhostPose = { along: 0, pinch: 0, thread: false, opacity: 0 };
   private step: OnboardingStep = 'done';
   /** Loop clock restarts whenever the step changes, so each demo starts cleanly. */
   private clock = 0;
-  private tmp = new Vector3();
   private dir = new Vector3();
   private quat = new Quaternion();
 
   init(): void {
-    this.material = new MeshStandardMaterial({
-      color: ONBOARDING.color,
-      emissive: ONBOARDING.color,
-      emissiveIntensity: 0.8,
-      transparent: true,
-      depthWrite: false,
-    });
-    const tip = new SphereGeometry(ONBOARDING.tipRadius, 16, 12);
+    const glow = () =>
+      new MeshStandardMaterial({
+        color: ONBOARDING.color,
+        emissive: ONBOARDING.color,
+        emissiveIntensity: ONBOARDING.emissiveIntensity,
+        transparent: true,
+        depthWrite: false,
+      });
+    this.material = glow();
+    this.ringMaterial = glow();
+    const tip = new SphereGeometry(ONBOARDING.tipRadius, ...ONBOARDING.tipSegments);
     this.thumb = new Mesh(tip, this.material);
     this.index = new Mesh(tip, this.material);
     this.thread = new Mesh(GEOMETRIES.unitCylinder, this.material);
-    const ring = new TorusGeometry(ONBOARDING.ringRadius, ONBOARDING.ringTube, 8, 32);
-    this.rings = [new Mesh(ring, this.material), new Mesh(ring, this.material)];
+    const ring = new TorusGeometry(ONBOARDING.ringRadius, ONBOARDING.ringTube, ...ONBOARDING.ringSegments);
+    this.rings = [new Mesh(ring, this.ringMaterial), new Mesh(ring, this.ringMaterial)];
     this.root.add(this.thumb, this.index, this.thread, ...this.rings);
     this.root.name = 'onboarding-ghost';
     this.root.visible = false;
@@ -74,11 +78,16 @@ export class OnboardingSystem extends createSystem({}) {
       this.clock = 0;
       this.root.userData.step = step;
     };
-    this.cleanupFuncs.push(puzzleStore.subscribe(track));
+    this.cleanupFuncs.push(puzzleStore.subscribe(track), () => {
+      tip.dispose();
+      ring.dispose();
+      this.material.dispose();
+      this.ringMaterial.dispose();
+    });
     track();
   }
 
-  update(delta: number): void {
+  update(delta: number, time: number): void {
     const step = this.step;
     const frame = puzzleStore.frame;
     const showing = (step === 'pinch-pull' || step === 'drop') && frame !== null;
@@ -88,8 +97,9 @@ export class OnboardingSystem extends createSystem({}) {
     this.root.quaternion.copy(frame.anchor.quaternion);
     frame.localToWorld(0, 0, 0, this.root.position);
 
-    const pose = ghostPose(this.clock);
+    const pose = ghostPose(this.clock, this.pose);
     this.material.opacity = ONBOARDING.maxOpacity * pose.opacity;
+    this.ringMaterial.opacity = ONBOARDING.ringOpacity + ONBOARDING.ringPulse * Math.sin(time * ONBOARDING.ringPulseRate);
     if (step === 'pinch-pull') this.demoThread(pose.along, pose.pinch, pose.thread);
     else this.demoChute(pose.pinch);
   }
@@ -132,6 +142,7 @@ export class OnboardingSystem extends createSystem({}) {
   private stretch(ax: number, ay: number, bx: number, by: number): void {
     this.dir.set(bx - ax, by - ay, 0);
     const len = this.dir.length();
+    if (len < 1e-4) return;
     this.thread.position.set((ax + bx) / 2, (ay + by) / 2, KNOB_Z);
     this.quat.setFromUnitVectors(UP, this.dir.divideScalar(len));
     this.thread.quaternion.copy(this.quat);
