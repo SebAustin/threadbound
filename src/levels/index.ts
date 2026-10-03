@@ -16,6 +16,9 @@ import crossfade from './world3/04-crossfade.json';
 import shortSpool from './world4/01-short-spool.json';
 import springboard from './world4/02-springboard.json';
 import budget from './world4/03-budget.json';
+import slideToFit from './world4/04-slide-to-fit.json';
+import splitSpool from './world4/05-split-spool.json';
+import lastThread from './world4/06-last-thread.json';
 
 const RAW_LEVELS: readonly unknown[] = [
   firstThread,
@@ -35,6 +38,9 @@ const RAW_LEVELS: readonly unknown[] = [
   shortSpool,
   springboard,
   budget,
+  slideToFit,
+  splitSpool,
+  lastThread,
 ];
 
 /** All levels, validated at startup: a broken level file fails fast and loudly. */
