@@ -47,3 +47,4 @@ pids/
 # Local, machine-specific configs
 opencode.json
 .claude/settings.local.json
+.scratch/**/*.log

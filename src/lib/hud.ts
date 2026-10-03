@@ -38,3 +38,12 @@ export function hudModel(input: HudInput): HudModel {
     hint: input.hint,
   };
 }
+
+export interface SettingsModel {
+  readonly slowLabel: string;
+}
+
+/** Settings-face copy: every toggle says what it is set to. */
+export function settingsModel(settings: { readonly slowMotion: boolean }): SettingsModel {
+  return { slowLabel: `Slow motion: ${settings.slowMotion ? 'On' : 'Off'}` };
+}

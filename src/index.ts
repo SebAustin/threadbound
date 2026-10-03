@@ -13,6 +13,8 @@ import { EnvironmentSystem } from './features/environment/EnvironmentSystem.js';
 import { MarbleSystem } from './features/marbles/MarbleSystem.js';
 import { PlacementSystem } from './features/placement/PlacementSystem.js';
 import { PuzzleSystem } from './features/puzzle/PuzzleSystem.js';
+import { SettingsSystem } from './features/settings/SettingsSystem.js';
+import { SimulationClockSystem } from './features/simulation/SimulationClockSystem.js';
 import { SliderSystem } from './features/sliders/SliderSystem.js';
 import { ThreadSystem } from './features/threads/ThreadSystem.js';
 import { ThreadVibrationSystem } from './features/threads/ThreadVibrationSystem.js';
@@ -26,6 +28,9 @@ World.create(
   projectOptions,
 ).then((world) => {
   world.registerSystem(EnvironmentSystem);
+  // Settings first: the first level's marbles read them.
+  world.registerSystem(SettingsSystem);
+  world.registerSystem(SimulationClockSystem);
   world.registerSystem(PuzzleSystem);
   world.registerSystem(ThreadSystem);
   world.registerSystem(ThreadVibrationSystem);

@@ -1,12 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import {
-  INITIAL_PROGRESS,
-  loadProgress,
-  memoryStorage,
-  recordCompletion,
-  saveProgress,
-  type StorageLike,
-} from '../../src/lib/progress';
+import { INITIAL_PROGRESS, loadProgress, recordCompletion, saveProgress } from '../../src/lib/progress';
+import { memoryStorage, type StorageLike } from '../../src/lib/storage';
 
 describe('recordCompletion', () => {
   test('stores stars and unlocks the next level without mutating input', () => {

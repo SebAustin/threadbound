@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { DROP_QUIET_SECONDS, dropOver, isStalled, restTimer, STALL_SECONDS } from '../../src/lib/dropWatch';
+import { DROP_QUIET_SECONDS, dropOver, isStalled, nudgeDirection, restTimer, STALL_SECONDS } from '../../src/lib/dropWatch';
 
 describe('restTimer: how long a marble has been at rest', () => {
   test('accumulates while slow, resets as soon as it moves', () => {
@@ -36,5 +36,17 @@ describe('dropOver: an unsolved drop ends once everything has come to rest', () 
   test('not until every marble has been still for a while', () => {
     expect(dropOver({ allReleased: true, quietSeconds: DROP_QUIET_SECONDS / 2 })).toBe(false);
     expect(dropOver({ allReleased: true, quietSeconds: DROP_QUIET_SECONDS })).toBe(true);
+  });
+});
+
+describe('nudgeDirection: which way to tip a stalled marble', () => {
+  test('first toward the middle of the diorama, away from the nearest wall', () => {
+    expect(nudgeDirection(0.487, 0.5, 0)).toBe(-1);
+    expect(nudgeDirection(0.02, 0.5, 0)).toBe(1);
+  });
+
+  test('the other way if the last nudge did not free it', () => {
+    expect(nudgeDirection(0.487, 0.5, 1)).toBe(1);
+    expect(nudgeDirection(0.487, 0.5, 2)).toBe(-1);
   });
 });

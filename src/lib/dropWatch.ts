@@ -32,3 +32,13 @@ export function isStalled({ restSeconds, y, inCup }: Perch): boolean {
 export function dropOver({ allReleased, quietSeconds }: { readonly allReleased: boolean; readonly quietSeconds: number }): boolean {
   return allReleased && quietSeconds >= DROP_QUIET_SECONDS;
 }
+
+/**
+ * Sideways direction (+1 right, -1 left) for a stalled marble at `x` in a
+ * diorama `width` wide: toward the middle first (a perch is often against a
+ * wall), alternating on each further attempt.
+ */
+export function nudgeDirection(x: number, width: number, attempt: number): 1 | -1 {
+  const towardMiddle = x > width / 2 ? -1 : 1;
+  return attempt % 2 === 0 ? towardMiddle : towardMiddle === 1 ? -1 : 1;
+}

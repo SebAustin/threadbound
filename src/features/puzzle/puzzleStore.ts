@@ -1,5 +1,6 @@
 import type { Level } from '../../lib/levelSchema';
 import { INITIAL_PROGRESS, type Progress } from '../../lib/progress';
+import { DEFAULT_SETTINGS, type Settings } from '../../lib/settings';
 import type { ThreadLink } from '../../lib/threadRules';
 import type { Vec3 } from '../../lib/vec';
 import type { BuiltDiorama } from '../diorama/buildDiorama';
@@ -20,6 +21,7 @@ export interface PuzzleState {
   readonly pegPositions: Readonly<Record<string, { readonly x: number; readonly y: number }>>;
   /** Simulation frozen because the player can't see it (see PauseSystem). */
   readonly paused: boolean;
+  readonly settings: Settings;
 }
 
 /** Everything that changes the puzzle goes through here: buttons, placement, tests. */
@@ -29,6 +31,10 @@ export type PuzzleCommand =
   | { readonly type: 'next' }
   /** Forget all stars and unlocks, back to level 1 (first-time experience). */
   | { readonly type: 'resetProgress' }
+  /** Change and persist player settings. */
+  | { readonly type: 'settings'; readonly patch: Partial<Settings> }
+  /** Flip the plaque between the level face and the settings face. */
+  | { readonly type: 'toggleSettings' }
   | { readonly type: 'drop' }
   | { readonly type: 'addThread'; readonly from: string; readonly to: string }
   | { readonly type: 'snip'; readonly from: string; readonly to: string }
@@ -57,6 +63,7 @@ const INITIAL: PuzzleState = {
   progress: INITIAL_PROGRESS,
   pegPositions: {},
   paused: false,
+  settings: DEFAULT_SETTINGS,
 };
 
 /**

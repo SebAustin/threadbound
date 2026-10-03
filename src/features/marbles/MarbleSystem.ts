@@ -10,9 +10,10 @@ import {
   type Entity,
 } from '@iwsdk/core';
 import { GOAL, MARBLE, THREAD_TUNING } from '../../config/constants';
-import { dropOver, isStalled, restTimer } from '../../lib/dropWatch';
+import { dropOver, isStalled, nudgeDirection, restTimer } from '../../lib/dropWatch';
 import { goalAccepts } from '../../lib/goalMatch';
 import { isMarbleColor } from '../../lib/marbleColors';
+import { timeScale } from '../../lib/settings';
 import { releaseOrder, type Release } from '../../lib/releaseOrder';
 import { segmentDistanceSq2d } from '../../lib/segment2d';
 import { spawnOffsetX } from '../../lib/spawnOffset';
@@ -68,6 +69,8 @@ export class MarbleSystem extends createSystem({
   private tmpNudge = new Vector3();
   /** Seconds each marble has been at rest, keyed by marble index. */
   private rest = new Map<number, number>();
+  /** Nudges each marble has needed, keyed by marble index. */
+  private nudges = new Map<number, number>();
   /** Seconds every marble of the drop has been at rest at once. */
   private quiet = 0;
   /** Solved melody being replayed, one note per step (paused with the system). */
@@ -81,6 +84,7 @@ export class MarbleSystem extends createSystem({
       this.queries.marbles.subscribe('disqualify', (m) => {
         this.contacts.delete(m.index);
         this.rest.delete(m.index);
+        this.nudges.delete(m.index);
       }),
       puzzleStore.onCommand((command) => {
         if (command.type === 'drop') this.drop();
@@ -154,7 +158,9 @@ export class MarbleSystem extends createSystem({
   }
 
   update(delta: number): void {
-    this.releaseDue(delta);
+    // Simulation time: slow motion dilates releases and rest timers with physics.
+    const simDelta = delta * timeScale(puzzleStore.get().settings.slowMotion);
+    this.releaseDue(simDelta);
     this.replayDue(delta);
     const frame = puzzleStore.frame;
     if (!frame) return;
@@ -170,11 +176,11 @@ export class MarbleSystem extends createSystem({
       }
       this.detectPlucks(marble, this.tmpLocal.x, this.tmpLocal.y);
       this.detectGoal(marble, this.tmpLocal.x, this.tmpLocal.y);
-      allResting = this.watchRest(marble, this.tmpLocal.x, this.tmpLocal.y, delta) && allResting;
+      allResting = this.watchRest(marble, this.tmpLocal.x, this.tmpLocal.y, simDelta) && allResting;
     }
     for (const marble of this.lost) marble.dispose({ disposeResources: false });
     this.lost.length = 0;
-    this.endDropIfSettled(allResting, delta);
+    this.endDropIfSettled(allResting, simDelta);
   }
 
   private releaseDue(delta: number): void {
@@ -194,16 +200,19 @@ export class MarbleSystem extends createSystem({
       this.rest.set(marble.index, resting);
       return resting > 0;
     }
-    this.nudge(marble);
+    this.nudge(marble, x);
     this.rest.set(marble.index, 0);
     return false;
   }
 
-  /** Alternating sideways push in the diorama plane. */
-  private nudge(marble: Entity): void {
+  /** Sideways push in the diorama plane: toward the middle, then the other way. */
+  private nudge(marble: Entity, x: number): void {
     const frame = puzzleStore.frame;
-    if (!frame) return;
-    const side = marble.index % 2 === 0 ? 1 : -1;
+    const width = puzzleStore.get().level?.size[0];
+    if (!frame || width === undefined) return;
+    const attempt = this.nudges.get(marble.index) ?? 0;
+    this.nudges.set(marble.index, attempt + 1);
+    const side = nudgeDirection(x, width, attempt);
     this.tmpNudge.set(side * NUDGE_SPEED, 0, 0).applyQuaternion(frame.anchor.quaternion);
     marble.addComponent(PhysicsManipulation, { linearVelocity: [this.tmpNudge.x, this.tmpNudge.y, this.tmpNudge.z] });
   }

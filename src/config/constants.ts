@@ -79,6 +79,8 @@ export const CONTROLS = {
   buttonHeight: 0.012,
   /** Distance of each button from its side of the diorama. */
   buttonInset: 0.05,
+  /** Gap between neighbouring ledge buttons (centre to centre). */
+  buttonSpacing: 0.05,
 } as const;
 
 /** Plaque standing on the diorama's top edge (UIKit panel, centimetre units inside). */

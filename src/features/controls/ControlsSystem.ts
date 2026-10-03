@@ -1,10 +1,17 @@
 import { createSystem, type Entity, type Mesh } from '@iwsdk/core';
 import { stringSynth } from '../audio/stringSynth';
-import { ControlActions, ControlButton } from '../puzzle/components';
-import { puzzleStore } from '../puzzle/puzzleStore';
+import { ControlButton, type ControlAction } from '../puzzle/components';
+import { puzzleStore, type PuzzleCommand } from '../puzzle/puzzleStore';
 import { onPointer } from '../input/pointerEvents';
 
 const PRESS_HZ = 587.33;
+const PRESS_VOLUME = 0.5;
+
+const COMMANDS: Readonly<Record<ControlAction, PuzzleCommand>> = {
+  restart: { type: 'restart' },
+  next: { type: 'next' },
+  settings: { type: 'toggleSettings' },
+};
 
 /** Restart / Next buttons on the diorama ledge: poke them or pinch them from afar. */
 export class ControlsSystem extends createSystem({
@@ -19,7 +26,7 @@ export class ControlsSystem extends createSystem({
   private attach(entity: Entity): void {
     const object = entity.object3D;
     if (!object) return;
-    const action = entity.getValue(ControlButton, 'action');
+    const action = entity.getValue(ControlButton, 'action') as ControlAction;
     // Listeners live on the button's own meshes and are discarded with them.
     // Child meshes: events bubble from the hit mesh, and IWSDK stops them at the root.
     object.traverse((child) => {
@@ -28,8 +35,8 @@ export class ControlsSystem extends createSystem({
         e.stopPropagation();
         if (!object.visible) return;
         stringSynth.unlock();
-        stringSynth.pluck(PRESS_HZ, 0.5);
-        puzzleStore.dispatch({ type: action === ControlActions.Next ? 'next' : 'restart' });
+        stringSynth.pluck(PRESS_HZ, PRESS_VOLUME);
+        puzzleStore.dispatch(COMMANDS[action]);
       });
     });
   }

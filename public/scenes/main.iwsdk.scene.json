@@ -65,6 +65,9 @@
           -0.42
         ],
         "scale": 1
+      },
+      "components": {
+        "RayInteractable": {}
       }
     }
   ]

@@ -74,3 +74,19 @@ export function captureLogs(page) {
   page.on('console', (m) => m.text().includes('[Threadbound]') && logs.push(m.text()));
   return logs;
 }
+
+/**
+ * Screen position of a plaque element once UIKit has laid it out (a face that was
+ * just shown reports a stale position for a frame or two): two equal reads in a row.
+ */
+export async function plaqueElementAt(app, id, timeoutMs = 3000) {
+  let last = null;
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const p = await app.evaluate((elementId) => window.__threadbound.plaqueElement(elementId), id);
+    if (p && last && Math.abs(p.x - last.x) < 0.5 && Math.abs(p.y - last.y) < 0.5) return p;
+    last = p;
+    await sleep(100);
+  }
+  return null;
+}

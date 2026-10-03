@@ -1,8 +1,9 @@
-import { createSystem, PhysicsSystem } from '@iwsdk/core';
+import { createSystem } from '@iwsdk/core';
 import { shouldPause, type XrVisibility } from '../../lib/pausePolicy';
 import { MarbleSystem } from '../marbles/MarbleSystem';
 import { OnboardingSystem } from '../onboarding/OnboardingSystem';
 import { puzzleStore } from '../puzzle/puzzleStore';
+import { SimulationClockSystem } from '../simulation/SimulationClockSystem';
 import { ThreadVibrationSystem } from '../threads/ThreadVibrationSystem';
 
 interface Pausable {
@@ -13,7 +14,7 @@ interface Pausable {
 /**
  * Freezes the simulation while the player can't see it (system menu over the
  * session, headset off, hidden tab) and resumes exactly where it stopped.
- * Physics caps its catch-up steps, so a long pause never fast-forwards.
+ * The clock only ever passes one frame's delta, so resuming never fast-forwards.
  */
 export class PauseSystem extends createSystem({}) {
   init(): void {
@@ -34,7 +35,8 @@ export class PauseSystem extends createSystem({}) {
   /** Everything that moves on its own; input-driven systems simply see no input. */
   private simulation(): Pausable[] {
     const systems: Array<Pausable | undefined> = [
-      this.world.getSystem(PhysicsSystem),
+      // Physics is stepped by the simulation clock; stopping the clock stops physics.
+      this.world.getSystem(SimulationClockSystem),
       this.world.getSystem(MarbleSystem),
       this.world.getSystem(ThreadVibrationSystem),
       this.world.getSystem(OnboardingSystem),

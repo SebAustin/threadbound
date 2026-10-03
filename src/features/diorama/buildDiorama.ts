@@ -22,7 +22,7 @@ import { CONTROLS, DIORAMA, GLYPH, GOAL, PEG, SLIDER } from '../../config/consta
 import type { SortingColor } from '../../lib/marbleColors';
 import type { Chute as ChuteSpec, Level } from '../../lib/levelSchema';
 import { handleOffset, type Rail } from '../../lib/rail';
-import { Chute, ControlActions, ControlButton, Peg, SliderHandle } from '../puzzle/components';
+import { Chute, ControlActions, ControlButton, Peg, SliderHandle, type ControlAction } from '../puzzle/components';
 import type { DioramaFrame } from './dioramaFrame';
 import { GEOMETRIES, glyphMesh, goalMaterial, MATERIALS, marbleMaterial } from './palette';
 
@@ -170,12 +170,32 @@ function buildWalls(world: World, frame: DioramaFrame, level: Level): Entity[] {
   );
 }
 
+/** Walnut icon on each ledge button's cap, lying flat and readable from above. */
+const BUTTON_ICONS: Readonly<Record<ControlAction, (r: number) => Mesh>> = {
+  next: (r) => {
+    const arrow = new Mesh(new ConeGeometry(r * 0.45, r * 0.9, 3), MATERIALS.walnut);
+    arrow.rotation.z = -Math.PI / 2; // points to the right
+    return arrow;
+  },
+  restart: (r) => {
+    const loop = new Mesh(new TorusGeometry(r * 0.45, r * 0.12, 6, 20, Math.PI * 1.6), MATERIALS.walnut);
+    loop.rotation.x = -Math.PI / 2;
+    return loop;
+  },
+  settings: (r) => {
+    // A hexagonal nut reads as "settings" without text.
+    const nut = new Mesh(new TorusGeometry(r * 0.42, r * 0.16, 6, 6), MATERIALS.walnut);
+    nut.rotation.x = -Math.PI / 2;
+    return nut;
+  },
+};
+
 /** Pokeable (near) and pinchable (ray) button resting on the front ledge. */
 function buildButton(
   world: World,
   frame: DioramaFrame,
   x: number,
-  action: (typeof ControlActions)[keyof typeof ControlActions],
+  action: ControlAction,
 ): Entity {
   const { buttonRadius: r, buttonHeight: h, ledgeDepth } = CONTROLS;
   const z = DIORAMA.channelHalfDepth + DIORAMA.slab + ledgeDepth / 2;
@@ -183,12 +203,7 @@ function buildButton(
   group.name = `button-${action}`;
   const cap = new Mesh(new CylinderGeometry(r, r, h, 24), action === 'next' ? MATERIALS.goal : MATERIALS.cream);
   cap.position.y = h / 2;
-  const icon =
-    action === 'next'
-      ? new Mesh(new ConeGeometry(r * 0.45, r * 0.9, 3), MATERIALS.walnut)
-      : new Mesh(new TorusGeometry(r * 0.45, r * 0.12, 6, 20, Math.PI * 1.6), MATERIALS.walnut);
-  if (action === 'next') icon.rotation.z = -Math.PI / 2; // arrow points to the right
-  else icon.rotation.x = -Math.PI / 2; // circular arrow lies flat on the cap
+  const icon = BUTTON_ICONS[action](r);
   icon.position.y = h + 0.002;
   group.add(cap, icon);
   const entity = place(world, frame, group, [x, 0, z]);
@@ -247,6 +262,7 @@ export function buildDiorama(world: World, frame: DioramaFrame, level: Level): B
       ...level.chutes.map((c, i) => buildChute(world, frame, c, i)),
       ...buildLedge(world, frame, level),
       buildButton(world, frame, inset, ControlActions.Restart),
+      buildButton(world, frame, inset + CONTROLS.buttonSpacing, ControlActions.Settings),
       nextButton,
     ],
     goals: goals.map((g) => g.range),

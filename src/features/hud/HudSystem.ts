@@ -6,6 +6,9 @@ import { onboardingStepOf } from '../onboarding/onboardingState';
 import { playerThreadCount } from '../../lib/threadRules';
 import { LEVELS } from '../../levels';
 import { puzzleStore, type PuzzleState } from '../puzzle/puzzleStore';
+import { SettingsFace } from './settingsFace';
+
+export type PlaqueFace = 'level' | 'settings';
 
 const STAR_IDS = ['hud-star-1', 'hud-star-2', 'hud-star-3'] as const;
 
@@ -15,6 +18,8 @@ const STAR_IDS = ['hud-star-1', 'hud-star-2', 'hud-star-3'] as const;
  */
 export class HudSystem extends createSystem({}) {
   private panel: UIKitMLAsset | undefined;
+  private settingsFace: SettingsFace | undefined;
+  private face: PlaqueFace = 'level';
   /**
    * State the plaque was last rendered from. The store fires on every change
    * (rail drags fire per frame); the plaque only depends on these snapshots.
@@ -24,14 +29,30 @@ export class HudSystem extends createSystem({}) {
   init(): void {
     this.panel = this.world.getSceneObject<UIKitMLAsset>('hud-plaque');
     if (!this.panel) return;
+    this.settingsFace = new SettingsFace(this.panel);
     this.cleanupFuncs.push(
+      this.settingsFace.bind(),
       puzzleStore.onCommand((command) => {
-        if (command.type === 'levelBuilt') this.follow();
+        if (command.type === 'levelBuilt') {
+          this.follow();
+          this.showFace('level'); // a new level always opens on its own face
+        }
+        if (command.type === 'toggleSettings') this.showFace(this.face === 'level' ? 'settings' : 'level');
       }),
       puzzleStore.subscribe((state) => this.render(state)),
     );
     this.follow();
+    this.showFace('level');
     this.render(puzzleStore.get());
+  }
+
+  private showFace(face: PlaqueFace): void {
+    const panel = this.panel;
+    if (!panel) return;
+    this.face = face;
+    panel.userData.face = face;
+    panel.getElementById('level-face')?.setProperties({ display: face === 'level' ? 'flex' : 'none' });
+    panel.getElementById('settings-face')?.setProperties({ display: face === 'settings' ? 'flex' : 'none' });
   }
 
   /** Centered above the back panel, facing the player like the diorama does. */
@@ -44,6 +65,7 @@ export class HudSystem extends createSystem({}) {
   }
 
   private render(state: PuzzleState): void {
+    this.settingsFace?.render(state.settings);
     const { level } = state;
     if (!this.panel || !level || !this.changed(state)) return;
     this.shownFrom = state;

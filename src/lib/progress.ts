@@ -1,9 +1,5 @@
 import { z } from 'zod';
-
-export interface StorageLike {
-  getItem(key: string): string | null;
-  setItem(key: string, value: string): void;
-}
+import { loadJson, saveJson, type StorageLike } from './storage';
 
 const STORAGE_KEY = 'threadbound.progress.v1';
 
@@ -32,42 +28,10 @@ export function recordCompletion(
   };
 }
 
-/** Never throws: private browsing or blocked site data just means no saved progress. */
 export function loadProgress(storage: StorageLike): Progress {
-  try {
-    const raw = storage.getItem(STORAGE_KEY);
-    if (!raw) return INITIAL_PROGRESS;
-    const parsed = ProgressSchema.safeParse(JSON.parse(raw));
-    return parsed.success ? parsed.data : INITIAL_PROGRESS;
-  } catch (error) {
-    console.warn('[Threadbound] could not read saved progress', error);
-    return INITIAL_PROGRESS;
-  }
+  return loadJson(storage, STORAGE_KEY, ProgressSchema, INITIAL_PROGRESS, 'progress');
 }
 
 export function saveProgress(storage: StorageLike, progress: Progress): void {
-  try {
-    storage.setItem(STORAGE_KEY, JSON.stringify(progress));
-  } catch (error) {
-    console.warn('[Threadbound] could not save progress', error);
-  }
-}
-
-export function memoryStorage(): StorageLike {
-  const map = new Map<string, string>();
-  return {
-    getItem: (key) => map.get(key) ?? null,
-    setItem: (key, value) => void map.set(key, value),
-  };
-}
-
-/** Browser localStorage when accessible, otherwise an in-memory stand-in. */
-export function browserStorage(): StorageLike {
-  try {
-    const storage = globalThis.localStorage;
-    if (storage) return storage;
-  } catch (error) {
-    console.warn('[Threadbound] localStorage unavailable', error);
-  }
-  return memoryStorage();
+  saveJson(storage, STORAGE_KEY, progress, 'progress');
 }

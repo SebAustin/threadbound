@@ -64,6 +64,37 @@
     color: #8a4b12;
   }
 
+  .face {
+    flex-direction: column;
+  }
+
+  .settings-face {
+    display: none;
+    padding-bottom: 1;
+  }
+
+  .toggle {
+    margin-top: 0.8;
+    margin-left: 1.6;
+    margin-right: 1.6;
+    padding-top: 0.8;
+    padding-bottom: 0.8;
+    padding-left: 1.2;
+    padding-right: 1.2;
+    border-radius: 0.8;
+    background-color: #e3d3b4;
+    border-color: #8a6a3c;
+    border-width: 0.2;
+    font-size: 1.5;
+    font-weight: 700;
+    color: #3d2f2a;
+    cursor: pointer;
+  }
+
+  .toggle:hover {
+    background-color: #f2c14e;
+  }
+
   .detail {
     font-size: 1.4;
     font-weight: 500;
@@ -71,6 +102,7 @@
   }
 </style>
 <div class="plaque">
+  <div id="level-face" class="face">
   <div id="hud-header" class="header">
     <span id="hud-title" class="title">Threadbound</span>
     <div class="stars">
@@ -84,4 +116,11 @@
     <span id="hud-threads" class="detail">Threads 0/2 - par 1</span>
   </div>
   <span id="hud-hint" class="hint"></span>
+  </div>
+  <div id="settings-face" class="face settings-face">
+    <div class="header">
+      <span class="title">Settings</span>
+    </div>
+    <span id="set-slow" class="toggle">Slow motion: Off</span>
+  </div>
 </div>

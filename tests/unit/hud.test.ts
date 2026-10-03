@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { hudModel } from '../../src/lib/hud';
+import { hudModel, settingsModel } from '../../src/lib/hud';
 
 const levels = [{ world: 1 }, { world: 1 }, { world: 2 }, { world: 2 }, { world: 2 }];
 const base = {
@@ -38,5 +38,12 @@ describe('hudModel: what the diorama plaque says', () => {
   test('a solved level says so', () => {
     expect(hudModel(base).status).toBe('playing');
     expect(hudModel({ ...base, solved: true }).status).toBe('solved');
+  });
+});
+
+describe('settingsModel: the plaque settings face', () => {
+  test('labels each toggle with its current state (ASCII)', () => {
+    expect(settingsModel({ slowMotion: false }).slowLabel).toBe('Slow motion: Off');
+    expect(settingsModel({ slowMotion: true }).slowLabel).toBe('Slow motion: On');
   });
 });

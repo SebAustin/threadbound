@@ -1,4 +1,4 @@
-import { Vector3, type World } from '@iwsdk/core';
+import { Object3D, Vector3, type UIKitMLAsset, type World } from '@iwsdk/core';
 import { LEVELS } from '../../levels';
 import { handleOffset } from '../../lib/rail';
 import { solutionSteps } from '../../lib/solutionSteps';
@@ -35,6 +35,9 @@ export interface ThreadboundTestHook {
   room(): { visible: boolean; background: boolean; blendMode: string | null };
   /** What the diorama plaque last rendered, and where it sits in diorama-local space. */
   hud(): { model: unknown; local: { x: number; y: number; z: number } } | null;
+  /** Which plaque face is showing, and where a plaque element is on screen (for real clicks). */
+  plaque(): { face: string } | null;
+  plaqueElement(id: string): ScreenPoint | null;
   /** Ghost-hand tutorial: current step and whether it is drawn. */
   ghost(): { step: string; visible: boolean } | null;
 }
@@ -134,6 +137,16 @@ export function installTestHook(world: World): void {
       if (!plaque || !frame) return null;
       const local = frame.worldToLocal(plaque.getWorldPosition(new Vector3()), new Vector3());
       return { model: plaque.userData.hud ?? null, local: { x: round3(local.x), y: round3(local.y), z: round3(local.z) } };
+    },
+    plaque: () => {
+      const panel = world.getSceneObject('hud-plaque');
+      return panel ? { face: String(panel.userData.face ?? '') } : null;
+    },
+    plaqueElement: (id) => {
+      const element = world.getSceneObject<UIKitMLAsset>('hud-plaque')?.getElementById(id) as unknown;
+      // UIKit elements are scene objects; their world position is the element's centre.
+      if (!(element instanceof Object3D)) return null;
+      return toScreen(element.getWorldPosition(new Vector3()));
     },
     ghost: () => {
       const root = world.scene.getObjectByName('onboarding-ghost');
