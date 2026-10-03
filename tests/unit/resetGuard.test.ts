@@ -21,7 +21,7 @@ describe('resetPoke: wiping progress needs two pokes close together', () => {
 describe('resetLabel: what the control says', () => {
   test('asks for confirmation only while armed', () => {
     expect(resetLabel({ armedAt: null }, 0)).toBe('Reset progress');
-    expect(resetLabel({ armedAt: 10 }, 11)).toBe('Poke again to reset');
+    expect(resetLabel({ armedAt: 10 }, 11)).toBe('Confirm reset');
     expect(resetLabel({ armedAt: 10 }, 10 + RESET_WINDOW_SECONDS + 1)).toBe('Reset progress');
   });
 });

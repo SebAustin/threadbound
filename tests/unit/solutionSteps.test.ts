@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { parseLevel, type Level } from '../../src/lib/levelSchema';
-import { solutionSteps } from '../../src/lib/solutionSteps';
+import { restoreSteps, solutionSteps } from '../../src/lib/solutionSteps';
 
 function level(overrides: Record<string, unknown>): Level {
   const r = parseLevel({
@@ -58,5 +58,23 @@ describe('solutionSteps: the command sequence that applies a stored solution', (
       }),
     );
     expect(steps[0]).toEqual({ type: 'movePeg', pegId: 'a', x: 0.2, y: 0.28 });
+  });
+});
+
+describe('restoreSteps: rebuild a moved diorama exactly as the player left it', () => {
+  test('replays rail positions, snipped presets and player threads', () => {
+    const lvl = level({ presetThreads: [{ from: 'b', to: 'c' }] });
+    const steps = restoreSteps(lvl, [{ from: 'a', to: 'c' }], { a: { x: 0.1, y: 0.24 }, b: { x: 0.3, y: 0.1 }, c: { x: 0.45, y: 0.3 } });
+    expect(steps).toEqual([
+      { type: 'movePeg', pegId: 'a', x: 0.1, y: 0.24 },
+      { type: 'snip', from: 'b', to: 'c' },
+      { type: 'addThread', from: 'a', to: 'c' },
+    ]);
+  });
+
+  test('an untouched level needs no steps', () => {
+    const lvl = level({ presetThreads: [{ from: 'b', to: 'c' }] });
+    const at = { a: { x: 0.2, y: 0.24 }, b: { x: 0.3, y: 0.1 }, c: { x: 0.45, y: 0.3 } };
+    expect(restoreSteps(lvl, [{ from: 'b', to: 'c', preset: true }], at)).toEqual([]);
   });
 });

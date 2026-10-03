@@ -1,7 +1,8 @@
 import type { UIKit, UIKitMLAsset } from '@iwsdk/core';
 import { settingsModel } from '../../lib/hud';
 import { DISARMED, RESET_WINDOW_SECONDS, resetLabel, resetPoke, type ResetGuard } from '../../lib/resetGuard';
-import type { Settings } from '../../lib/settings';
+import type { DioramaOffset } from '../../lib/placement';
+import { stepOffset, type Settings } from '../../lib/settings';
 import { puzzleStore } from '../puzzle/puzzleStore';
 
 /** The plaque's settings face: each control dispatches a settings change on the bus. */
@@ -25,11 +26,31 @@ export class SettingsFace {
     const pokeReset = () => this.pokeReset();
     slow?.addEventListener('click', toggleSlow);
     reset?.addEventListener('click', pokeReset);
+    const unbindMoves = (
+      [
+        ['set-up', 'up', 1],
+        ['set-down', 'up', -1],
+        ['set-near', 'near', 1],
+        ['set-far', 'near', -1],
+      ] as const
+    ).map(([id, axis, direction]) => this.bindMove(id, axis, direction));
     return () => {
       slow?.removeEventListener('click', toggleSlow);
       reset?.removeEventListener('click', pokeReset);
+      for (const unbind of unbindMoves) unbind();
       clearTimeout(this.disarmTimer);
     };
+  }
+
+  /** One-handed diorama adjustment: each poke is one clamped step. */
+  private bindMove(id: string, axis: keyof DioramaOffset, direction: 1 | -1): () => void {
+    const button = this.panel.getElementById(id);
+    const move = () => {
+      const offset = stepOffset(puzzleStore.get().settings.offset, axis, direction);
+      puzzleStore.dispatch({ type: 'settings', patch: { offset } });
+    };
+    button?.addEventListener('click', move);
+    return () => button?.removeEventListener('click', move);
   }
 
   /** First poke arms, a second within the window wipes progress (and brings the tutorial back). */
@@ -53,5 +74,6 @@ export class SettingsFace {
     this.shown = settings;
     const model = settingsModel(settings);
     this.panel.getElementById<UIKit.Text>('set-slow')?.setProperties({ text: model.slowLabel });
+    this.panel.getElementById<UIKit.Text>('set-offset')?.setProperties({ text: model.offsetLabel });
   }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { DEFAULT_SETTINGS, loadSettings, saveSettings, timeScale } from '../../src/lib/settings';
+import { DEFAULT_SETTINGS, loadSettings, saveSettings, stepOffset, timeScale } from '../../src/lib/settings';
 import { memoryStorage } from '../../src/lib/storage';
 
 describe('settings', () => {
@@ -28,5 +28,25 @@ describe('timeScale: slow motion is the same simulation, played slower', () => {
 
   test('slow motion runs the simulation at two thirds speed', () => {
     expect(timeScale(true)).toBeCloseTo(2 / 3);
+  });
+});
+
+describe('diorama offset', () => {
+  test('defaults to no offset', () => {
+    expect(DEFAULT_SETTINGS.offset).toEqual({ up: 0, near: 0 });
+  });
+
+  test('settings saved before offsets existed keep their slow motion choice', () => {
+    const storage = memoryStorage();
+    storage.setItem('threadbound.settings.v1', '{"slowMotion":true}');
+    expect(loadSettings(storage)).toEqual({ slowMotion: true, offset: { up: 0, near: 0 } });
+  });
+
+  test('steps clamp to a comfortable range', () => {
+    expect(stepOffset({ up: 3, near: 0 }, 'up', 1)).toEqual({ up: 3, near: 0 });
+    expect(stepOffset({ up: -3, near: 0 }, 'up', -1)).toEqual({ up: -3, near: 0 });
+    expect(stepOffset({ up: 0, near: 3 }, 'near', 1)).toEqual({ up: 0, near: 3 });
+    expect(stepOffset({ up: 0, near: -2 }, 'near', -1)).toEqual({ up: 0, near: -2 });
+    expect(stepOffset({ up: 0, near: 0 }, 'up', 1)).toEqual({ up: 1, near: 0 });
   });
 });

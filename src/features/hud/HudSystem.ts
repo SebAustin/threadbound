@@ -30,13 +30,16 @@ export class HudSystem extends createSystem({}) {
   init(): void {
     this.panel = this.world.getSceneObject<UIKitMLAsset>('hud-plaque');
     if (!this.panel) return;
+    // Grow upward from a fixed bottom edge, so a taller face never covers the playfield.
+    this.panel.getElementById('plaque')?.setProperties({ anchorY: 'bottom' });
     this.settingsFace = new SettingsFace(this.panel);
     this.cleanupFuncs.push(
       this.settingsFace.bind(),
       puzzleStore.onCommand((command) => {
         if (command.type === 'levelBuilt') {
           this.follow();
-          this.showFace('level'); // a new level always opens on its own face
+          // A new level opens on its own face; moving the diorama keeps the settings open.
+          if (!command.relocated) this.showFace('level');
         }
         if (command.type === 'toggleSettings') this.showFace(this.face === 'level' ? 'settings' : 'level');
       }),
@@ -56,7 +59,7 @@ export class HudSystem extends createSystem({}) {
     panel.getElementById('settings-face')?.setProperties({ display: face === 'settings' ? 'flex' : 'none' });
   }
 
-  /** Centered above the back panel, facing the player like the diorama does. */
+  /** Standing on the back panel's top edge, facing the player like the diorama does. */
   private follow(): void {
     const frame = puzzleStore.frame;
     const level = puzzleStore.get().level;

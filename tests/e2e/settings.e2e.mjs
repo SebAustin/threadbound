@@ -2,28 +2,44 @@
 // motion toggle there makes marbles fall measurably slower and is remembered.
 import { canvasMapper, checks, click, clickCanvas, loadIndex, plaqueElementAt, waitFor } from './lib.mjs';
 
-/** Drops the first level's marbles untouched; ms until the first falls 25 cm. */
-const fallMs = () =>
+/**
+ * Drops the first level's marbles untouched and reports how far (m) the first
+ * marble has fallen 200 ms after it appears. Distance grows with time squared,
+ * so slow motion (2/3 speed) should fall about 0.44x as far; frame-pacing lag
+ * affects both runs alike, unlike a stopwatch on the whole fall.
+ */
+const fallenAfter200ms = () =>
   new Promise((resolve) => {
-    const start = performance.now();
+    const deadline = performance.now() + 8000;
+    let spawned = null;
     window.__threadbound.dispatch({ type: 'drop' });
     const tick = () => {
+      const now = performance.now();
       const [first] = window.__threadbound.marbles();
-      const elapsed = performance.now() - start;
-      if (first && first.y < 0.12) resolve(elapsed);
-      else if (elapsed > 8000) resolve(-1);
+      if (first && spawned === null) spawned = { at: now, y: first.y };
+      if (spawned && now - spawned.at >= 200) resolve(spawned.y - first.y);
+      else if (now > deadline) resolve(-1);
       else requestAnimationFrame(tick);
     };
     tick();
   });
+
+/** Median of three drops, each on a freshly loaded level. */
+async function typicalFall(app) {
+  const falls = [];
+  for (let i = 0; i < 3; i++) {
+    await loadIndex(app, 0);
+    falls.push(await app.evaluate(fallenAfter200ms));
+  }
+  return falls.sort((x, y) => x - y)[1];
+}
 
 export default async function run({ page, frame }) {
   const app = frame ?? page.mainFrame();
   const { results, check } = checks();
   const at = await canvasMapper(app);
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'settings', patch: { slowMotion: false } }));
-  await loadIndex(app, 0);
-  const normal = await app.evaluate(fallMs);
+  const normal = await typicalFall(app);
 
   await loadIndex(app, 0);
   await click(page, at(await app.evaluate(() => window.__threadbound.button('settings'))));
@@ -39,9 +55,8 @@ export default async function run({ page, frame }) {
 
   await click(page, at(await app.evaluate(() => window.__threadbound.button('settings'))));
   check('the gear flips back to the level face', await waitFor(app, () => window.__threadbound.plaque()?.face === 'level', 2000));
-  await loadIndex(app, 0);
-  const slow = await app.evaluate(fallMs);
-  check('marbles fall about 1.5x slower', normal > 0 && slow / normal > 1.25, `normal=${Math.round(normal)}ms slow=${Math.round(slow)}ms`);
+  const slow = await typicalFall(app);
+  check('marbles fall visibly slower', normal > 0 && slow > 0 && slow < 0.7 * normal, `fell in 200 ms: normal=${normal.toFixed(3)} m, slow=${slow.toFixed(3)} m`);
 
   // Leave the browser as other tests expect it.
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'settings', patch: { slowMotion: false } }));

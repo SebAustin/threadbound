@@ -134,3 +134,22 @@ export function originFromCenter(center: Vec3, yaw: number, width: number): Vec3
   const half = width / 2;
   return [center[0] - half * Math.cos(yaw), center[1], center[2] + half * Math.sin(yaw)];
 }
+
+/** One player adjustment step (meters): up/down, and toward/away along the diorama's facing. */
+export const OFFSET_STEP = { up: 0.025, near: 0.04 } as const;
+
+export interface DioramaOffset {
+  /** Whole steps up (negative: down). */
+  readonly up: number;
+  /** Whole steps toward the player (negative: away). */
+  readonly near: number;
+}
+
+/**
+ * Frame origin moved by the player's offset. The diorama faces local +z, which
+ * for a frame turned by `yaw` points along (sin yaw, 0, cos yaw) in the world.
+ */
+export function offsetOrigin(origin: Vec3, yaw: number, offset: DioramaOffset): Vec3 {
+  const near = offset.near * OFFSET_STEP.near;
+  return [origin[0] + near * Math.sin(yaw), origin[1] + offset.up * OFFSET_STEP.up, origin[2] + near * Math.cos(yaw)];
+}

@@ -24,7 +24,7 @@ export default async function run({ page, frame }) {
   if (!reset) return results;
 
   await clickCanvas(page, app, at, reset);
-  const armed = await waitFor(app, () => window.__threadbound.plaque()?.resetLabel === 'Poke again to reset', 2000);
+  const armed = await waitFor(app, () => window.__threadbound.plaque()?.resetLabel === 'Confirm reset', 2000);
   check('one poke only arms the reset', armed && (await app.evaluate(bestCount)) > 0, await app.evaluate(() => window.__threadbound.plaque()?.resetLabel));
 
   await clickCanvas(page, app, at, reset);

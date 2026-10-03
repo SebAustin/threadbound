@@ -3,6 +3,8 @@ import {
   choosePlacement,
   facingYaw,
   headRelativePlacement,
+  OFFSET_STEP,
+  offsetOrigin,
   originFromCenter,
   type PlaneCandidate,
 } from '../../src/lib/placement';
@@ -108,5 +110,24 @@ describe('choosePlacement off-axis rejection', () => {
   test('a table 30° off-axis is still used', () => {
     const angled: PlaneCandidate = { orientation: 'horizontal', label: 'table', min: [0.1, 0.74, -0.9], max: [0.7, 0.76, -0.5] };
     expect(choosePlacement([angled], head, 0.5, forward)).not.toBeNull();
+  });
+});
+
+describe('offsetOrigin: the player nudges the diorama up/down and toward/away', () => {
+  test('up steps raise it; near steps bring it toward a player facing it head-on', () => {
+    const o = offsetOrigin([0, 0.78, -0.42], 0, { up: 2, near: 1 });
+    expect(o[0]).toBeCloseTo(0);
+    expect(o[1]).toBeCloseTo(0.78 + 2 * OFFSET_STEP.up);
+    expect(o[2]).toBeCloseTo(-0.42 + OFFSET_STEP.near);
+  });
+
+  test("near follows the diorama's facing when it is turned on a table", () => {
+    const o = offsetOrigin([0, 0, 0], Math.PI / 2, { up: 0, near: 1 });
+    expect(o[0]).toBeCloseTo(OFFSET_STEP.near);
+    expect(o[2]).toBeCloseTo(0);
+  });
+
+  test('no offset leaves the pose alone', () => {
+    expect(offsetOrigin([0.1, 0.7, -0.5], 0.3, { up: 0, near: 0 })).toEqual([0.1, 0.7, -0.5]);
   });
 });

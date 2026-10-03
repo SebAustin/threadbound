@@ -51,9 +51,18 @@ export function hudModel(input: HudInput): HudModel {
 
 export interface SettingsModel {
   readonly slowLabel: string;
+  readonly offsetLabel: string;
 }
 
-/** Settings-face copy: every toggle says what it is set to. */
-export function settingsModel(settings: { readonly slowMotion: boolean }): SettingsModel {
-  return { slowLabel: `Slow motion: ${settings.slowMotion ? 'On' : 'Off'}` };
+const signed = (n: number) => (n > 0 ? `+${n}` : String(n));
+
+/** Settings-face copy: every control says what it is set to (ASCII). */
+export function settingsModel(settings: {
+  readonly slowMotion: boolean;
+  readonly offset: { readonly up: number; readonly near: number };
+}): SettingsModel {
+  return {
+    slowLabel: `Slow-mo: ${settings.slowMotion ? 'On' : 'Off'}`,
+    offsetLabel: `Height ${signed(settings.offset.up)}   Distance ${signed(settings.offset.near)}`,
+  };
 }

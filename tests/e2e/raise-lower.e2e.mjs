@@ -1,0 +1,37 @@
+// E2E (real input): one-handed Raise / Farther buttons on the settings face move
+// the diorama one step each, keep the player's threads, and the level still plays.
+import { canvasMapper, checks, click, clickCanvas, isComplete, loadIndex, plaqueElementAt, waitFor } from './lib.mjs';
+
+const STEP_UP = 0.025;
+const STEP_NEAR = 0.04;
+const origin = () => window.__threadbound.frame()?.origin;
+
+export default async function run({ page, frame }) {
+  const app = frame ?? page.mainFrame();
+  const { results, check } = checks();
+  const at = await canvasMapper(app);
+  await app.evaluate(() => window.__threadbound.dispatch({ type: 'settings', patch: { offset: { up: 0, near: 0 } } }));
+  await loadIndex(app, 0);
+  await app.evaluate(() => window.__threadbound.dispatch({ type: 'addThread', from: 'a', to: 'b' }));
+  const start = await app.evaluate(origin);
+
+  await click(page, at(await app.evaluate(() => window.__threadbound.button('settings'))));
+  await waitFor(app, () => window.__threadbound.plaque()?.face === 'settings', 2000);
+  await clickCanvas(page, app, at, await plaqueElementAt(app, 'set-up'));
+  const raised = await waitFor(app, ([y]) => Math.abs(window.__threadbound.frame().origin[1] - y) < 1e-3, 3000, [start[1] + STEP_UP]);
+  check('Raise lifts the diorama one step', raised, JSON.stringify(await app.evaluate(origin)));
+  check('the player\'s thread survives the move', (await app.evaluate(() => window.__threadbound.state().threads.length)) === 1);
+  check('the settings face stays open', (await app.evaluate(() => window.__threadbound.plaque()?.face)) === 'settings');
+
+  await clickCanvas(page, app, at, await plaqueElementAt(app, 'set-far'));
+  const farther = await waitFor(app, ([z]) => Math.abs(window.__threadbound.frame().origin[2] - z) < 1e-3, 3000, [start[2] - STEP_NEAR]);
+  check('Farther moves it one step away', farther, JSON.stringify(await app.evaluate(origin)));
+  const saved = await app.evaluate(() => localStorage.getItem('threadbound.settings.v1'));
+  check('the adjustment is remembered', /"offset":\{"up":1,"near":-1\}/.test(saved ?? ''), saved);
+
+  await app.evaluate(() => window.__threadbound.dispatch({ type: 'drop' }));
+  check('the moved level still solves', await waitFor(app, isComplete, 15000));
+
+  await app.evaluate(() => window.__threadbound.dispatch({ type: 'settings', patch: { offset: { up: 0, near: 0 } } }));
+  return results;
+}

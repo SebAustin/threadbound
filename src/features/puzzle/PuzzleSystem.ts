@@ -1,10 +1,11 @@
 import { createSystem, Vector3 } from '@iwsdk/core';
 import { DIORAMA_DEFAULT_POSITION } from '../../config/constants';
 import type { Level } from '../../lib/levelSchema';
-import { originFromCenter } from '../../lib/placement';
+import { offsetOrigin, originFromCenter, type DioramaOffset } from '../../lib/placement';
 import { INITIAL_PROGRESS, loadProgress, recordCompletion, saveProgress } from '../../lib/progress';
 import { browserStorage } from '../../lib/storage';
 import { starsFor } from '../../lib/scoring';
+import { restoreSteps } from '../../lib/solutionSteps';
 import { playerThreadCount } from '../../lib/threadRules';
 import type { Vec3 } from '../../lib/vec';
 import { LEVELS } from '../../levels';
@@ -33,6 +34,8 @@ export class PuzzleSystem extends createSystem({
   private storage = browserStorage();
   /** Explicit table placement (AR); null means use the default virtual-table pose. */
   private placedPose: FramePose | null = null;
+  /** The player's height/distance adjustment the current diorama was built with. */
+  private builtOffset: DioramaOffset | null = null;
 
   init(): void {
     const progress = loadProgress(this.storage);
@@ -75,7 +78,7 @@ export class PuzzleSystem extends createSystem({
     }
   }
 
-  private loadLevel(index: number): void {
+  private loadLevel(index: number, relocated = false): void {
     const level = LEVELS[index];
     if (!level) {
       console.error(`[Threadbound] no level at index ${index}`);
@@ -83,16 +86,22 @@ export class PuzzleSystem extends createSystem({
     }
     this.teardown();
     const pose = this.placedPose ?? defaultPose(level);
-    const frame = new DioramaFrame(new Vector3(...pose.origin), pose.yaw);
+    const { offset } = puzzleStore.get().settings;
+    this.builtOffset = offset;
+    const frame = new DioramaFrame(new Vector3(...offsetOrigin(pose.origin, pose.yaw, offset)), pose.yaw);
     puzzleStore.frame = frame;
     puzzleStore.diorama = buildDiorama(this.world, frame, level);
     puzzleStore.diorama.nextButton.object3D!.visible = false;
     const pegPositions = Object.fromEntries(level.pegs.map((p) => [p.id, { x: p.x, y: p.y }]));
     puzzleStore.update({ level, levelIndex: index, threads: [], status: 'idle', scored: 0, stars: 0, pegPositions });
-    puzzleStore.dispatch({ type: 'levelBuilt' });
+    puzzleStore.dispatch({ type: 'levelBuilt', relocated });
   }
 
   private onStateChange(state: PuzzleState): void {
+    if (this.builtOffset !== null && state.settings.offset !== this.builtOffset) {
+      this.relocate(state);
+      return;
+    }
     const next = puzzleStore.diorama?.nextButton.object3D;
     const hasNext = state.levelIndex < LEVELS.length - 1;
     if (next) next.visible = state.status === 'complete' && hasNext;
@@ -103,6 +112,14 @@ export class PuzzleSystem extends createSystem({
     const progress = recordCompletion(state.progress, state.level.id, state.levelIndex, stars, LEVELS.length);
     saveProgress(this.storage, progress);
     puzzleStore.update({ stars, progress });
+  }
+
+  /** The player moved the diorama: rebuild it there exactly as they left it. */
+  private relocate(state: PuzzleState): void {
+    const { level, levelIndex, threads, pegPositions } = state;
+    this.loadLevel(levelIndex, true);
+    if (!level) return;
+    for (const step of restoreSteps(level, threads, pegPositions)) puzzleStore.dispatch(step);
   }
 
   private teardown(): void {

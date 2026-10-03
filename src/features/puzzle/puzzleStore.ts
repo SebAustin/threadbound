@@ -47,8 +47,8 @@ export type PuzzleCommand =
   | { readonly type: 'pegPreview'; readonly pegId: string; readonly x: number; readonly y: number }
   /** Emitted after a rail peg's position (and collider) changed. */
   | { readonly type: 'pegMoved'; readonly pegId: string }
-  /** Emitted after a level's diorama is (re)built. */
-  | { readonly type: 'levelBuilt' };
+  /** Emitted after a level's diorama is (re)built; `relocated` when only its pose changed. */
+  | { readonly type: 'levelBuilt'; readonly relocated?: boolean };
 
 type Listener = (state: PuzzleState) => void;
 type CommandListener = (command: PuzzleCommand) => void;

@@ -17,5 +17,5 @@ export function resetPoke(guard: ResetGuard, now: number): { readonly guard: Res
 }
 
 export function resetLabel(guard: ResetGuard, now: number): string {
-  return isArmed(guard, now) ? 'Poke again to reset' : 'Reset progress';
+  return isArmed(guard, now) ? 'Confirm reset' : 'Reset progress';
 }
