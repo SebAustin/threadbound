@@ -1,6 +1,8 @@
 import { createSystem, type UIKit, type UIKitMLAsset } from '@iwsdk/core';
 import { HUD } from '../../config/constants';
 import { hudModel, type HudModel } from '../../lib/hud';
+import { onboardingHint } from '../../lib/onboarding';
+import { onboardingStepOf } from '../onboarding/onboardingState';
 import { LEVELS } from '../../levels';
 import { puzzleStore, type PuzzleState } from '../puzzle/puzzleStore';
 
@@ -49,6 +51,7 @@ export class HudSystem extends createSystem({}) {
       par: level.par,
       bestStars: state.progress.best[level.id] ?? 0,
       solved: state.status === 'complete',
+      hint: onboardingHint(onboardingStepOf(state)),
     });
     const key = JSON.stringify(hud);
     if (key === this.shown) return;
@@ -64,6 +67,8 @@ export class HudSystem extends createSystem({}) {
     text('hud-title', hud.title);
     text('hud-world', hud.worldLabel);
     text('hud-threads', hud.threadsLabel);
+    text('hud-hint', hud.hint);
+    panel.getElementById('hud-hint')?.setProperties({ display: hud.hint ? 'flex' : 'none' });
     panel
       .getElementById('hud-header')
       ?.setProperties({ backgroundColor: hud.status === 'solved' ? HUD.solvedColor : HUD.playingColor });

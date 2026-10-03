@@ -93,6 +93,22 @@ export const HUD = {
   starOff: '#3d2f2a',
 } as const;
 
+/** Ghost-hand tutorial on level 1 (diorama-local meters). */
+export const ONBOARDING = {
+  color: 0xbfe8ff,
+  maxOpacity: 0.75,
+  tipRadius: 0.007,
+  /** Fingertip separation when the ghost hand is open. */
+  openGap: 0.02,
+  /** Ghost fingertips hover this far in front of the peg knobs. */
+  hover: 0.02,
+  ringRadius: 0.024,
+  ringTube: 0.0025,
+  threadRadius: 0.003,
+  /** Pinch point above a chute's mouth. */
+  chuteLift: 0.035,
+} as const;
+
 export const GOAL = {
   wallHeight: 0.035,
   floorThickness: 0.008,

@@ -9,6 +9,8 @@ export interface HudInput {
   /** Best stars ever earned on this level (0 if never solved). */
   readonly bestStars: number;
   readonly solved: boolean;
+  /** Onboarding guidance; empty when the player needs none. */
+  readonly hint: string;
 }
 
 export interface HudModel {
@@ -17,6 +19,7 @@ export interface HudModel {
   readonly threadsLabel: string;
   readonly stars: readonly [boolean, boolean, boolean];
   readonly status: 'playing' | 'solved';
+  readonly hint: string;
 }
 
 const MAX_STARS = 3;
@@ -33,5 +36,6 @@ export function hudModel(input: HudInput): HudModel {
     threadsLabel: `Threads ${input.threadsUsed}/${input.maxThreads} - par ${input.par}`,
     stars: [lit(1), lit(2), lit(MAX_STARS)],
     status: input.solved ? 'solved' : 'playing',
+    hint: input.hint,
   };
 }

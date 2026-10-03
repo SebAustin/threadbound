@@ -16,6 +16,7 @@ import { PuzzleSystem } from './features/puzzle/PuzzleSystem.js';
 import { SliderSystem } from './features/sliders/SliderSystem.js';
 import { ThreadSystem } from './features/threads/ThreadSystem.js';
 import { ThreadVibrationSystem } from './features/threads/ThreadVibrationSystem.js';
+import { OnboardingSystem } from './features/onboarding/OnboardingSystem.js';
 import { HudSystem } from './features/hud/HudSystem.js';
 import { PauseSystem } from './features/pause/PauseSystem.js';
 import { PanelSystem } from './panel.js';
@@ -34,6 +35,7 @@ World.create(
   world.registerSystem(PlacementSystem);
   world.registerSystem(PanelSystem);
   world.registerSystem(HudSystem);
+  world.registerSystem(OnboardingSystem);
   // Last: it pauses systems registered above.
   world.registerSystem(PauseSystem);
   installTestHook(world);

@@ -54,6 +54,16 @@
     padding-right: 1.6;
   }
 
+  .hint {
+    display: none;
+    padding-bottom: 1;
+    padding-left: 1.6;
+    padding-right: 1.6;
+    font-size: 1.5;
+    font-weight: 700;
+    color: #8a4b12;
+  }
+
   .detail {
     font-size: 1.4;
     font-weight: 500;
@@ -73,4 +83,5 @@
     <span id="hud-world" class="detail">World 1 - 1/6</span>
     <span id="hud-threads" class="detail">Threads 0/2 - par 1</span>
   </div>
+  <span id="hud-hint" class="hint"></span>
 </div>

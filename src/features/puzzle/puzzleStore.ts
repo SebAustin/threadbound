@@ -27,6 +27,8 @@ export type PuzzleCommand =
   | { readonly type: 'load'; readonly index: number }
   | { readonly type: 'restart' }
   | { readonly type: 'next' }
+  /** Forget all stars and unlocks, back to level 1 (first-time experience). */
+  | { readonly type: 'resetProgress' }
   | { readonly type: 'drop' }
   | { readonly type: 'addThread'; readonly from: string; readonly to: string }
   | { readonly type: 'snip'; readonly from: string; readonly to: string }

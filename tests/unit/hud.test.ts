@@ -11,6 +11,7 @@ const base = {
   par: 2,
   bestStars: 0,
   solved: false,
+  hint: '',
 };
 
 describe('hudModel: what the diorama plaque says', () => {
@@ -27,6 +28,11 @@ describe('hudModel: what the diorama plaque says', () => {
   test('lights one chip per best star', () => {
     expect(hudModel({ ...base, bestStars: 2 }).stars).toEqual([true, true, false]);
     expect(hudModel(base).stars).toEqual([false, false, false]);
+  });
+
+  test('carries the onboarding hint, if any', () => {
+    expect(hudModel(base).hint).toBe('');
+    expect(hudModel({ ...base, hint: 'Pinch the chute' }).hint).toBe('Pinch the chute');
   });
 
   test('a solved level says so', () => {

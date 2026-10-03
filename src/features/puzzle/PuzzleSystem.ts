@@ -2,7 +2,7 @@ import { createSystem, Vector3 } from '@iwsdk/core';
 import { DIORAMA_DEFAULT_POSITION } from '../../config/constants';
 import type { Level } from '../../lib/levelSchema';
 import { originFromCenter } from '../../lib/placement';
-import { browserStorage, loadProgress, recordCompletion, saveProgress } from '../../lib/progress';
+import { browserStorage, INITIAL_PROGRESS, loadProgress, recordCompletion, saveProgress } from '../../lib/progress';
 import { starsFor } from '../../lib/scoring';
 import type { Vec3 } from '../../lib/vec';
 import { LEVELS } from '../../levels';
@@ -53,6 +53,11 @@ export class PuzzleSystem extends createSystem({
         break;
       case 'next':
         this.loadLevel(Math.min(levelIndex + 1, LEVELS.length - 1));
+        break;
+      case 'resetProgress':
+        saveProgress(this.storage, INITIAL_PROGRESS);
+        puzzleStore.update({ progress: INITIAL_PROGRESS });
+        this.loadLevel(0);
         break;
       case 'place':
         // Only the table pose changes; rebuild the current level there.

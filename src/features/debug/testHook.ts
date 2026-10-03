@@ -35,6 +35,8 @@ export interface ThreadboundTestHook {
   room(): { visible: boolean; background: boolean; blendMode: string | null };
   /** What the diorama plaque last rendered, and where it sits in diorama-local space. */
   hud(): { model: unknown; local: { x: number; y: number; z: number } } | null;
+  /** Ghost-hand tutorial: current step and whether it is drawn. */
+  ghost(): { step: string; visible: boolean } | null;
 }
 
 declare global {
@@ -132,6 +134,10 @@ export function installTestHook(world: World): void {
       if (!plaque || !frame) return null;
       const local = frame.worldToLocal(plaque.getWorldPosition(new Vector3()), new Vector3());
       return { model: plaque.userData.hud ?? null, local: { x: round3(local.x), y: round3(local.y), z: round3(local.z) } };
+    },
+    ghost: () => {
+      const root = world.scene.getObjectByName('onboarding-ghost');
+      return root ? { step: String(root.userData.step ?? ''), visible: root.visible } : null;
     },
     room: () => ({
       visible: world.scene.getObjectByName('virtual-room')?.visible ?? false,
