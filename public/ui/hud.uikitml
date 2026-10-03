@@ -133,5 +133,6 @@
       <span class="title">Settings</span>
     </div>
     <span id="set-slow" class="toggle">Slow motion: Off</span>
+    <span id="set-reset" class="toggle">Reset progress</span>
   </div>
 </div>

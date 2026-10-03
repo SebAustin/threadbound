@@ -36,7 +36,7 @@ export interface ThreadboundTestHook {
   /** What the diorama plaque last rendered, and where it sits in diorama-local space. */
   hud(): { model: unknown; local: { x: number; y: number; z: number } } | null;
   /** Which plaque face is showing, and where a plaque element is on screen (for real clicks). */
-  plaque(): { face: string } | null;
+  plaque(): { face: string; resetLabel: string } | null;
   plaqueElement(id: string): ScreenPoint | null;
   /** Ghost-hand tutorial: current step and whether it is drawn. */
   ghost(): { step: string; visible: boolean } | null;
@@ -140,7 +140,9 @@ export function installTestHook(world: World): void {
     },
     plaque: () => {
       const panel = world.getSceneObject('hud-plaque');
-      return panel ? { face: String(panel.userData.face ?? '') } : null;
+      return panel
+        ? { face: String(panel.userData.face ?? ''), resetLabel: String(panel.userData.resetLabel ?? 'Reset progress') }
+        : null;
     },
     plaqueElement: (id) => {
       const element = world.getSceneObject<UIKitMLAsset>('hud-plaque')?.getElementById(id) as unknown;
