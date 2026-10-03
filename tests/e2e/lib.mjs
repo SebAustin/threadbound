@@ -68,6 +68,36 @@ export async function click(page, [x, y]) {
   await page.mouse.click(x, y);
 }
 
+/**
+ * Click a canvas-relative point, first making sure no emulator chrome sits on
+ * top of it. IWER draws its floating "Enter XR" pill inside a shadow root in the
+ * app document, invisible to elementFromPoint, so overlays are found by piercing
+ * shadow roots. That chrome only exists in the desktop emulator view.
+ */
+export async function clickCanvas(page, app, at, point) {
+  await app.evaluate(({ x, y }) => {
+    const canvas = document.querySelector('canvas');
+    const box = canvas.getBoundingClientRect();
+    const px = box.x + x;
+    const py = box.y + y;
+    const deepest = () => {
+      let el = document.elementFromPoint(px, py);
+      while (el?.shadowRoot) {
+        const inner = el.shadowRoot.elementFromPoint(px, py);
+        if (!inner || inner === el) break;
+        el = inner;
+      }
+      return el;
+    };
+    for (let i = 0; i < 20; i++) {
+      const hit = deepest();
+      if (!hit || hit === canvas || hit.contains(canvas)) break;
+      hit.style.pointerEvents = 'none';
+    }
+  }, point);
+  await click(page, at(point));
+}
+
 /** Records `[Threadbound]` dev logs for failure diagnostics. */
 export function captureLogs(page) {
   const logs = [];

@@ -1,6 +1,6 @@
 // E2E (real input): wiping progress from the settings face takes two pokes;
 // one poke only arms it. A reset brings back level 1 and the ghost hand.
-import { canvasMapper, checks, click, isComplete, loadIndex, plaqueElementAt, waitFor } from './lib.mjs';
+import { canvasMapper, checks, click, clickCanvas, isComplete, loadIndex, plaqueElementAt, waitFor } from './lib.mjs';
 
 const bestCount = () => Object.keys(window.__threadbound.state().progress.best).length;
 
@@ -23,11 +23,11 @@ export default async function run({ page, frame }) {
   check('the reset control is on the settings face', Boolean(reset), JSON.stringify(reset));
   if (!reset) return results;
 
-  await click(page, at(reset));
+  await clickCanvas(page, app, at, reset);
   const armed = await waitFor(app, () => window.__threadbound.plaque()?.resetLabel === 'Poke again to reset', 2000);
   check('one poke only arms the reset', armed && (await app.evaluate(bestCount)) > 0, await app.evaluate(() => window.__threadbound.plaque()?.resetLabel));
 
-  await click(page, at(reset));
+  await clickCanvas(page, app, at, reset);
   const wiped = await waitFor(app, () => {
     const s = window.__threadbound.state();
     const g = window.__threadbound.ghost();

@@ -1,6 +1,6 @@
 // E2E (real input): the ledge gear opens the plaque's settings face; the slow
 // motion toggle there makes marbles fall measurably slower and is remembered.
-import { canvasMapper, checks, click, loadIndex, plaqueElementAt, waitFor } from './lib.mjs';
+import { canvasMapper, checks, click, clickCanvas, loadIndex, plaqueElementAt, waitFor } from './lib.mjs';
 
 /** Drops the first level's marbles untouched; ms until the first falls 25 cm. */
 const fallMs = () =>
@@ -32,7 +32,7 @@ export default async function run({ page, frame }) {
   const toggle = await plaqueElementAt(app, 'set-slow');
   check('the slow motion toggle is on the plaque', Boolean(toggle), JSON.stringify(toggle));
   if (!toggle) return results;
-  await click(page, at(toggle));
+  await clickCanvas(page, app, at, toggle);
   check('poking it turns slow motion on', await waitFor(app, () => window.__threadbound.state().settings.slowMotion, 2000));
   const saved = await app.evaluate(() => localStorage.getItem('threadbound.settings.v1'));
   check('the setting is remembered', /"slowMotion":true/.test(saved ?? ''), saved);
