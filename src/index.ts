@@ -16,6 +16,7 @@ import { PuzzleSystem } from './features/puzzle/PuzzleSystem.js';
 import { SliderSystem } from './features/sliders/SliderSystem.js';
 import { ThreadSystem } from './features/threads/ThreadSystem.js';
 import { ThreadVibrationSystem } from './features/threads/ThreadVibrationSystem.js';
+import { PauseSystem } from './features/pause/PauseSystem.js';
 import { PanelSystem } from './panel.js';
 
 World.create(
@@ -31,5 +32,7 @@ World.create(
   world.registerSystem(SliderSystem);
   world.registerSystem(PlacementSystem);
   world.registerSystem(PanelSystem);
+  // Last: it pauses systems registered above.
+  world.registerSystem(PauseSystem);
   installTestHook(world);
 });

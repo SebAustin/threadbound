@@ -18,6 +18,8 @@ export interface PuzzleState {
   readonly progress: Progress;
   /** Live peg positions (diorama-local); rail pegs move away from their level data. */
   readonly pegPositions: Readonly<Record<string, { readonly x: number; readonly y: number }>>;
+  /** Simulation frozen because the player can't see it (see PauseSystem). */
+  readonly paused: boolean;
 }
 
 /** Everything that changes the puzzle goes through here: buttons, placement, tests. */
@@ -52,6 +54,7 @@ const INITIAL: PuzzleState = {
   stars: 0,
   progress: INITIAL_PROGRESS,
   pegPositions: {},
+  paused: false,
 };
 
 /**

@@ -15,7 +15,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "coverage": "vitest run --coverage",
-    "test:e2e": "zsh tests/e2e/run.sh tests/e2e/first-thread.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/jump-drag.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/controls.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/slider.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/color-rule.e2e.mjs",
+    "test:e2e": "zsh tests/e2e/run.sh tests/e2e/first-thread.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/jump-drag.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/controls.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/slider.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/color-rule.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/pause.e2e.mjs",
     "test:e2e:hands": "zsh tests/e2e/hand-pinch.sh",
     "test:e2e:levels": "zsh tests/e2e/levels.sh"
   },
