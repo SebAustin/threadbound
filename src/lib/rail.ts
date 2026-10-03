@@ -39,3 +39,12 @@ const OFFSET_Y: readonly [number, number] = [SLIDER.handleOffset, 0];
 export function handleOffset(axis: Rail['axis']): readonly [number, number] {
   return axis === 'x' ? OFFSET_X : OFFSET_Y;
 }
+
+/** Position of a peg slid to `along` on its rail (the off-axis coordinate is kept). */
+export function positionAlong(
+  peg: { readonly x: number; readonly y: number },
+  rail: Rail,
+  along: number,
+): { x: number; y: number } {
+  return rail.axis === 'x' ? { x: along, y: peg.y } : { x: peg.x, y: along };
+}

@@ -3,7 +3,7 @@ import { HUD } from '../../config/constants';
 import { hudModel, type HudModel } from '../../lib/hud';
 import { onboardingHint } from '../../lib/onboarding';
 import { onboardingStepOf } from '../onboarding/onboardingState';
-import { playerThreadCount } from '../../lib/threadRules';
+import { playerThreadCount, spoolUsed } from '../../lib/threadRules';
 import { LEVELS } from '../../levels';
 import { puzzleStore, type PuzzleState } from '../puzzle/puzzleStore';
 import { SettingsFace } from './settingsFace';
@@ -24,7 +24,8 @@ export class HudSystem extends createSystem({}) {
    * State the plaque was last rendered from. The store fires on every change
    * (rail drags fire per frame); the plaque only depends on these snapshots.
    */
-  private shownFrom: Pick<PuzzleState, 'level' | 'levelIndex' | 'threads' | 'status' | 'progress'> | null = null;
+  private shownFrom: Pick<PuzzleState, 'level' | 'levelIndex' | 'threads' | 'status' | 'progress' | 'pegPositions'> | null =
+    null;
 
   init(): void {
     this.panel = this.world.getSceneObject<UIKitMLAsset>('hud-plaque');
@@ -79,6 +80,8 @@ export class HudSystem extends createSystem({}) {
       bestStars: state.progress.best[level.id] ?? 0,
       solved: state.status === 'complete',
       hint: onboardingHint(onboardingStepOf(state)),
+      spool:
+        level.spool === undefined ? undefined : { used: spoolUsed(state.threads, state.pegPositions), total: level.spool },
     });
     this.apply(hud);
   }
@@ -92,7 +95,9 @@ export class HudSystem extends createSystem({}) {
       last.levelIndex !== state.levelIndex ||
       last.threads !== state.threads ||
       last.status !== state.status ||
-      last.progress !== state.progress
+      last.progress !== state.progress ||
+      // Sliding a rail peg changes thread lengths, which only the spool readout shows.
+      (state.level?.spool !== undefined && last.pegPositions !== state.pegPositions)
     );
   }
 
@@ -104,6 +109,8 @@ export class HudSystem extends createSystem({}) {
     text('hud-title', hud.title);
     text('hud-world', hud.worldLabel);
     text('hud-threads', hud.threadsLabel);
+    text('hud-spool', hud.spoolLabel);
+    panel.getElementById('hud-spool')?.setProperties({ display: hud.spoolLabel ? 'flex' : 'none' });
     text('hud-hint', hud.hint);
     panel.getElementById('hud-hint')?.setProperties({ display: hud.hint ? 'flex' : 'none' });
     panel

@@ -1,4 +1,5 @@
 import type { Level } from './levelSchema';
+import { positionAlong } from './rail';
 import { sameThread } from './threadRules';
 
 /** Structurally identical to the puzzle bus commands, so steps can be dispatched as-is. */
@@ -16,9 +17,7 @@ export function solutionSteps(level: Level): SolutionStep[] {
   const slides = level.slides.flatMap((slide): SolutionStep[] => {
     const peg = level.pegs.find((p) => p.id === slide.peg);
     if (!peg?.rail) return [];
-    const x = peg.rail.axis === 'x' ? slide.to : peg.x;
-    const y = peg.rail.axis === 'y' ? slide.to : peg.y;
-    return [{ type: 'movePeg', pegId: peg.id, x, y }];
+    return [{ type: 'movePeg', pegId: peg.id, ...positionAlong(peg, peg.rail, slide.to) }];
   });
   const snips = level.presetThreads
     .filter((p) => !level.solution.some((s) => sameThread(s, p)))

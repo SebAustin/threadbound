@@ -35,6 +35,11 @@ describe('hudModel: what the diorama plaque says', () => {
     expect(hudModel({ ...base, hint: 'Pinch the chute' }).hint).toBe('Pinch the chute');
   });
 
+  test('World 4 levels show the spool left, in whole centimetres', () => {
+    expect(hudModel({ ...base, spool: { used: 0.123, total: 0.3 } }).spoolLabel).toBe('Spool 18/30 cm');
+    expect(hudModel(base).spoolLabel).toBe('');
+  });
+
   test('a solved level says so', () => {
     expect(hudModel(base).status).toBe('playing');
     expect(hudModel({ ...base, solved: true }).status).toBe('solved');

@@ -11,6 +11,8 @@ export interface HudInput {
   readonly solved: boolean;
   /** Onboarding guidance; empty when the player needs none. */
   readonly hint: string;
+  /** World 4: meters of spool spent and available. */
+  readonly spool?: { readonly used: number; readonly total: number };
 }
 
 export interface HudModel {
@@ -20,8 +22,15 @@ export interface HudModel {
   readonly stars: readonly [boolean, boolean, boolean];
   readonly status: 'playing' | 'solved';
   readonly hint: string;
+  /** "Spool left/total cm", empty for levels without a spool. */
+  readonly spoolLabel: string;
 }
 
+const toCm = (meters: number) => Math.round(meters * 100);
+
+function spoolLabel(used: number, total: number): string {
+  return `Spool ${Math.max(0, toCm(total) - toCm(used))}/${toCm(total)} cm`;
+}
 
 /** Plaque copy: plain ASCII, because the panel font has no typographic glyphs. */
 export function hudModel(input: HudInput): HudModel {
@@ -36,6 +45,7 @@ export function hudModel(input: HudInput): HudModel {
     stars: [lit(1), lit(2), lit(3)],
     status: input.solved ? 'solved' : 'playing',
     hint: input.hint,
+    spoolLabel: input.spool ? spoolLabel(input.spool.used, input.spool.total) : '',
   };
 }
 

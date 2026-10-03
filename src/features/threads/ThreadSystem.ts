@@ -15,7 +15,7 @@ import {
 } from '@iwsdk/core';
 import { PEG, THREAD_TUNING } from '../../config/constants';
 import { segmentTransform } from '../../lib/threadGeometry';
-import { checkNewThread, findSnapPeg, sameThread, type PegPoint } from '../../lib/threadRules';
+import { checkNewThread, findSnapPeg, sameThread, spoolUsed, type PegPoint } from '../../lib/threadRules';
 import { pitchForLength, restitutionForLength } from '../../lib/threadTuning';
 import { stringSynth } from '../audio/stringSynth';
 import { devLog } from '../debug/devLog';
@@ -35,6 +35,9 @@ const UP = new Vector3(0, 1, 0);
 const PREVIEW_RADIUS = THREAD_TUNING.radius * 0.7;
 const CREATE_VOLUME = 0.8;
 const SNIP_VOLUME = 0.4;
+/** G2: below every thread's range, so a refusal never sounds like a note. */
+const REFUSE_HZ = 98;
+const REFUSE_VOLUME = 0.5;
 
 const touchesPeg = (thread: Entity, pegId: string) =>
   thread.getValue(Thread, 'fromPeg') === pegId || thread.getValue(Thread, 'toPeg') === pegId;
@@ -160,14 +163,26 @@ export class ThreadSystem extends createSystem({
   /** Player (or test/hint) thread: validated against the level's rules. */
   private tryAddThread(fromId: string, toId: string): void {
     const state = puzzleStore.get();
-    const check = checkNewThread(state.threads, fromId, toId, state.level?.maxThreads ?? 0);
+    const from = this.pegPoints.find((p) => p.id === fromId);
+    const to = this.pegPoints.find((p) => p.id === toId);
+    if (!from || !to) return;
+    const spool = state.level?.spool;
+    const check = checkNewThread(
+      state.threads,
+      fromId,
+      toId,
+      state.level?.maxThreads ?? 0,
+      spool === undefined
+        ? undefined
+        : { remaining: spool - spoolUsed(state.threads, state.pegPositions), length: Math.hypot(to.x - from.x, to.y - from.y) },
+    );
     if (!check.ok) {
+      // Every refusal is audible: a low, dull thunk instead of a note.
+      stringSynth.pluck(REFUSE_HZ, REFUSE_VOLUME);
       devLog(`thread rejected: ${check.reason}`);
       return;
     }
-    const from = this.pegPoints.find((p) => p.id === fromId);
-    const to = this.pegPoints.find((p) => p.id === toId);
-    if (from && to) this.createThread(from, to, { preset: false, pluck: true });
+    this.createThread(from, to, { preset: false, pluck: true });
   }
 
   private createPresetThreads(): void {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { clampToRail, clampToRailInto, handleOffset } from '../../src/lib/rail';
+import { clampToRail, clampToRailInto, handleOffset, positionAlong } from '../../src/lib/rail';
 
 const rail = { axis: 'x' as const, min: 0.05, max: 0.4 };
 
@@ -31,5 +31,12 @@ describe('clampToRailInto (allocation-free, used on every drag move)', () => {
     const result = clampToRailInto(0.2, 0.3, rail, 0.9, 0.7, out);
     expect(result).toBe(out);
     expect(out).toEqual({ x: 0.4, y: 0.3 });
+  });
+});
+
+describe('positionAlong: where a rail peg sits when slid to a point along its rail', () => {
+  test('x rails move x and keep y; y rails the reverse', () => {
+    expect(positionAlong({ x: 0.2, y: 0.24 }, { axis: 'x', min: 0, max: 0.5 }, 0.05)).toEqual({ x: 0.05, y: 0.24 });
+    expect(positionAlong({ x: 0.2, y: 0.24 }, { axis: 'y', min: 0, max: 0.4 }, 0.3)).toEqual({ x: 0.2, y: 0.3 });
   });
 });

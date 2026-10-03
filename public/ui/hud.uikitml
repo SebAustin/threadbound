@@ -64,6 +64,15 @@
     color: #8a4b12;
   }
 
+  .spool {
+    display: none;
+    padding-bottom: 0.8;
+    padding-left: 1.6;
+    font-size: 1.4;
+    font-weight: 700;
+    color: #3d2f2a;
+  }
+
   .face {
     flex-direction: column;
   }
@@ -115,6 +124,7 @@
     <span id="hud-world" class="detail">World 1 - 1/6</span>
     <span id="hud-threads" class="detail">Threads 0/2 - par 1</span>
   </div>
+  <span id="hud-spool" class="spool"></span>
   <span id="hud-hint" class="hint"></span>
   </div>
   <div id="settings-face" class="face settings-face">

@@ -13,6 +13,7 @@ import slide from './world3/01-slide.json';
 import lift from './world3/02-lift.json';
 import twoRails from './world3/03-two-rails.json';
 import crossfade from './world3/04-crossfade.json';
+import shortSpool from './world4/01-short-spool.json';
 
 const RAW_LEVELS: readonly unknown[] = [
   firstThread,
@@ -29,6 +30,7 @@ const RAW_LEVELS: readonly unknown[] = [
   lift,
   twoRails,
   crossfade,
+  shortSpool,
 ];
 
 /** All levels, validated at startup: a broken level file fails fast and loudly. */

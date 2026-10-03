@@ -25,9 +25,32 @@ export function playerThreadCount(threads: readonly ThreadLink[]): number {
   return count;
 }
 
+/** Total length (meters) of the player's threads at the pegs' live positions. */
+export function spoolUsed(
+  threads: readonly ThreadLink[],
+  pegs: Readonly<Record<string, { readonly x: number; readonly y: number }>>,
+): number {
+  let total = 0;
+  for (const t of threads) {
+    const a = pegs[t.from];
+    const b = pegs[t.to];
+    if (!t.preset && a && b) total += Math.hypot(b.x - a.x, b.y - a.y);
+  }
+  return total;
+}
+
+/** World 4: what is left on the level's spool and how long the new thread would be. */
+export interface SpoolCheck {
+  readonly remaining: number;
+  readonly length: number;
+}
+
 export type ThreadCheck =
   | { readonly ok: true }
-  | { readonly ok: false; readonly reason: 'same-peg' | 'duplicate' | 'limit' };
+  | { readonly ok: false; readonly reason: 'same-peg' | 'duplicate' | 'limit' | 'spool' };
+
+/** Rounding slack so a thread that exactly uses up the spool still fits. */
+const SPOOL_EPSILON = 1e-6;
 
 /** Nearest peg to `point` within `radius`, skipping `excludeId`. */
 export function findSnapPeg(
@@ -54,9 +77,11 @@ export function checkNewThread(
   from: string,
   to: string,
   maxThreads: number,
+  spool?: SpoolCheck,
 ): ThreadCheck {
   if (from === to) return { ok: false, reason: 'same-peg' };
   if (existing.some((t) => sameThread(t, { from, to }))) return { ok: false, reason: 'duplicate' };
   if (playerThreadCount(existing) >= maxThreads) return { ok: false, reason: 'limit' };
+  if (spool && spool.length > spool.remaining + SPOOL_EPSILON) return { ok: false, reason: 'spool' };
   return { ok: true };
 }
