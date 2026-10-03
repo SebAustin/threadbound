@@ -85,8 +85,8 @@ export const CONTROLS = {
 
 /** Plaque standing on the diorama's top edge (UIKit panel, centimetre units inside). */
 export const HUD = {
-  /** Plaque center above the back panel's top edge. */
-  lift: 0.06,
+  /** Plaque centre above the back panel's top edge; clears the chute rims even when a two-line hint makes it ~12.5 cm tall. */
+  lift: 0.085,
   /** Flush with the back panel, behind the marble channel. */
   depth: -0.012,
   playingColor: '#3d2f2a',

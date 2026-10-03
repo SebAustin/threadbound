@@ -124,8 +124,9 @@
     <span id="hud-world" class="detail">World 1 - 1/6</span>
     <span id="hud-threads" class="detail">Threads 0/2 - par 1</span>
   </div>
-  <span id="hud-spool" class="spool"></span>
-  <span id="hud-hint" class="hint"></span>
+  <span id="hud-spool" class="spool">Spool</span>
+  <!-- Spans need initial text: UIKit only lays out text that exists at parse time. -->
+  <span id="hud-hint" class="hint">Hint</span>
   </div>
   <div id="settings-face" class="face settings-face">
     <div class="header">
