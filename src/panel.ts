@@ -54,6 +54,8 @@ export class PanelSystem extends createSystem({}) {
       () => exitButton.removeEventListener('click', exitXR),
       this.world.visibilityState.subscribe((visibilityState) => {
         const is2D = visibilityState === VisibilityState.NonImmersive;
+        // In XR the plaque on the diorama carries the game state; no floating menu.
+        if (panel) panel.visible = is2D;
         xrButton.setProperties({ display: is2D ? 'flex' : 'none' });
         exitButton.setProperties({ display: is2D ? 'none' : 'flex' });
       }),

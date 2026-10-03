@@ -81,6 +81,18 @@ export const CONTROLS = {
   buttonInset: 0.05,
 } as const;
 
+/** Plaque standing on the diorama's top edge (UIKit panel, centimetre units inside). */
+export const HUD = {
+  /** Plaque center above the back panel's top edge. */
+  lift: 0.06,
+  /** Flush with the back panel, behind the marble channel. */
+  depth: -0.012,
+  playingColor: '#3d2f2a',
+  solvedColor: '#b8862f',
+  starOn: '#f2c14e',
+  starOff: '#3d2f2a',
+} as const;
+
 export const GOAL = {
   wallHeight: 0.035,
   floorThickness: 0.008,

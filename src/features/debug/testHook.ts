@@ -33,6 +33,8 @@ export interface ThreadboundTestHook {
   /** World-space position of a diorama-local point (for aiming emulated hands). */
   worldOf(x: number, y: number, z?: number): { x: number; y: number; z: number };
   room(): { visible: boolean; background: boolean; blendMode: string | null };
+  /** What the diorama plaque last rendered, and where it sits in diorama-local space. */
+  hud(): { model: unknown; local: { x: number; y: number; z: number } } | null;
 }
 
 declare global {
@@ -123,6 +125,13 @@ export function installTestHook(world: World): void {
       if (!frame) return { x: 0, y: 0, z: 0 };
       const v = frame.localToWorld(x, y, z, new Vector3());
       return { x: v.x, y: v.y, z: v.z };
+    },
+    hud: () => {
+      const plaque = world.scene.getObjectByName('HUD Plaque') ?? world.getSceneObject('hud-plaque');
+      const frame = puzzleStore.frame;
+      if (!plaque || !frame) return null;
+      const local = frame.worldToLocal(plaque.getWorldPosition(new Vector3()), new Vector3());
+      return { model: plaque.userData.hud ?? null, local: { x: round3(local.x), y: round3(local.y), z: round3(local.z) } };
     },
     room: () => ({
       visible: world.scene.getObjectByName('virtual-room')?.visible ?? false,

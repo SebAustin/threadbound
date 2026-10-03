@@ -50,6 +50,22 @@
           "height": "40%"
         }
       }
+    },
+    {
+      "id": "hud-plaque",
+      "name": "HUD Plaque",
+      "content": {
+        "type": "asset",
+        "asset": "hud-plaque"
+      },
+      "transform": {
+        "position": [
+          0,
+          1.25,
+          -0.42
+        ],
+        "scale": 1
+      }
     }
   ]
 }

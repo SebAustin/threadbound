@@ -16,4 +16,9 @@ export default defineAssets({
     type: AssetType.UIKitML,
     name: 'Welcome Panel',
   },
+  'hud-plaque': {
+    url: publicAssetUrl('ui/hud.uikitml'),
+    type: AssetType.UIKitML,
+    name: 'HUD Plaque',
+  },
 });

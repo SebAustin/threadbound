@@ -1,0 +1,76 @@
+<!--
+  Diorama plaque: level title, place in the world, best stars, thread budget.
+  Sized in centimetres (scale 1): about 30 cm wide above a 50 cm diorama.
+  HudSystem fills every #id below from the puzzle state.
+-->
+<style>
+  .plaque {
+    flex-direction: column;
+    width: 30;
+    border-radius: 1.4;
+    background-color: #f4ead8;
+    border-color: #8a6a3c;
+    border-width: 0.25;
+  }
+
+  .header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 1;
+    padding-bottom: 1;
+    padding-left: 1.6;
+    padding-right: 1.6;
+    border-radius: 1.2;
+    background-color: #3d2f2a;
+  }
+
+  .title {
+    font-size: 2.2;
+    font-weight: 700;
+    color: #fbf3e4;
+  }
+
+  .stars {
+    flex-direction: row;
+    gap: 0.6;
+  }
+
+  .star {
+    width: 1.6;
+    height: 1.6;
+    border-radius: 0.8;
+    border-color: #d9b45a;
+    border-width: 0.25;
+    background-color: #3d2f2a;
+  }
+
+  .details {
+    flex-direction: row;
+    justify-content: space-between;
+    padding-top: 0.8;
+    padding-bottom: 1;
+    padding-left: 1.6;
+    padding-right: 1.6;
+  }
+
+  .detail {
+    font-size: 1.4;
+    font-weight: 500;
+    color: #3d2f2a;
+  }
+</style>
+<div class="plaque">
+  <div id="hud-header" class="header">
+    <span id="hud-title" class="title">Threadbound</span>
+    <div class="stars">
+      <div id="hud-star-1" class="star"></div>
+      <div id="hud-star-2" class="star"></div>
+      <div id="hud-star-3" class="star"></div>
+    </div>
+  </div>
+  <div class="details">
+    <span id="hud-world" class="detail">World 1 - 1/6</span>
+    <span id="hud-threads" class="detail">Threads 0/2 - par 1</span>
+  </div>
+</div>
