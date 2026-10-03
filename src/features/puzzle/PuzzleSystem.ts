@@ -2,13 +2,14 @@ import { createSystem, Vector3 } from '@iwsdk/core';
 import { DIORAMA_DEFAULT_POSITION } from '../../config/constants';
 import type { Level } from '../../lib/levelSchema';
 import { offsetOrigin, originFromCenter, type DioramaOffset } from '../../lib/placement';
-import { INITIAL_PROGRESS, loadProgress, recordCompletion, saveProgress } from '../../lib/progress';
+import { INITIAL_PROGRESS, loadProgress, recordCompletion, recordDaily, saveProgress } from '../../lib/progress';
 import { browserStorage } from '../../lib/storage';
 import { starsFor } from '../../lib/scoring';
 import { restoreSteps } from '../../lib/solutionSteps';
 import { playerThreadCount } from '../../lib/threadRules';
 import type { Vec3 } from '../../lib/vec';
-import { LEVELS } from '../../levels';
+import { dailyIndex, localDayKey } from '../../lib/daily';
+import { DAILY_LEVELS, isDailyIndex, LEVELS, PLAYABLE } from '../../levels';
 import { buildDiorama } from '../diorama/buildDiorama';
 import { DioramaFrame } from '../diorama/dioramaFrame';
 import { disposeLevelEntity } from '../diorama/disposeLevelEntity';
@@ -59,6 +60,11 @@ export class PuzzleSystem extends createSystem({
       case 'next':
         this.loadLevel(Math.min(levelIndex + 1, LEVELS.length - 1));
         break;
+      case 'daily': {
+        const pick = command.index ?? dailyIndex(localDayKey(new Date()), DAILY_LEVELS.length);
+        this.loadLevel(LEVELS.length + pick);
+        break;
+      }
       case 'resetProgress':
         saveProgress(this.storage, INITIAL_PROGRESS);
         puzzleStore.update({ progress: INITIAL_PROGRESS });
@@ -79,7 +85,7 @@ export class PuzzleSystem extends createSystem({
   }
 
   private loadLevel(index: number, relocated = false): void {
-    const level = LEVELS[index];
+    const level = PLAYABLE[index];
     if (!level) {
       console.error(`[Threadbound] no level at index ${index}`);
       return;
@@ -103,13 +109,16 @@ export class PuzzleSystem extends createSystem({
       return;
     }
     const next = puzzleStore.diorama?.nextButton.object3D;
-    const hasNext = state.levelIndex < LEVELS.length - 1;
+    // Dailies stand alone: no Next, and they never unlock campaign levels.
+    const hasNext = !isDailyIndex(state.levelIndex) && state.levelIndex < LEVELS.length - 1;
     if (next) next.visible = state.status === 'complete' && hasNext;
     if (state.status !== 'complete' || state.stars > 0 || !state.level) return;
 
     const used = playerThreadCount(state.threads);
     const stars = starsFor(used, state.level.par);
-    const progress = recordCompletion(state.progress, state.level.id, state.levelIndex, stars, LEVELS.length);
+    const progress = isDailyIndex(state.levelIndex)
+      ? recordDaily(state.progress, state.level.id, stars, localDayKey(new Date()))
+      : recordCompletion(state.progress, state.level.id, state.levelIndex, stars, LEVELS.length);
     saveProgress(this.storage, progress);
     puzzleStore.update({ stars, progress });
   }

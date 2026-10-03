@@ -19,7 +19,7 @@ export default async function run({ page, frame }) {
       chute: hook.worldOf(chute.x, chute.y + 0.02),
       // Aim at the top of each button's cap (1.2 cm above its base on the ledge).
       buttons: Object.fromEntries(
-        ['restart', 'next', 'settings'].map((id) => {
+        ['restart', 'next', 'settings', 'daily'].map((id) => {
           const b = hook.buttonWorld(id);
           return [id, b && { ...b, y: b.y + 0.012 }];
         }),
@@ -27,6 +27,7 @@ export default async function run({ page, frame }) {
       threadMid: a && b ? hook.worldOf((a.x + b.x) / 2, (a.y + b.y) / 2) : null,
       threads: s.threads,
       status: s.status,
+      levelId: s.level.id,
       face: hook.plaque()?.face,
       slowToggle: hook.plaqueElementWorld('set-slow'),
       slowMotion: s.settings.slowMotion,

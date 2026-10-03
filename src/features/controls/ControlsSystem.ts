@@ -10,6 +10,7 @@ const COMMANDS: Readonly<Record<ControlAction, PuzzleCommand>> = {
   restart: { type: 'restart' },
   next: { type: 'next' },
   settings: { type: 'toggleSettings' },
+  daily: { type: 'daily' },
 };
 
 /**

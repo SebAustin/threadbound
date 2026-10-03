@@ -4,7 +4,8 @@ import { hudModel, type HudModel } from '../../lib/hud';
 import { onboardingHint } from '../../lib/onboarding';
 import { onboardingStepOf } from '../onboarding/onboardingState';
 import { playerThreadCount, spoolUsed } from '../../lib/threadRules';
-import { LEVELS } from '../../levels';
+import { currentStreak, localDayKey } from '../../lib/daily';
+import { isDailyIndex, PLAYABLE } from '../../levels';
 import { puzzleStore, type PuzzleState } from '../puzzle/puzzleStore';
 import { SettingsFace } from './settingsFace';
 
@@ -74,7 +75,7 @@ export class HudSystem extends createSystem({}) {
     if (!this.panel || !level || !this.changed(state)) return;
     this.shownFrom = state;
     const hud = hudModel({
-      levels: LEVELS,
+      levels: PLAYABLE,
       levelIndex: state.levelIndex,
       title: level.name,
       threadsUsed: playerThreadCount(state.threads),
@@ -85,6 +86,9 @@ export class HudSystem extends createSystem({}) {
       hint: onboardingHint(onboardingStepOf(state)),
       spool:
         level.spool === undefined ? undefined : { used: spoolUsed(state.threads, state.pegPositions), total: level.spool },
+      daily: isDailyIndex(state.levelIndex)
+        ? { streak: currentStreak(state.progress.streak, localDayKey(new Date())) }
+        : undefined,
     });
     this.apply(hud);
   }

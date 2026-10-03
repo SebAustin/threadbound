@@ -38,7 +38,7 @@ export const Marble = createComponent('Marble', {
 /** Pinching the chute releases the level's marbles. */
 export const Chute = createComponent('Chute', {});
 
-export const ControlActions = { Restart: 'restart', Next: 'next', Settings: 'settings' } as const;
+export const ControlActions = { Restart: 'restart', Next: 'next', Settings: 'settings', Daily: 'daily' } as const;
 export type ControlAction = (typeof ControlActions)[keyof typeof ControlActions];
 
 /** A poke/pinch button on the diorama's front ledge. */

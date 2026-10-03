@@ -26,5 +26,10 @@ sleep 0.5 # let the settings face lay out
 pinch_at "$(field "$(probe)" "['slowToggle']")"
 M=$(field "$(probe)" "['slowMotion']"); [ "$M" = "true" ] && pass "pinching a plaque toggle works in XR" || fail "pinching a plaque toggle works in XR (slowMotion=$M)"
 iw browser run tests/e2e/reset-settings.e2e.mjs >/dev/null 2>&1
+
+P=$(probe load0)
+pinch_at "$(field "$P" "['buttons']['daily']")"
+L=$(iw browser run tests/e2e/xr-probe.e2e.mjs 2>/dev/null | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['result']['levelId'])")
+case "$L" in daily-*) pass "pinching the sun loads the daily puzzle ($L)";; *) fail "pinching the sun loads the daily puzzle ($L)";; esac
 xr_stop
 exit $FAIL

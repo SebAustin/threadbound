@@ -182,6 +182,12 @@ const BUTTON_ICONS: Readonly<Record<ControlAction, (r: number) => Mesh>> = {
     loop.rotation.x = -Math.PI / 2;
     return loop;
   },
+  daily: (r) => {
+    // A small sun: today's puzzle.
+    const sun = new Mesh(new TorusGeometry(r * 0.3, r * 0.14, 6, 16), MATERIALS.walnut);
+    sun.rotation.x = -Math.PI / 2;
+    return sun;
+  },
   settings: (r) => {
     // A hexagonal nut reads as "settings" without text.
     const nut = new Mesh(new TorusGeometry(r * 0.42, r * 0.16, 6, 6), MATERIALS.walnut);
@@ -263,6 +269,7 @@ export function buildDiorama(world: World, frame: DioramaFrame, level: Level): B
       ...buildLedge(world, frame, level),
       buildButton(world, frame, inset, ControlActions.Restart),
       buildButton(world, frame, inset + CONTROLS.buttonSpacing, ControlActions.Settings),
+      buildButton(world, frame, inset + 2 * CONTROLS.buttonSpacing, ControlActions.Daily),
       nextButton,
     ],
     goals: goals.map((g) => g.range),

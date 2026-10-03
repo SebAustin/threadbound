@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { INITIAL_PROGRESS, loadProgress, recordCompletion, saveProgress } from '../../src/lib/progress';
+import { INITIAL_PROGRESS, loadProgress, recordCompletion, recordDaily, saveProgress } from '../../src/lib/progress';
 import { memoryStorage, type StorageLike } from '../../src/lib/storage';
 
 describe('recordCompletion', () => {
@@ -53,5 +53,25 @@ describe('load/save', () => {
     };
     expect(loadProgress(broken)).toEqual(INITIAL_PROGRESS);
     expect(() => saveProgress(broken, INITIAL_PROGRESS)).not.toThrow();
+  });
+});
+
+describe('daily streak in progress', () => {
+  test('a first daily solve starts the streak and keeps the stars apart from the campaign', () => {
+    const p = recordDaily(INITIAL_PROGRESS, 'daily-w1-04', 3, '2026-11-01');
+    expect(p.streak).toEqual({ lastDay: '2026-11-01', count: 1 });
+    expect(p.best['daily-w1-04']).toBe(3);
+    expect(p.unlocked).toBe(0);
+  });
+
+  test('the next day grows it', () => {
+    const p = recordDaily(recordDaily(INITIAL_PROGRESS, 'daily-a', 2, '2026-11-01'), 'daily-b', 1, '2026-11-02');
+    expect(p.streak.count).toBe(2);
+  });
+
+  test('saves from before the daily puzzle still load, with no streak', () => {
+    const storage = memoryStorage();
+    storage.setItem('threadbound.progress.v1', JSON.stringify({ unlocked: 3, best: { 'w1-01': 3 } }));
+    expect(loadProgress(storage)).toEqual({ unlocked: 3, best: { 'w1-01': 3 }, streak: { lastDay: null, count: 0 } });
   });
 });

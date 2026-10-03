@@ -131,7 +131,7 @@ function checkThreads(level: RawLevel, issue: Issue): void {
   const playerThreads = level.solution.filter((t) => !level.presetThreads.some((p) => sameThread(p, t)));
   if (playerThreads.length > level.maxThreads) issue('Solution uses more threads than maxThreads');
   if (level.spool !== undefined) {
-    const needed = spoolUsed(playerThreads, solvedPegPositions(level));
+    const needed = solutionLength(level);
     if (needed > level.spool) {
       issue(`Solution needs ${cm(needed)} of spool but the level has ${cm(level.spool)}`);
     }
@@ -140,8 +140,14 @@ function checkThreads(level: RawLevel, issue: Issue): void {
 
 const cm = (meters: number) => `${(meters * 100).toFixed(1)} cm`;
 
+/** Thread length (m) the stored solution spends: the player's threads, after its slides. */
+export function solutionLength(level: Pick<RawLevel, 'pegs' | 'slides' | 'solution' | 'presetThreads'>): number {
+  const playerThreads = level.solution.filter((t) => !level.presetThreads.some((p) => sameThread(p, t)));
+  return spoolUsed(playerThreads, solvedPegPositions(level));
+}
+
 /** Peg positions once the solution's rail slides are applied. */
-function solvedPegPositions(level: RawLevel): Record<string, { x: number; y: number }> {
+function solvedPegPositions(level: Pick<RawLevel, 'pegs' | 'slides'>): Record<string, { x: number; y: number }> {
   const positions = Object.fromEntries(level.pegs.map((p) => [p.id, { x: p.x, y: p.y }]));
   for (const slide of level.slides) {
     const peg = level.pegs.find((p) => p.id === slide.peg);

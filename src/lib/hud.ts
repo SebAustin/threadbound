@@ -13,6 +13,8 @@ export interface HudInput {
   readonly hint: string;
   /** World 4: meters of spool spent and available. */
   readonly spool?: { readonly used: number; readonly total: number };
+  /** Set when playing the daily puzzle. */
+  readonly daily?: { readonly streak: number };
 }
 
 export interface HudModel {
@@ -28,6 +30,8 @@ export interface HudModel {
 
 const toCm = (meters: number) => Math.round(meters * 100);
 
+const dailyLabel = (streak: number) => (streak > 0 ? `Daily - streak ${streak}` : 'Daily - start a streak');
+
 function spoolLabel(used: number, total: number): string {
   return `Spool ${Math.max(0, toCm(total) - toCm(used))}/${toCm(total)} cm`;
 }
@@ -40,7 +44,7 @@ export function hudModel(input: HudInput): HudModel {
   const lit = (star: 1 | 2 | 3) => input.bestStars >= star;
   return {
     title: input.title,
-    worldLabel: `World ${world} - ${position}/${inWorld}`,
+    worldLabel: input.daily ? dailyLabel(input.daily.streak) : `World ${world} - ${position}/${inWorld}`,
     threadsLabel: `Threads ${input.threadsUsed}/${input.maxThreads} - par ${input.par}`,
     stars: [lit(1), lit(2), lit(3)],
     status: input.solved ? 'solved' : 'playing',

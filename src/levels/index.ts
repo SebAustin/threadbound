@@ -1,3 +1,4 @@
+import { dailyVariant } from '../lib/dailyVariant';
 import { parseLevel, type Level } from '../lib/levelSchema';
 import firstThread from './world1/01-first-thread.json';
 import switchback from './world1/02-switchback.json';
@@ -49,3 +50,20 @@ export const LEVELS: readonly Level[] = RAW_LEVELS.map((raw, index) => {
   if (!parsed.ok) throw new Error(`Level #${index + 1} is invalid: ${parsed.error}`);
   return parsed.level;
 });
+
+/** Campaign boards the daily puzzle replays on a tight spool: a week's rotation. */
+const DAILY_BASES = ['w1-02', 'w1-04', 'w1-06', 'w2-02', 'w2-04', 'w3-02', 'w3-04'] as const;
+
+/** Daily puzzles, validated like any level (the spool must fit the solution). */
+export const DAILY_LEVELS: readonly Level[] = DAILY_BASES.map((id) => {
+  const base = LEVELS.find((l) => l.id === id);
+  if (!base) throw new Error(`Daily base level ${id} does not exist`);
+  const parsed = parseLevel(dailyVariant(base));
+  if (!parsed.ok) throw new Error(`Daily variant of ${id} is invalid: ${parsed.error}`);
+  return parsed.level;
+});
+
+/** Everything loadable: the campaign, then the daily puzzles. */
+export const PLAYABLE: readonly Level[] = [...LEVELS, ...DAILY_LEVELS];
+
+export const isDailyIndex = (index: number): boolean => index >= LEVELS.length;

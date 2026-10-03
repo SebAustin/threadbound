@@ -40,6 +40,11 @@ describe('hudModel: what the diorama plaque says', () => {
     expect(hudModel(base).spoolLabel).toBe('');
   });
 
+  test('a daily puzzle shows the streak instead of its place in a world', () => {
+    expect(hudModel({ ...base, daily: { streak: 4 } }).worldLabel).toBe('Daily - streak 4');
+    expect(hudModel({ ...base, daily: { streak: 0 } }).worldLabel).toBe('Daily - start a streak');
+  });
+
   test('a solved level says so', () => {
     expect(hudModel(base).status).toBe('playing');
     expect(hudModel({ ...base, solved: true }).status).toBe('solved');

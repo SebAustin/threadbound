@@ -31,6 +31,8 @@ export type PuzzleCommand =
   | { readonly type: 'next' }
   /** Forget all stars and unlocks, back to level 1 (first-time experience). */
   | { readonly type: 'resetProgress' }
+  /** Today's daily puzzle (or a given pool index, for tests and replays). */
+  | { readonly type: 'daily'; readonly index?: number }
   /** Change and persist player settings. */
   | { readonly type: 'settings'; readonly patch: Partial<Settings> }
   /** Flip the plaque between the level face and the settings face. */
