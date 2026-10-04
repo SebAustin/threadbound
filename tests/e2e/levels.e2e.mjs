@@ -1,6 +1,7 @@
 // E2E: every level is solvable by its stored solution under real physics, and
 // no level solves itself untouched. Levels are driven through the same command
-// bus the player's buttons use; physics and scoring are fully live.
+// bus the player's buttons use; physics and scoring are fully live. The busiest
+// frame (solution hung, every marble in flight) must fit the performance budget.
 import { hookReady, isComplete, loadIndex, waitFor } from './lib.mjs';
 
 export default async function run({ page, frame }) {
@@ -27,6 +28,12 @@ export default async function run({ page, frame }) {
       window.__threadbound.solve();
       window.__threadbound.dispatch({ type: 'drop' });
     });
+    // Busiest frame: all marbles released (or the drop already over).
+    await waitFor(app, () => {
+      const s = window.__threadbound.state();
+      return s.status === 'complete' || window.__threadbound.marbles().length >= s.level.marbles;
+    }, 8000);
+    const frameStats = await app.evaluate(() => window.__threadbound.frameStats());
     const solved = await waitFor(app, isComplete, slowMotion ? 25000 : 15000);
     const state = await app.evaluate(() => {
       const s = window.__threadbound.state();
@@ -34,11 +41,14 @@ export default async function run({ page, frame }) {
     });
     const marbles = solved ? [] : await app.evaluate(() => window.__threadbound.marbles());
     results.push({
+      index: i,
       level: `${id} ${name}${slowMotion ? ' (slow motion)' : ''}`,
-      pass: solved && !selfSolved,
+      pass: solved && !selfSolved && frameStats.breaches.length === 0,
       solved,
       selfSolved,
       ...state,
+      cost: `${frameStats.drawCalls} calls, ${frameStats.triangles} tris, ${frameStats.physicsBodies} bodies`,
+      ...(frameStats.breaches.length ? { breaches: frameStats.breaches } : {}),
       ...(solved ? {} : { marbles }),
     });
   }

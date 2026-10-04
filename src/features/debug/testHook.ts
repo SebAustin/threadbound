@@ -1,9 +1,11 @@
 import { Object3D, Vector3, type UIKitMLAsset, type World } from '@iwsdk/core';
-import { AIM_PLANE_Z } from '../../config/constants';
+import { AIM_PLANE_Z, PERF_BUDGET } from '../../config/constants';
 import { LEVELS } from '../../levels';
+import { budgetBreaches, type FrameStats } from '../../lib/perfBudget';
 import { handleOffset } from '../../lib/rail';
 import { solutionSteps } from '../../lib/solutionSteps';
 import { puzzleStore, type PuzzleCommand } from '../puzzle/puzzleStore';
+import { PerfProbeSystem } from './PerfProbeSystem';
 
 interface ScreenPoint {
   x: number;
@@ -50,6 +52,8 @@ export interface ThreadboundTestHook {
   plaqueElement(id: string): Located | null;
   /** Whether the active XR session exposes a gaze input source (eye-tracked devices). */
   gazeAvailable(): boolean;
+  /** Cost of the next rendered frame, and any performance-budget breaches. */
+  frameStats(): Promise<FrameStats & { breaches: string[] }>;
   /** Ghost-hand tutorial: current step and whether it is drawn. */
   ghost(): { step: string; visible: boolean } | null;
 }
@@ -188,8 +192,18 @@ function plaqueProbes(world: World, probe: Probe): Hook<'hud' | 'plaque' | 'plaq
   };
 }
 
-function sessionProbes(world: World): Hook<'gazeAvailable' | 'room'> {
+const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+function sessionProbes(world: World): Hook<'gazeAvailable' | 'room' | 'frameStats'> {
   return {
+    frameStats: async () => {
+      // Two frames: the first may still be mid-rebuild; renderer.info resets every render.
+      await nextFrame();
+      await nextFrame();
+      const { calls, triangles } = world.renderer.info.render;
+      const stats = { drawCalls: calls, triangles, physicsBodies: world.getSystem(PerfProbeSystem)?.physicsBodies ?? -1 };
+      return { ...stats, breaches: budgetBreaches(stats, PERF_BUDGET) };
+    },
     gazeAvailable: () => [...(world.session?.inputSources ?? [])].some((s) => s.targetRayMode === 'gaze'),
     room: () => ({
       visible: world.scene.getObjectByName('virtual-room')?.visible ?? false,
@@ -206,6 +220,7 @@ function sessionProbes(world: World): Hook<'gazeAvailable' | 'room'> {
  */
 export function installTestHook(world: World): void {
   if (!import.meta.env.DEV) return;
+  world.registerSystem(PerfProbeSystem);
   const probe = new Probe(world);
   window.__threadbound = {
     ...levelProbes(probe),

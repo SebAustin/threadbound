@@ -15,7 +15,10 @@ raw=sys.stdin.read()
 try: d=json.loads(raw)
 except Exception: print('ERROR', raw[:400]); sys.exit(1)
 if not d.get('ok'): print('ERROR', json.dumps(d)[:400]); sys.exit(1)
-for r in d['data']['result']:
+rs=d['data']['result']
+# Guard: the run must have tested exactly the level asked for.
+if [r['index'] for r in rs] != [$i]: print('ERROR asked for level $i, ran', [r.get('index') for r in rs]); sys.exit(1)
+for r in rs:
   print(('PASS ' if r['pass'] else 'FAIL ')+json.dumps(r)[:420])
   if not r['pass']: sys.exit(1)
 " || fail=1

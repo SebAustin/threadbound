@@ -4,7 +4,7 @@
 
 **Blocked by:** 01–11
 
-**Status:** done (pending the final regression)
+**Status:** done
 
 ## Spec axis (behaviour)
 - [x] S1 Plaque world count includes daily variants ("World 1 - 1/9"). The HUD should count campaign levels only. RED: plaque.e2e already fails (2/6).
@@ -45,3 +45,4 @@
 - The sun button now dispatches `toggleDaily`; `daily` with an index stays for tests and the daily proofs. The XR check covers both pinches.
 - Release-acting taps now use a `TapReleased` tag plus queries (`tagRelease` skips entities disposed mid-press). The xr-controls suite passes (7/7).
 - Fixed sleeps after reloads (`run.sh`, `levels.sh`, `probe.sh`, `xr_start`, the gaze device switch) are replaced by `fresh_page` / `settle` / `wait_ready`, which poll in-page and on the bridge. The sub-second sleeps that remain are gesture timing.
+- **Correction:** the first post-fix regression's level sections only proved `w1-02` (40 times). The new `wait_ready`/`fresh_page` helpers looped with a global `i` (zsh function variables are global), which clobbered `levels.sh`'s loop index after every reload. That regression is committed with the fixes (5c03a54); its level results were not real. Fixed with `local i`, plus a guard: `levels.sh` now errors unless each run reports the exact index it asked for. Rerun on the review-fix code: 20/20 distinct levels at normal speed and 20/20 in slow motion.

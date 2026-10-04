@@ -7,6 +7,7 @@
 cd "$(dirname "$0")/../.."
 source tests/e2e/xr-lib.sh
 device() {
+  local i
   echo "NOTE switching the emulated device to $1: editing iwsdk.config.json restarts the dev server (same headless browser)"
   python3 -c "import json,sys;p='iwsdk.config.json';d=json.load(open(p));d['dev']['emulator']['device']=sys.argv[1];open(p,'w').write(json.dumps(d,indent=2)+'\n')" "$1"
   # The edit restarts Vite: wait for the bridge to drop, then to come back.

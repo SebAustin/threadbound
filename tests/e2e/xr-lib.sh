@@ -1,3 +1,5 @@
+# Shared helpers for the E2E shell runners. Helpers declare loop variables `local`:
+# zsh function variables are global, and a helper's `i` would clobber the caller's loop.
 # Shared helpers for the emulated-XR shell tests (source from tests/e2e/*.sh after cd to repo root).
 iw() { npx @iwsdk/cli "$@"; }
 FAIL=0
@@ -5,6 +7,7 @@ pass() { echo "PASS $1"; }
 fail() { echo "FAIL $1"; FAIL=1; }
 # wait_ready [seconds=20]: the dev server's browser bridge accepts commands (after a reload or restart).
 wait_ready() {
+  local i
   for i in $(seq 1 $(( ${1:-20} * 2 ))); do iw dev status 2>/dev/null | grep -q '"browserCommandReady": true' && return 0; sleep 0.5; done
   return 1
 }
@@ -15,6 +18,7 @@ settle() {
 }
 # fresh_page: reload the managed browser and wait until the game is up (retrying while the bridge reconnects).
 fresh_page() {
+  local i
   iw browser reload --input-json '{}' >/dev/null 2>&1
   for i in 1 2 3 4 5; do wait_ready && settle page && return 0; sleep 1; done
   return 1
