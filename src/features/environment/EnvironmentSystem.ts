@@ -10,6 +10,7 @@ import {
 } from '@iwsdk/core';
 import { DIORAMA, DIORAMA_DEFAULT_POSITION, VIRTUAL_ROOM } from '../../config/constants';
 import { shouldShowVirtualRoom } from '../../lib/xrMode';
+import { mergeParts, type GeometryPart } from '../diorama/mergeParts';
 
 /**
  * The "cozy study" shown in the browser and in VR sessions (e.g. Safari on
@@ -44,20 +45,18 @@ export class EnvironmentSystem extends createSystem({}) {
     const [x, baseY, z] = DIORAMA_DEFAULT_POSITION;
     const [tw, th, td] = VIRTUAL_ROOM.tableTop;
     const topY = baseY - DIORAMA.slab; // table surface meets the diorama base
-    const top = new Mesh(new BoxGeometry(tw, th, td), wood);
-    top.position.set(x, topY - th / 2, z);
-    room.add(top);
-
     const legH = topY - th;
     const legGeo = new BoxGeometry(VIRTUAL_ROOM.legSize, legH, VIRTUAL_ROOM.legSize);
     const inset = VIRTUAL_ROOM.legSize;
+    const legs: GeometryPart[] = [];
     for (const sx of [-1, 1]) {
       for (const sz of [-1, 1]) {
-        const leg = new Mesh(legGeo, wood);
-        leg.position.set(x + sx * (tw / 2 - inset), legH / 2, z + sz * (td / 2 - inset));
-        room.add(leg);
+        legs.push({ geometry: legGeo, at: [x + sx * (tw / 2 - inset), legH / 2, z + sz * (td / 2 - inset)] });
       }
     }
+    // Top and legs share the wood: one mesh, one draw call.
+    const table = new Mesh(mergeParts([{ geometry: new BoxGeometry(tw, th, td), at: [x, topY - th / 2, z] }, ...legs]), wood);
+    room.add(table);
 
     const floor = new Mesh(new CircleGeometry(VIRTUAL_ROOM.floorRadius, 48), floorMat);
     floor.rotation.x = -Math.PI / 2;

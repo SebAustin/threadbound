@@ -5,8 +5,9 @@ import {
   MeshStandardMaterial,
   SphereGeometry,
 } from '@iwsdk/core';
-import { GLYPH, MARBLE, PEG } from '../../config/constants';
+import { DIORAMA, GLYPH, MARBLE, PEG } from '../../config/constants';
 import { colorGlyph, type MarbleColor, type SortingColor } from '../../lib/marbleColors';
+import { mergeParts } from './mergeParts';
 
 /**
  * Art direction: a warm walnut-and-brass music box. Threads are coral "strings",
@@ -72,7 +73,14 @@ export const GEOMETRIES = {
   /** Unit cylinder; threads scale a child mesh so physics entities stay unscaled. */
   unitCylinder: new CylinderGeometry(1, 1, 1, 10, 1),
   marble: new SphereGeometry(MARBLE.radius, 20, 14),
-  pegKnob: new SphereGeometry(PEG.radius * 1.5, 16, 12),
+  /**
+   * A whole peg in one draw call: the pin spanning the channel plus the knob in
+   * front of the glass (local +Y points toward the player once the peg is placed).
+   */
+  peg: mergeParts([
+    { geometry: new CylinderGeometry(PEG.radius, PEG.radius, DIORAMA.channelHalfDepth * 2, 12) },
+    { geometry: new SphereGeometry(PEG.radius * 1.5, 16, 12), at: [0, DIORAMA.channelHalfDepth + PEG.radius, 0] },
+  ]),
 } as const;
 
 const MARBLE_MATERIALS: Record<MarbleColor, MeshStandardMaterial> = {

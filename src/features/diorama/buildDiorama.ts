@@ -95,12 +95,10 @@ function buildCase(world: World, frame: DioramaFrame, level: Level): Entity[] {
 function buildPeg(world: World, frame: DioramaFrame, peg: Level['pegs'][number]): Entity {
   const depth = DIORAMA.channelHalfDepth * 2;
   const group = new Group();
-  const pin = new Mesh(new CylinderGeometry(PEG.radius, PEG.radius, depth, 12), MATERIALS.brass);
-  // After the X rotation, local +Y points toward the player: the knob sits in front of the glass.
-  const knob = new Mesh(GEOMETRIES.pegKnob, MATERIALS.brass);
-  knob.position.y = DIORAMA.channelHalfDepth + PEG.radius;
-  knob.name = 'peg-knob';
-  group.add(pin, knob);
+  // Pin and knob share one geometry (one draw call); the whole peg glows when hot.
+  const body = new Mesh(GEOMETRIES.peg, MATERIALS.brass);
+  body.name = 'peg-knob';
+  group.add(body);
   group.name = `peg-${peg.id}`;
 
   const entity = place(world, frame, group, [peg.x, peg.y, 0], PEG_ROTATION);

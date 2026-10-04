@@ -4,11 +4,11 @@
 
 **Blocked by:** none
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Unit: within budget gives no breaches; each over-limit metric is named
-- [ ] `levels.sh` prints stats per level and fails on a breach
-- [ ] Busiest level and its numbers recorded in Comments
+- [x] Unit: within budget gives no breaches; each over-limit metric is named
+- [x] `levels.sh` prints stats per level and fails on a breach
+- [x] Busiest level and its numbers recorded in Comments
 
 ## Comments
 - Baseline (busiest frame: solution hung, every marble in flight), from `.scratch/week6/perf-baseline.log`. Busiest: **w4-06 Last Thread, 61 calls / 7.5k tris / 22 bodies**. Then w3-04 Crossfade 57, w2-04 Mixed Up and w4-05 Split Spool 56. Quietest: w1-01 First Thread 39. Triangles and bodies have huge headroom (8%, 55%); draw calls are the only tight metric (76%).

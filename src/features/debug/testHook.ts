@@ -52,6 +52,8 @@ export interface ThreadboundTestHook {
   plaqueElement(id: string): Located | null;
   /** Whether the active XR session exposes a gaze input source (eye-tracked devices). */
   gazeAvailable(): boolean;
+  /** Visible meshes (about one draw call each) grouped by what they belong to. */
+  meshBreakdown(): Record<string, number>;
   /** Cost of the next rendered frame, and any performance-budget breaches. */
   frameStats(): Promise<FrameStats & { breaches: string[] }>;
   /** Ghost-hand tutorial: current step and whether it is drawn. */
@@ -194,8 +196,33 @@ function plaqueProbes(world: World, probe: Probe): Hook<'hud' | 'plaque' | 'plaq
 
 const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
-function sessionProbes(world: World): Hook<'gazeAvailable' | 'room' | 'frameStats'> {
+/** The name that says what a mesh belongs to: its first named ancestor, digits folded. */
+function ownerOf(object: Object3D): string {
+  for (let o: Object3D | null = object; o; o = o.parent) {
+    if (o.name && o.name !== 'Scene') return o.name.replace(/[-_]?[a-z]?\d+$/i, '').replace(/-[a-z]$/, '');
+  }
+  const geometry = (object as { geometry?: { type?: string } }).geometry?.type ?? '?';
+  const chain: string[] = [];
+  for (let o = object.parent; o && chain.length < 4; o = o.parent) chain.push(o.type);
+  return `(unnamed ${geometry} in ${chain.join('<')})`;
+}
+
+function visibleInScene(object: Object3D): boolean {
+  for (let o: Object3D | null = object; o; o = o.parent) if (!o.visible) return false;
+  return true;
+}
+
+function sessionProbes(world: World): Hook<'gazeAvailable' | 'room' | 'frameStats' | 'meshBreakdown'> {
   return {
+    meshBreakdown: () => {
+      const counts: Record<string, number> = {};
+      world.scene.traverse((o) => {
+        if (!(o as { isMesh?: boolean }).isMesh || !visibleInScene(o)) return;
+        const owner = ownerOf(o);
+        counts[owner] = (counts[owner] ?? 0) + 1;
+      });
+      return counts;
+    },
     frameStats: async () => {
       // Two frames: the first may still be mid-rebuild; renderer.info resets every render.
       await nextFrame();
