@@ -1,12 +1,18 @@
 import type { Level } from '../../lib/levelSchema';
 import { INITIAL_PROGRESS, type Progress } from '../../lib/progress';
 import { DEFAULT_SETTINGS, type Settings } from '../../lib/settings';
-import type { ThreadLink } from '../../lib/threadRules';
-import type { Vec3 } from '../../lib/vec';
+import type { RefusalReason, ThreadLink } from '../../lib/threadRules';
+import type { Vec3, PegPositions } from '../../lib/vec';
 import type { BuiltDiorama } from '../diorama/buildDiorama';
 import type { DioramaFrame } from '../diorama/dioramaFrame';
 
 export type PuzzleStatus = 'idle' | 'dropping' | 'complete';
+
+/** An open daily puzzle: the day it belongs to, and the campaign level to return to. */
+export interface DailySession {
+  readonly day: string;
+  readonly returnTo: number;
+}
 
 export interface PuzzleState {
   readonly level: Level | null;
@@ -18,10 +24,14 @@ export interface PuzzleState {
   readonly stars: number;
   readonly progress: Progress;
   /** Live peg positions (diorama-local); rail pegs move away from their level data. */
-  readonly pegPositions: Readonly<Record<string, { readonly x: number; readonly y: number }>>;
+  readonly pegPositions: PegPositions;
   /** Simulation frozen because the player can't see it (see PauseSystem). */
   readonly paused: boolean;
   readonly settings: Settings;
+  /** Set while a daily puzzle is open. */
+  readonly daily: DailySession | null;
+  /** Why the player's last thread or slide was refused; cleared by their next success. */
+  readonly refusal: RefusalReason | null;
 }
 
 /** Everything that changes the puzzle goes through here: buttons, placement, tests. */
@@ -33,6 +43,8 @@ export type PuzzleCommand =
   | { readonly type: 'resetProgress' }
   /** Today's daily puzzle (or a given pool index, for tests and replays). */
   | { readonly type: 'daily'; readonly index?: number }
+  /** The sun button: open today's daily, or from a daily go back to the campaign. */
+  | { readonly type: 'toggleDaily' }
   /** Change and persist player settings. */
   | { readonly type: 'settings'; readonly patch: Partial<Settings> }
   /** Flip the plaque between the level face and the settings face. */
@@ -66,6 +78,8 @@ const INITIAL: PuzzleState = {
   pegPositions: {},
   paused: false,
   settings: DEFAULT_SETTINGS,
+  daily: null,
+  refusal: null,
 };
 
 /**

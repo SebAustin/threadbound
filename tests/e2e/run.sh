@@ -4,7 +4,8 @@
 # Usage: zsh tests/e2e/run.sh tests/e2e/<name>.e2e.mjs
 # Needs: npx @iwsdk/cli dev up --allow-browser-automation
 cd "$(dirname "$0")/../.."
-npx @iwsdk/cli browser reload --input-json '{}' >/dev/null 2>&1; sleep 7
+source tests/e2e/xr-lib.sh
+fresh_page
 npx @iwsdk/cli browser run "${1:-tests/e2e/first-thread.e2e.mjs}" --timeout 100000 2>&1 | python3 -c "
 import sys, json
 raw = sys.stdin.read()

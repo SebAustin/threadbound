@@ -1,5 +1,9 @@
+import type { Settings } from './settings';
+import type { RefusalReason } from './threadRules';
+import { toCm } from './units';
+
 export interface HudInput {
-  /** Every level in play order; only `world` matters here. */
+  /** Campaign levels in play order (no dailies); only `world` matters here. */
   readonly levels: readonly { readonly world: number }[];
   readonly levelIndex: number;
   readonly title: string;
@@ -15,6 +19,8 @@ export interface HudInput {
   readonly spool?: { readonly used: number; readonly total: number };
   /** Set when playing the daily puzzle. */
   readonly daily?: { readonly streak: number };
+  /** The player's last attempt was refused, and why (cleared by their next success). */
+  readonly refusal?: RefusalReason | null;
 }
 
 export interface HudModel {
@@ -28,12 +34,28 @@ export interface HudModel {
   readonly spoolLabel: string;
 }
 
-const toCm = (meters: number) => Math.round(meters * 100);
-
 const dailyLabel = (streak: number) => (streak > 0 ? `Daily - streak ${streak}` : 'Daily - start a streak');
 
+const wholeCm = (meters: number) => Math.round(toCm(meters));
+
 function spoolLabel(used: number, total: number): string {
-  return `Spool ${Math.max(0, toCm(total) - toCm(used))}/${toCm(total)} cm`;
+  return `Spool ${Math.max(0, wholeCm(total) - wholeCm(used))}/${wholeCm(total)} cm`;
+}
+
+/** Same-peg is how a player cancels a thread, so it needs no explanation. */
+const REFUSAL_HINTS: Readonly<Record<RefusalReason, string>> = {
+  'same-peg': '',
+  duplicate: 'Those pegs are already joined',
+  limit: 'No threads left - snip one first',
+  spool: 'Not enough spool for that thread',
+};
+
+const DAILY_HINT = 'Poke the sun to return';
+
+/** One hint line: why something was refused, else onboarding, else how to leave a daily. */
+function hintFor(input: HudInput): string {
+  const refusal = input.refusal ? REFUSAL_HINTS[input.refusal] : '';
+  return refusal || input.hint || (input.daily ? DAILY_HINT : '');
 }
 
 /** Plaque copy: plain ASCII, because the panel font has no typographic glyphs. */
@@ -48,7 +70,7 @@ export function hudModel(input: HudInput): HudModel {
     threadsLabel: `Threads ${input.threadsUsed}/${input.maxThreads} - par ${input.par}`,
     stars: [lit(1), lit(2), lit(3)],
     status: input.solved ? 'solved' : 'playing',
-    hint: input.hint,
+    hint: hintFor(input),
     spoolLabel: input.spool ? spoolLabel(input.spool.used, input.spool.total) : '',
   };
 }
@@ -61,10 +83,7 @@ export interface SettingsModel {
 const signed = (n: number) => (n > 0 ? `+${n}` : String(n));
 
 /** Settings-face copy: every control says what it is set to (ASCII). */
-export function settingsModel(settings: {
-  readonly slowMotion: boolean;
-  readonly offset: { readonly up: number; readonly near: number };
-}): SettingsModel {
+export function settingsModel(settings: Settings): SettingsModel {
   return {
     slowLabel: `Slow-mo: ${settings.slowMotion ? 'On' : 'Off'}`,
     offsetLabel: `Height ${signed(settings.offset.up)}   Distance ${signed(settings.offset.near)}`,

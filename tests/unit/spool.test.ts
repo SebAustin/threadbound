@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { parseLevel } from '../../src/lib/levelSchema';
-import { checkNewThread, spoolUsed } from '../../src/lib/threadRules';
+import { checkNewThread, spoolUsed, slideFitsSpool } from '../../src/lib/threadRules';
 
 const pegs = {
   a: { x: 0, y: 0 },
@@ -61,5 +61,26 @@ describe('level schema: spool', () => {
     const r = parseLevel({ ...base, spool: 0.29 });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toMatch(/solution needs .* of spool/i);
+  });
+});
+
+describe('slideFitsSpool: a rail slide may not stretch threads past the spool', () => {
+  const pegs = { a: { x: 0, y: 0 }, b: { x: 0.1, y: 0 } };
+  const threads = [{ from: 'a', to: 'b', preset: false }];
+
+  test('a slide that keeps the threads within the spool fits', () => {
+    expect(slideFitsSpool(threads, pegs, 'b', { x: 0.15, y: 0 }, 0.15)).toBe(true);
+  });
+
+  test('a slide that stretches a thread past the spool does not', () => {
+    expect(slideFitsSpool(threads, pegs, 'b', { x: 0.2, y: 0 }, 0.15)).toBe(false);
+  });
+
+  test('preset threads never count against the spool', () => {
+    expect(slideFitsSpool([{ from: 'a', to: 'b', preset: true }], pegs, 'b', { x: 0.4, y: 0 }, 0.15)).toBe(true);
+  });
+
+  test('levels without a spool always fit', () => {
+    expect(slideFitsSpool(threads, pegs, 'b', { x: 0.4, y: 0 }, undefined)).toBe(true);
   });
 });

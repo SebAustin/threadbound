@@ -21,8 +21,9 @@ import { pitchForLength, restitutionForLength } from '../../lib/threadTuning';
 import { stringSynth } from '../audio/stringSynth';
 import { devLog } from '../debug/devLog';
 import { GEOMETRIES, MATERIALS } from '../diorama/palette';
-import { Peg, Thread } from '../puzzle/components';
+import { Peg, tagRelease, TapReleased, Thread } from '../puzzle/components';
 import { puzzleStore, type PuzzleCommand } from '../puzzle/puzzleStore';
+import { refuse } from '../puzzle/refuse';
 import { pointerToDiorama } from '../input/pointerToDiorama';
 import {
   capturePointer,
@@ -36,9 +37,6 @@ const UP = new Vector3(0, 1, 0);
 const PREVIEW_RADIUS = THREAD_TUNING.radius * 0.7;
 const CREATE_VOLUME = 0.8;
 const SNIP_VOLUME = 0.4;
-/** G2: below every thread's range, so a refusal never sounds like a note. */
-const REFUSE_HZ = 98;
-const REFUSE_VOLUME = 0.5;
 
 const touchesPeg = (thread: Entity, pegId: string) =>
   thread.getValue(Thread, 'fromPeg') === pegId || thread.getValue(Thread, 'toPeg') === pegId;
@@ -64,10 +62,9 @@ export class ThreadSystem extends createSystem({
   threads: { required: [Thread] },
   /** A thread pinched, poked or clicked is snipped on release (works for every input kind). */
   pressedThreads: { required: [Thread, Pressed] },
+  releasedThreads: { required: [Thread, TapReleased] },
 }) {
   private drag: Drag | null = null;
-  /** Threads released after a press this frame; snipped at the start of the next update. */
-  private pendingSnips: Entity[] = [];
   private preview!: Mesh;
   private dragPoint = { x: 0, y: 0 };
   private tmpDir = new Vector3();
@@ -85,7 +82,7 @@ export class ThreadSystem extends createSystem({
       this.queries.hoveredPegs.subscribe('disqualify', (e) => this.setKnob(e, false)),
       // Snip after release, next frame: disposing a thread while a hand still holds it
       // leaves that pointer captured on a dead object and swallows its next pinch.
-      this.queries.pressedThreads.subscribe('disqualify', (e) => this.pendingSnips.push(e)),
+      this.queries.pressedThreads.subscribe('disqualify', tagRelease),
       puzzleStore.onCommand((command) => this.handleCommand(command)),
     );
     // 'qualify' only fires for future matches; pegs built earlier need wiring now.
@@ -183,9 +180,7 @@ export class ThreadSystem extends createSystem({
         : { remaining: spool - spoolUsed(state.threads, state.pegPositions), length: Math.hypot(to.x - from.x, to.y - from.y) },
     );
     if (!check.ok) {
-      // Every refusal is audible: a low, dull thunk instead of a note.
-      stringSynth.pluck(REFUSE_HZ, REFUSE_VOLUME);
-      devLog(`thread rejected: ${check.reason}`);
+      refuse(check.reason, 'thread');
       return;
     }
     this.createThread(from, to, { preset: false, pluck: true });
@@ -303,6 +298,7 @@ export class ThreadSystem extends createSystem({
 
     puzzleStore.update({
       threads: [...puzzleStore.get().threads, { from: from.id, to: to.id, preset }],
+      ...(preset ? {} : { refusal: null }),
     });
     if (pluck) stringSynth.pluck(pitch, CREATE_VOLUME);
   }
@@ -312,6 +308,7 @@ export class ThreadSystem extends createSystem({
     const to = entity.getValue(Thread, 'toPeg');
     puzzleStore.update({
       threads: puzzleStore.get().threads.filter((t) => !(t.from === from && t.to === to)),
+      refusal: null,
     });
     stringSynth.pluck(pitchForLength(THREAD_TUNING.maxLength), SNIP_VOLUME);
     entity.dispose({ disposeResources: false });
@@ -323,11 +320,10 @@ export class ThreadSystem extends createSystem({
   }
 
   private snipReleased(): void {
-    if (this.pendingSnips.length === 0) return;
-    for (const entity of this.pendingSnips) {
-      if (entity.active && entity.hasComponent(Thread)) this.snip(entity);
+    for (const entity of this.queries.releasedThreads.entities) {
+      entity.removeComponent(TapReleased);
+      this.snip(entity);
     }
-    this.pendingSnips.length = 0;
   }
 
   /** Live preview while dragging. Allocation-free: runs every frame of a drag. */

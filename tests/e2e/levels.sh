@@ -2,13 +2,13 @@
 # Runs the level solvability E2E one level per browser lease (leases cap at 110 s).
 # Usage: zsh tests/e2e/levels.sh [levelIndex ...]   (default: every level)
 cd "$(dirname "$0")/../.."
-iw() { npx @iwsdk/cli "$@"; }
+source tests/e2e/xr-lib.sh
 # One JSON per level; tests/unit/levels.test.ts proves they are all registered.
 count=$(ls src/levels/*/*.json | wc -l | tr -d ' ')
 levels=("$@"); (( ${#levels} )) || levels=($(seq 0 $(( count - 1 ))))
 fail=0
 for i in $levels; do
-  iw browser reload --input-json '{}' >/dev/null 2>&1; sleep 7
+  fresh_page
   LEVEL=$i iw browser run tests/e2e/levels.e2e.mjs --timeout 100000 2>&1 | python3 -c "
 import sys,json
 raw=sys.stdin.read()

@@ -13,7 +13,7 @@ iw xr set-transform --input-json "{\"device\":\"hand-right\",\"position\":$HAND}
 iw xr look-at --input-json "{\"device\":\"hand-right\",\"target\":$A}" >/dev/null 2>&1; sleep 0.5
 iw xr set-select-value --input-json '{"device":"hand-right","value":1}' >/dev/null 2>&1; sleep 0.4
 for t in 0.25 0.5 0.75 1.0; do
-  iw xr look-at --input-json "{\"device\":\"hand-right\",\"target\":$(python3 -c "import json;a=json.loads('$A');b=json.loads('$B');print(json.dumps({k:a[k]+(b[k]-a[k])*$t for k in a}))")}" >/dev/null 2>&1; sleep 0.3
+  iw xr look-at --input-json "{\"device\":\"hand-right\",\"target\":$(lerp_point "$A" "$B" "$t")}" >/dev/null 2>&1; sleep 0.3
 done
 iw xr set-select-value --input-json '{"device":"hand-right","value":0}' >/dev/null 2>&1; sleep 0.5
 T=$(field "$(probe)" "['threads']")

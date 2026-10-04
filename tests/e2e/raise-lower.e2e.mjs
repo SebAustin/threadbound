@@ -1,5 +1,6 @@
 // E2E (real input): one-handed Raise / Farther buttons on the settings face move
 // the diorama one step each, keep the player's threads, and the level still plays.
+// Moving never undoes a solve, and a move made mid-drop waits for the drop to end.
 import { canvasMapper, checks, click, clickCanvas, isComplete, loadIndex, plaqueElementAt, waitFor } from './lib.mjs';
 
 const STEP_UP = 0.025;
@@ -31,6 +32,29 @@ export default async function run({ page, frame }) {
 
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'drop' }));
   check('the moved level still solves', await waitFor(app, isComplete, 15000));
+  const solved = await app.evaluate(() => window.__threadbound.state().stars);
+
+  await clickCanvas(page, app, at, await plaqueElementAt(app, 'set-down'));
+  await waitFor(app, ([y]) => Math.abs(window.__threadbound.frame().origin[1] - y) < 1e-3, 3000, [start[1]]);
+  const kept = await app.evaluate(() => ({
+    status: window.__threadbound.state().status,
+    stars: window.__threadbound.state().stars,
+    next: window.__threadbound.button('next')?.visible,
+  }));
+  check('moving a solved level keeps it solved, stars and Next included', kept.status === 'complete' && kept.stars === solved && kept.next === true, JSON.stringify(kept));
+
+  await app.evaluate(() => {
+    window.__threadbound.dispatch({ type: 'restart' });
+    window.__threadbound.dispatch({ type: 'addThread', from: 'a', to: 'b' });
+    window.__threadbound.dispatch({ type: 'drop' });
+  });
+  const before = await app.evaluate(origin);
+  await app.evaluate(() => window.__threadbound.dispatch({ type: 'settings', patch: { offset: { up: 2, near: -1 } } }));
+  const mid = await app.evaluate(() => ({ status: window.__threadbound.state().status, origin: window.__threadbound.frame().origin }));
+  check('a move during a drop waits: the marbles keep falling where they are', mid.status === 'dropping' && mid.origin[1] === before[1], JSON.stringify(mid));
+  check('that drop still solves', await waitFor(app, isComplete, 15000));
+  const moved = await waitFor(app, ([y]) => Math.abs(window.__threadbound.frame().origin[1] - y) < 1e-3, 3000, [start[1] + 2 * STEP_UP]);
+  check('then the diorama moves, still solved', moved && (await app.evaluate(isComplete)), JSON.stringify(await app.evaluate(origin)));
 
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'settings', patch: { offset: { up: 0, near: 0 } } }));
   return results;

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { DEFAULT_SETTINGS, loadSettings, saveSettings, stepOffset, timeScale } from '../../src/lib/settings';
+import { applySettingsPatch, DEFAULT_SETTINGS, loadSettings, saveSettings, stepOffset, timeScale } from '../../src/lib/settings';
 import { memoryStorage } from '../../src/lib/storage';
 
 describe('settings', () => {
@@ -43,10 +43,37 @@ describe('diorama offset', () => {
   });
 
   test('steps clamp to a comfortable range', () => {
-    expect(stepOffset({ up: 3, near: 0 }, 'up', 1)).toEqual({ up: 3, near: 0 });
-    expect(stepOffset({ up: -3, near: 0 }, 'up', -1)).toEqual({ up: -3, near: 0 });
+    expect(stepOffset({ up: 6, near: 0 }, 'up', 1)).toEqual({ up: 6, near: 0 });
+    expect(stepOffset({ up: -6, near: 0 }, 'up', -1)).toEqual({ up: -6, near: 0 });
     expect(stepOffset({ up: 0, near: 3 }, 'near', 1)).toEqual({ up: 0, near: 3 });
     expect(stepOffset({ up: 0, near: -2 }, 'near', -1)).toEqual({ up: 0, near: -2 });
     expect(stepOffset({ up: 0, near: 0 }, 'up', 1)).toEqual({ up: 1, near: 0 });
+  });
+});
+
+describe('offset range and no-op steps', () => {
+  test('height reaches 15 cm up or down, enough for a high or low table', () => {
+    let offset = { up: 0, near: 0 };
+    for (let i = 0; i < 6; i++) offset = stepOffset(offset, 'up', 1);
+    expect(offset.up).toBe(6);
+  });
+
+  test('a step at the limit returns the very same offset, so nothing rebuilds', () => {
+    const atTop = { up: 6, near: 0 };
+    expect(stepOffset(atTop, 'up', 1)).toBe(atTop);
+  });
+});
+
+describe('applySettingsPatch', () => {
+  test('merges a valid patch', () => {
+    expect(applySettingsPatch(DEFAULT_SETTINGS, { slowMotion: true })).toEqual({ ...DEFAULT_SETTINGS, slowMotion: true });
+  });
+
+  test('keeps untouched parts identical, so a slow-motion toggle never looks like a move', () => {
+    expect(applySettingsPatch(DEFAULT_SETTINGS, { slowMotion: true }).offset).toBe(DEFAULT_SETTINGS.offset);
+  });
+
+  test('ignores a patch that would leave settings out of range', () => {
+    expect(applySettingsPatch(DEFAULT_SETTINGS, { offset: { up: 40, near: 0 } })).toBe(DEFAULT_SETTINGS);
   });
 });

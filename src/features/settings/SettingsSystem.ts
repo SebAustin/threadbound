@@ -1,5 +1,5 @@
 import { createSystem } from '@iwsdk/core';
-import { loadSettings, saveSettings } from '../../lib/settings';
+import { applySettingsPatch, loadSettings, saveSettings } from '../../lib/settings';
 import { browserStorage } from '../../lib/storage';
 import { puzzleStore } from '../puzzle/puzzleStore';
 
@@ -12,7 +12,9 @@ export class SettingsSystem extends createSystem({}) {
     this.cleanupFuncs.push(
       puzzleStore.onCommand((command) => {
         if (command.type !== 'settings') return;
-        const settings = { ...puzzleStore.get().settings, ...command.patch };
+        const current = puzzleStore.get().settings;
+        const settings = applySettingsPatch(current, command.patch);
+        if (settings === current) return;
         saveSettings(this.storage, settings);
         puzzleStore.update({ settings });
       }),

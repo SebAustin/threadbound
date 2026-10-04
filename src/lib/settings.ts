@@ -5,7 +5,7 @@ import { loadJson, saveJson, type StorageLike } from './storage';
 const SETTINGS_KEY = 'threadbound.settings.v1';
 
 /** Comfortable adjustment range, in steps (see OFFSET_STEP). */
-const OFFSET_LIMITS = { up: [-3, 3], near: [-2, 3] } as const;
+const OFFSET_LIMITS = { up: [-6, 6], near: [-2, 3] } as const;
 
 const SettingsSchema = z.object({
   /** Marbles fall and release more slowly; every solution stays valid. */
@@ -24,10 +24,24 @@ export type Settings = Readonly<z.infer<typeof SettingsSchema>>;
 
 export const DEFAULT_SETTINGS: Settings = Object.freeze({ slowMotion: false, offset: Object.freeze({ up: 0, near: 0 }) });
 
-/** One step of the offset along `axis`, clamped to the comfortable range. */
+/**
+ * One step of the offset along `axis`, clamped to the comfortable range. At the
+ * limit the same object comes back, so identity-based change checks see no move.
+ */
 export function stepOffset(offset: DioramaOffset, axis: keyof DioramaOffset, direction: 1 | -1): DioramaOffset {
   const [min, max] = OFFSET_LIMITS[axis];
-  return { ...offset, [axis]: Math.min(max, Math.max(min, offset[axis] + direction)) };
+  const value = Math.min(max, Math.max(min, offset[axis] + direction));
+  return value === offset[axis] ? offset : { ...offset, [axis]: value };
+}
+
+/**
+ * `settings` with `patch` applied, or `settings` unchanged if the result would be
+ * invalid. Returns the merge rather than the parse result: zod clones, and callers
+ * compare the untouched parts (the offset) by identity.
+ */
+export function applySettingsPatch(settings: Settings, patch: Partial<Settings>): Settings {
+  const merged = { ...settings, ...patch };
+  return SettingsSchema.safeParse(merged).success ? merged : settings;
 }
 
 export function loadSettings(storage: StorageLike): Settings {

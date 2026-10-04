@@ -4,14 +4,23 @@ interface PointerTarget {
   removeEventListener(type: 'pointerdown' | 'pointerup', listener: (event: { pointerId: number }) => void): void;
 }
 
+function isPointerTarget(value: unknown): value is PointerTarget {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as Partial<PointerTarget>).addEventListener === 'function' &&
+    typeof (value as Partial<PointerTarget>).removeEventListener === 'function'
+  );
+}
+
 /**
  * Runs `action` when a pointer presses and releases on `target`: a tap. Unlike
  * DOM-style 'click', which only mouse pointers deliver here, down/up arrive from
  * every input (mouse, hand ray, poke, gaze + pinch). Returns the teardown.
  */
 export function onTap(target: unknown, action: () => void): () => void {
-  const el = target as PointerTarget | undefined;
-  if (!el) return () => {};
+  if (!isPointerTarget(target)) return () => {};
+  const el = target;
   let pressedBy: number | null = null;
   const down = (event: { pointerId: number }) => {
     pressedBy = event.pointerId;

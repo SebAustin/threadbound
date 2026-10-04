@@ -14,7 +14,6 @@ import { GOAL, MARBLE, THREAD_TUNING } from '../../config/constants';
 import { dropOver, isStalled, nudgeDirection, restTimer } from '../../lib/dropWatch';
 import { goalAccepts } from '../../lib/goalMatch';
 import { isMarbleColor } from '../../lib/marbleColors';
-import { timeScale } from '../../lib/settings';
 import { releaseOrder, type Release } from '../../lib/releaseOrder';
 import { segmentDistanceSq2d } from '../../lib/segment2d';
 import { spawnOffsetX } from '../../lib/spawnOffset';
@@ -22,6 +21,7 @@ import { stringSynth } from '../audio/stringSynth';
 import { GEOMETRIES, goalMaterial, marbleMaterial } from '../diorama/palette';
 import { Chute, Marble, Thread } from '../puzzle/components';
 import { puzzleStore } from '../puzzle/puzzleStore';
+import { SimulationClockSystem } from '../simulation/SimulationClockSystem';
 
 /** Contact band around a thread that counts as a "pluck". */
 const CONTACT_DIST = MARBLE.radius + THREAD_TUNING.radius + 0.004;
@@ -57,6 +57,8 @@ export class MarbleSystem extends createSystem({
 }) {
   /** This drop's releases in round-robin chute order; `released` counts those spawned. */
   private queue: readonly Release[] = [];
+  /** Slow motion: releases and rest timers run on simulation time, like physics. */
+  private clock: SimulationClockSystem | undefined;
   private released = 0;
   private releaseTimer = 0;
   /** Thread entity indices each marble is currently touching, keyed by marble index. */
@@ -80,6 +82,7 @@ export class MarbleSystem extends createSystem({
   private replayTimer = 0;
 
   init(): void {
+    this.clock = this.world.getSystem(SimulationClockSystem);
     this.cleanupFuncs.push(
       this.queries.pressedChutes.subscribe('qualify', () => puzzleStore.dispatch({ type: 'drop' })),
       this.queries.marbles.subscribe('disqualify', (m) => {
@@ -151,7 +154,7 @@ export class MarbleSystem extends createSystem({
 
   update(delta: number): void {
     // Simulation time: slow motion dilates releases and rest timers with physics.
-    const simDelta = delta * timeScale(puzzleStore.get().settings.slowMotion);
+    const simDelta = this.clock?.simDelta(delta) ?? delta;
     this.releaseDue(simDelta);
     this.replayDue(delta);
     const frame = puzzleStore.frame;

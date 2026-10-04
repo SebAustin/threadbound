@@ -1,5 +1,5 @@
 import { SLIDER } from '../config/constants';
-import type { Vec2 } from './vec';
+import type { Vec2, Point2 } from './vec';
 
 export interface Rail {
   readonly axis: 'x' | 'y';
@@ -11,7 +11,7 @@ const clampTo = (rail: Rail, v: number) => Math.min(rail.max, Math.max(rail.min,
 
 /** Slides a peg along its rail toward `target`, never leaving the rail. */
 export function clampToRail(
-  peg: { readonly x: number; readonly y: number },
+  peg: Point2,
   rail: Rail,
   target: Vec2,
 ): { x: number; y: number } {
@@ -42,7 +42,7 @@ export function handleOffset(axis: Rail['axis']): readonly [number, number] {
 
 /** Position of a peg slid to `along` on its rail (the off-axis coordinate is kept). */
 export function positionAlong(
-  peg: { readonly x: number; readonly y: number },
+  peg: Point2,
   rail: Rail,
   along: number,
 ): { x: number; y: number } {

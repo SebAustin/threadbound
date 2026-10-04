@@ -20,7 +20,7 @@ export default async function run({ page, frame }) {
       // Aim at the top of each button's cap (1.2 cm above its base on the ledge).
       buttons: Object.fromEntries(
         ['restart', 'next', 'settings', 'daily'].map((id) => {
-          const b = hook.buttonWorld(id);
+          const b = hook.button(id)?.world;
           return [id, b && { ...b, y: b.y + 0.012 }];
         }),
       ),
@@ -29,7 +29,7 @@ export default async function run({ page, frame }) {
       status: s.status,
       levelId: s.level.id,
       face: hook.plaque()?.face,
-      slowToggle: hook.plaqueElementWorld('set-slow'),
+      slowToggle: hook.plaqueElement('set-slow')?.world,
       slowMotion: s.settings.slowMotion,
     };
   }, setup);

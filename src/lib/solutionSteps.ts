@@ -1,6 +1,7 @@
 import type { Level } from './levelSchema';
 import { positionAlong } from './rail';
 import { sameThread, type ThreadLink } from './threadRules';
+import type { PegPositions } from './vec';
 
 /** Structurally identical to the puzzle bus commands, so steps can be dispatched as-is. */
 export type SolutionStep =
@@ -37,7 +38,7 @@ export function solutionSteps(level: Level): SolutionStep[] {
 export function restoreSteps(
   level: Level,
   threads: readonly ThreadLink[],
-  pegPositions: Readonly<Record<string, { readonly x: number; readonly y: number }>>,
+  pegPositions: PegPositions,
 ): SolutionStep[] {
   const slides = level.pegs.flatMap((peg): SolutionStep[] => {
     const at = pegPositions[peg.id];

@@ -3,6 +3,7 @@ import { MARBLE_COLORS, SORTING_COLORS } from './marbleColors';
 import { segmentDistanceSq2d } from './segment2d';
 import { positionAlong } from './rail';
 import { sameThread, spoolUsed } from './threadRules';
+import { toCm } from './units';
 
 const point = { x: z.number(), y: z.number() };
 const link = z.object({ from: z.string().min(1), to: z.string().min(1) });
@@ -138,7 +139,7 @@ function checkThreads(level: RawLevel, issue: Issue): void {
   }
 }
 
-const cm = (meters: number) => `${(meters * 100).toFixed(1)} cm`;
+const cm = (meters: number) => `${toCm(meters).toFixed(1)} cm`;
 
 /** Thread length (m) the stored solution spends: the player's threads, after its slides. */
 export function solutionLength(level: Pick<RawLevel, 'pegs' | 'slides' | 'solution' | 'presetThreads'>): number {

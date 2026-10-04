@@ -13,6 +13,9 @@ export function localDayKey(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+/** The player's local day right now. */
+export const today = (): string => localDayKey(new Date());
+
 /** Whole days since 1970-01-01 for a day key (calendar arithmetic, no time zone). */
 function dayNumber(key: string): number {
   const [y, m, d] = key.split('-').map(Number);

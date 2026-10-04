@@ -8,13 +8,13 @@ import { starsFor } from '../../lib/scoring';
 import { restoreSteps } from '../../lib/solutionSteps';
 import { playerThreadCount } from '../../lib/threadRules';
 import type { Vec3 } from '../../lib/vec';
-import { dailyIndex, localDayKey } from '../../lib/daily';
+import { dailyIndex, today } from '../../lib/daily';
 import { DAILY_LEVELS, isDailyIndex, LEVELS, PLAYABLE } from '../../levels';
 import { buildDiorama } from '../diorama/buildDiorama';
 import { DioramaFrame } from '../diorama/dioramaFrame';
 import { disposeLevelEntity } from '../diorama/disposeLevelEntity';
 import { Marble, Thread } from './components';
-import { puzzleStore, type PuzzleCommand, type PuzzleState } from './puzzleStore';
+import { puzzleStore, type DailySession, type PuzzleCommand, type PuzzleState } from './puzzleStore';
 
 interface FramePose {
   readonly origin: Vec3;
@@ -60,9 +60,13 @@ export class PuzzleSystem extends createSystem({
       case 'next':
         this.loadLevel(Math.min(levelIndex + 1, LEVELS.length - 1));
         break;
-      case 'daily': {
-        const pick = command.index ?? dailyIndex(localDayKey(new Date()), DAILY_LEVELS.length);
-        this.loadLevel(LEVELS.length + pick);
+      case 'daily':
+        this.openDaily(command.index);
+        break;
+      case 'toggleDaily': {
+        const { daily } = puzzleStore.get();
+        if (daily) this.loadLevel(daily.returnTo);
+        else this.openDaily();
         break;
       }
       case 'resetProgress':
@@ -84,7 +88,20 @@ export class PuzzleSystem extends createSystem({
     }
   }
 
-  private loadLevel(index: number, relocated = false): void {
+  /** Today's daily (or pool entry `index`), remembering which campaign level to return to. */
+  private openDaily(index?: number): void {
+    const { daily, levelIndex } = puzzleStore.get();
+    const day = today();
+    const pick = index ?? dailyIndex(day, DAILY_LEVELS.length);
+    this.build(LEVELS.length + pick, { day, returnTo: daily?.returnTo ?? levelIndex }, false);
+  }
+
+  /** Load a level fresh. Restarting a daily keeps its session; any campaign level ends it. */
+  private loadLevel(index: number): void {
+    this.build(index, isDailyIndex(index) ? puzzleStore.get().daily : null, false);
+  }
+
+  private build(index: number, daily: DailySession | null, relocated: boolean): void {
     const level = PLAYABLE[index];
     if (!level) {
       console.error(`[Threadbound] no level at index ${index}`);
@@ -99,36 +116,49 @@ export class PuzzleSystem extends createSystem({
     puzzleStore.diorama = buildDiorama(this.world, frame, level);
     puzzleStore.diorama.nextButton.object3D!.visible = false;
     const pegPositions = Object.fromEntries(level.pegs.map((p) => [p.id, { x: p.x, y: p.y }]));
-    puzzleStore.update({ level, levelIndex: index, threads: [], status: 'idle', scored: 0, stars: 0, pegPositions });
+    puzzleStore.update({
+      level,
+      levelIndex: index,
+      threads: [],
+      status: 'idle',
+      scored: 0,
+      stars: 0,
+      pegPositions,
+      daily,
+      refusal: null,
+    });
     puzzleStore.dispatch({ type: 'levelBuilt', relocated });
   }
 
   private onStateChange(state: PuzzleState): void {
-    if (this.builtOffset !== null && state.settings.offset !== this.builtOffset) {
+    // A move during a drop waits for it to end: this check reruns on every change.
+    if (this.builtOffset !== null && state.settings.offset !== this.builtOffset && state.status !== 'dropping') {
       this.relocate(state);
       return;
     }
     const next = puzzleStore.diorama?.nextButton.object3D;
     // Dailies stand alone: no Next, and they never unlock campaign levels.
-    const hasNext = !isDailyIndex(state.levelIndex) && state.levelIndex < LEVELS.length - 1;
+    const hasNext = !state.daily && state.levelIndex < LEVELS.length - 1;
     if (next) next.visible = state.status === 'complete' && hasNext;
     if (state.status !== 'complete' || state.stars > 0 || !state.level) return;
 
     const used = playerThreadCount(state.threads);
     const stars = starsFor(used, state.level.par);
-    const progress = isDailyIndex(state.levelIndex)
-      ? recordDaily(state.progress, state.level.id, stars, localDayKey(new Date()))
+    const progress = state.daily
+      ? recordDaily(state.progress, stars, state.daily.day)
       : recordCompletion(state.progress, state.level.id, state.levelIndex, stars, LEVELS.length);
     saveProgress(this.storage, progress);
     puzzleStore.update({ stars, progress });
   }
 
-  /** The player moved the diorama: rebuild it there exactly as they left it. */
+  /** The player moved the diorama: rebuild it there exactly as they left it, solved or not. */
   private relocate(state: PuzzleState): void {
-    const { level, levelIndex, threads, pegPositions } = state;
-    this.loadLevel(levelIndex, true);
+    const { level, levelIndex, threads, pegPositions, daily, status, scored, stars } = state;
+    this.build(levelIndex, daily, true);
     if (!level) return;
     for (const step of restoreSteps(level, threads, pegPositions)) puzzleStore.dispatch(step);
+    // Stars of 0 here means the solve isn't recorded yet; onStateChange records it.
+    if (status === 'complete') puzzleStore.update({ status, scored, stars });
   }
 
   private teardown(): void {

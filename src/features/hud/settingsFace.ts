@@ -6,9 +6,12 @@ import { stepOffset, type Settings } from '../../lib/settings';
 import { onTap } from '../input/onTap';
 import { puzzleStore } from '../puzzle/puzzleStore';
 
-/** The plaque's settings face: each control dispatches a settings change on the bus. */
 const now = () => performance.now() / 1000;
 
+/** Repaint just after the reset window closes, so the label is never caught mid-expiry. */
+const DISARM_REPAINT_MS = RESET_WINDOW_SECONDS * 1000 + 50;
+
+/** The plaque's settings face: each control dispatches a settings change on the bus. */
 export class SettingsFace {
   private shown: Settings | null = null;
   private resetGuard: ResetGuard = DISARMED;
@@ -53,7 +56,7 @@ export class SettingsFace {
     if (reset) puzzleStore.dispatch({ type: 'resetProgress' });
     this.showResetLabel();
     clearTimeout(this.disarmTimer);
-    if (!reset) this.disarmTimer = setTimeout(() => this.showResetLabel(), RESET_WINDOW_SECONDS * 1000 + 50);
+    if (!reset) this.disarmTimer = setTimeout(() => this.showResetLabel(), DISARM_REPAINT_MS);
   }
 
   private showResetLabel(): void {

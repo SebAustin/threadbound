@@ -13,6 +13,8 @@ import { capturePointer, onPointer, releasePointer, type SpatialPointerEvent } f
 import { pointerToDiorama } from '../input/pointerToDiorama';
 import { Peg, SliderHandle } from '../puzzle/components';
 import { puzzleStore, type PuzzleCommand } from '../puzzle/puzzleStore';
+import { slideFitsSpool } from '../../lib/threadRules';
+import { refuse } from '../puzzle/refuse';
 
 interface SlideDrag {
   readonly pegId: string;
@@ -109,8 +111,14 @@ export class SliderSystem extends createSystem({
     // Fixed pegs ignore movePeg; the schema guarantees solution slides target rail pegs.
     if (!rail || !current) return;
     const next = clampToRailInto(current.x, current.y, rail, command.x, command.y, { x: 0, y: 0 });
-    const { pegPositions } = puzzleStore.get();
-    puzzleStore.update({ pegPositions: { ...pegPositions, [command.pegId]: next } });
+    const { pegPositions, threads, level } = puzzleStore.get();
+    if (!slideFitsSpool(threads, pegPositions, command.pegId, next, level?.spool)) {
+      // The drag preview already moved the peg; put it back where its threads still fit.
+      this.placeVisuals(command.pegId, current.x, current.y);
+      refuse('spool', 'slide');
+      return;
+    }
+    puzzleStore.update({ pegPositions: { ...pegPositions, [command.pegId]: next }, refusal: null });
     this.placeVisuals(command.pegId, next.x, next.y);
     this.commitPhysics(command.pegId, next.x, next.y);
     stringSynth.pluck(SLIDER.settleHz, SLIDER.settleVolume);

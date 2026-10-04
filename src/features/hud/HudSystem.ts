@@ -4,8 +4,9 @@ import { hudModel, type HudModel } from '../../lib/hud';
 import { onboardingHint } from '../../lib/onboarding';
 import { onboardingStepOf } from '../onboarding/onboardingState';
 import { playerThreadCount, spoolUsed } from '../../lib/threadRules';
-import { currentStreak, localDayKey } from '../../lib/daily';
-import { isDailyIndex, PLAYABLE } from '../../levels';
+import { currentStreak } from '../../lib/daily';
+import { dailyStarsOn } from '../../lib/progress';
+import { LEVELS } from '../../levels';
 import { puzzleStore, type PuzzleState } from '../puzzle/puzzleStore';
 import { SettingsFace } from './settingsFace';
 
@@ -25,8 +26,7 @@ export class HudSystem extends createSystem({}) {
    * State the plaque was last rendered from. The store fires on every change
    * (rail drags fire per frame); the plaque only depends on these snapshots.
    */
-  private shownFrom: Pick<PuzzleState, 'level' | 'levelIndex' | 'threads' | 'status' | 'progress' | 'pegPositions'> | null =
-    null;
+  private shownFrom: PuzzleState | null = null;
 
   init(): void {
     this.panel = this.world.getSceneObject<UIKitMLAsset>('hud-plaque');
@@ -75,20 +75,19 @@ export class HudSystem extends createSystem({}) {
     if (!this.panel || !level || !this.changed(state)) return;
     this.shownFrom = state;
     const hud = hudModel({
-      levels: PLAYABLE,
+      levels: LEVELS,
       levelIndex: state.levelIndex,
       title: level.name,
       threadsUsed: playerThreadCount(state.threads),
       maxThreads: level.maxThreads,
       par: level.par,
-      bestStars: state.progress.best[level.id] ?? 0,
+      bestStars: state.daily ? dailyStarsOn(state.progress, state.daily.day) : (state.progress.best[level.id] ?? 0),
       solved: state.status === 'complete',
       hint: onboardingHint(onboardingStepOf(state)),
       spool:
         level.spool === undefined ? undefined : { used: spoolUsed(state.threads, state.pegPositions), total: level.spool },
-      daily: isDailyIndex(state.levelIndex)
-        ? { streak: currentStreak(state.progress.streak, localDayKey(new Date())) }
-        : undefined,
+      daily: state.daily ? { streak: currentStreak(state.progress.streak, state.daily.day) } : undefined,
+      refusal: state.refusal,
     });
     this.apply(hud);
   }
@@ -103,6 +102,8 @@ export class HudSystem extends createSystem({}) {
       last.threads !== state.threads ||
       last.status !== state.status ||
       last.progress !== state.progress ||
+      last.daily !== state.daily ||
+      last.refusal !== state.refusal ||
       // Sliding a rail peg changes thread lengths, which only the spool readout shows.
       (state.level?.spool !== undefined && last.pegPositions !== state.pegPositions)
     );

@@ -1,4 +1,4 @@
-import type { Vec2 } from './vec';
+import type { PegPositions, Point2, Vec2 } from './vec';
 
 export interface PegPoint {
   readonly id: string;
@@ -28,7 +28,7 @@ export function playerThreadCount(threads: readonly ThreadLink[]): number {
 /** Total length (meters) of the player's threads at the pegs' live positions. */
 export function spoolUsed(
   threads: readonly ThreadLink[],
-  pegs: Readonly<Record<string, { readonly x: number; readonly y: number }>>,
+  pegs: PegPositions,
 ): number {
   let total = 0;
   for (const t of threads) {
@@ -45,12 +45,25 @@ export interface SpoolCheck {
   readonly length: number;
 }
 
-export type ThreadCheck =
-  | { readonly ok: true }
-  | { readonly ok: false; readonly reason: 'same-peg' | 'duplicate' | 'limit' | 'spool' };
+/** Why a thread (or a slide stretching one) was refused. */
+export type RefusalReason = 'same-peg' | 'duplicate' | 'limit' | 'spool';
+
+export type ThreadCheck = { readonly ok: true } | { readonly ok: false; readonly reason: RefusalReason };
 
 /** Rounding slack so a thread that exactly uses up the spool still fits. */
 const SPOOL_EPSILON = 1e-6;
+
+/** Whether sliding `pegId` to `to` keeps the threads attached to it within the spool (if the level has one). */
+export function slideFitsSpool(
+  threads: readonly ThreadLink[],
+  pegs: PegPositions,
+  pegId: string,
+  to: Point2,
+  spool: number | undefined,
+): boolean {
+  if (spool === undefined) return true;
+  return spoolUsed(threads, { ...pegs, [pegId]: to }) <= spool + SPOOL_EPSILON;
+}
 
 /** Nearest peg to `point` within `radius`, skipping `excludeId`. */
 export function findSnapPeg(

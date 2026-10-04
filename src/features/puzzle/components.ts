@@ -1,4 +1,4 @@
-import { createComponent, Types } from '@iwsdk/core';
+import { createComponent, Types, type Entity } from '@iwsdk/core';
 import { MARBLE_COLORS, type MarbleColor } from '../../lib/marbleColors';
 
 // System-free declarations: the editor imports this module via src/components.ts.
@@ -40,6 +40,23 @@ export const Chute = createComponent('Chute', {});
 
 export const ControlActions = { Restart: 'restart', Next: 'next', Settings: 'settings', Daily: 'daily' } as const;
 export type ControlAction = (typeof ControlActions)[keyof typeof ControlActions];
+
+/** Narrows a stored action name; unknown names (stale scene data) are rejected. */
+export function isControlAction(value: unknown): value is ControlAction {
+  return Object.values(ControlActions).includes(value as ControlAction);
+}
+
+/**
+ * Tag: this tappable (ledge button, thread) was pressed and has just been let go.
+ * Acting on release, not press, matters in XR: disposing an entity a hand still
+ * holds leaves that pointer captured on a dead object, swallowing its next pinch.
+ */
+export const TapReleased = createComponent('TapReleased', {});
+
+/** 'disqualify' handler for a Pressed query. Entities disposed mid-press (level rebuilt) are skipped. */
+export function tagRelease(entity: Entity): void {
+  if (entity.active) entity.addComponent(TapReleased);
+}
 
 /** A poke/pinch button on the diorama's front ledge. */
 export const ControlButton = createComponent('ControlButton', {

@@ -62,3 +62,19 @@ describe('settingsModel: the plaque settings face', () => {
     expect(settingsModel({ slowMotion: false, offset: { up: 0, near: 0 } }).offsetLabel).toBe('Height 0   Distance 0');
   });
 });
+
+describe('hint line: refusals are shown, not only heard', () => {
+  test('a refused thread says why, ahead of any onboarding hint', () => {
+    expect(hudModel({ ...base, hint: 'Pinch a peg', refusal: 'spool' }).hint).toBe('Not enough spool for that thread');
+    expect(hudModel({ ...base, refusal: 'limit' }).hint).toBe('No threads left - snip one first');
+    expect(hudModel({ ...base, refusal: 'duplicate' }).hint).toBe('Those pegs are already joined');
+  });
+
+  test('letting go on the same peg is a cancel, not a refusal', () => {
+    expect(hudModel({ ...base, refusal: 'same-peg' }).hint).toBe('');
+  });
+
+  test('a daily says how to get back to the campaign', () => {
+    expect(hudModel({ ...base, daily: { streak: 2 } }).hint).toBe('Poke the sun to return');
+  });
+});

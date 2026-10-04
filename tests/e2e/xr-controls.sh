@@ -29,7 +29,10 @@ iw browser run tests/e2e/reset-settings.e2e.mjs >/dev/null 2>&1
 
 P=$(probe load0)
 pinch_at "$(field "$P" "['buttons']['daily']")"
-L=$(iw browser run tests/e2e/xr-probe.e2e.mjs 2>/dev/null | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['result']['levelId'])")
+P=$(probe); L=$(field "$P" "['levelId']")
 case "$L" in daily-*) pass "pinching the sun loads the daily puzzle ($L)";; *) fail "pinching the sun loads the daily puzzle ($L)";; esac
+pinch_at "$(field "$P" "['buttons']['daily']")"
+L=$(field "$(probe)" "['levelId']")
+[ "$L" = "w1-01" ] && pass "pinching the sun again returns to the campaign" || fail "pinching the sun again returns to the campaign ($L)"
 xr_stop
 exit $FAIL

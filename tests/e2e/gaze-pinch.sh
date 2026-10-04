@@ -7,9 +7,11 @@
 cd "$(dirname "$0")/../.."
 source tests/e2e/xr-lib.sh
 device() {
+  echo "NOTE switching the emulated device to $1: editing iwsdk.config.json restarts the dev server (same headless browser)"
   python3 -c "import json,sys;p='iwsdk.config.json';d=json.load(open(p));d['dev']['emulator']['device']=sys.argv[1];open(p,'w').write(json.dumps(d,indent=2)+'\n')" "$1"
-  sleep 12
-  for i in $(seq 1 24); do iw dev status 2>/dev/null | grep -q '"browserCommandReady": true' && return; sleep 5; done
+  # The edit restarts Vite: wait for the bridge to drop, then to come back.
+  for i in $(seq 1 60); do iw dev status 2>/dev/null | grep -q '"browserCommandReady": true' || break; sleep 0.5; done
+  wait_ready 150
 }
 trap 'device metaQuest3' EXIT
 device metaQuestPro
@@ -27,7 +29,7 @@ A=$(field "$P" "['knobs']['a']"); B=$(field "$P" "['knobs']['b']")
 iw xr set-transform --input-json "{\"device\":\"hand-right\",\"position\":$(rest_hand_for "$A")}" >/dev/null 2>&1
 hand_at "$A"; gaze_at "$A"; pinch 1
 for t in 0.25 0.5 0.75 1.0; do
-  hand_at "$(python3 -c "import json;a=json.loads('$A');b=json.loads('$B');print(json.dumps({k:a[k]+(b[k]-a[k])*$t for k in a}))")"; sleep 0.3
+  hand_at "$(lerp_point "$A" "$B" "$t")"; sleep 0.3
 done
 pinch 0; sleep 0.5
 T=$(field "$(probe)" "['threads']")
