@@ -10,7 +10,7 @@ export default async function run({ page, frame }) {
   await loadLevel(app, 'w2-02');
   const start = await app.evaluate(hud);
   check('plaque names the level and its place in the world',
-    start?.model?.title === 'Over and Under' && start.model.worldLabel === 'World 2 - 2/4', JSON.stringify(start?.model));
+    start?.model?.title === 'Over and Under' && start.model.worldLabel === 'World 2 - 2/6', JSON.stringify(start?.model));
   const size = await app.evaluate(() => window.__threadbound.state().level.size);
   check('plaque stands centred above the diorama',
     Math.abs(start.local.x - size[0] / 2) < 0.005 && start.local.y > size[1] && start.local.y < size[1] + 0.12, JSON.stringify(start.local));
@@ -41,5 +41,11 @@ export default async function run({ page, frame }) {
   check('plaque follows the diorama onto the table',
     Math.abs(onTable.local.x - tableSize[0] / 2) < 0.005 && onTable.local.y > tableSize[1] && Math.abs(onTable.local.z) < 0.05, JSON.stringify(onTable.local));
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'resetPlacement' }));
+  // Each world's finale reads N/N: the count covers the whole world, campaign levels only.
+  for (const [id, label] of [['w2-06', 'World 2 - 6/6']]) {
+    await loadLevel(app, id);
+    const shown = await waitFor(app, (want) => window.__threadbound.hud()?.model?.worldLabel === want, 2000, label);
+    check(`${id} is the last of its world on the plaque`, shown, await app.evaluate(() => window.__threadbound.hud()?.model?.worldLabel));
+  }
   return results;
 }

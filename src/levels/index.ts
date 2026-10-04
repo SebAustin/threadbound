@@ -10,6 +10,8 @@ import fork from './world2/01-fork.json';
 import overAndUnder from './world2/02-over-and-under.json';
 import duet from './world2/03-duet.json';
 import mixedUp from './world2/04-mixed-up.json';
+import untangle from './world2/05-untangle.json';
+import threeCups from './world2/06-three-cups.json';
 import slide from './world3/01-slide.json';
 import lift from './world3/02-lift.json';
 import twoRails from './world3/03-two-rails.json';
@@ -32,6 +34,8 @@ const RAW_LEVELS: readonly unknown[] = [
   overAndUnder,
   duet,
   mixedUp,
+  untangle,
+  threeCups,
   slide,
   lift,
   twoRails,
