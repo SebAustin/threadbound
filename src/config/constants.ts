@@ -129,7 +129,7 @@ export const GOAL = {
 
 /** VR-fallback "cozy study" (world-space meters). Hidden over passthrough. */
 export const VIRTUAL_ROOM = {
-  background: 0x2b2130,
+  background: 0x30221d,
   tableTop: [1.1, 0.035, 0.7] as const,
   tableColor: 0x8a5a3c,
   legSize: 0.05,

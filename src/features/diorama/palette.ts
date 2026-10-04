@@ -1,9 +1,14 @@
 import {
+  CanvasTexture,
   CircleGeometry,
   CylinderGeometry,
   Mesh,
+  MeshBasicMaterial,
   MeshStandardMaterial,
+  PlaneGeometry,
   SphereGeometry,
+  SRGBColorSpace,
+  type Texture,
 } from '@iwsdk/core';
 import { DIORAMA, GLYPH, MARBLE, PEG } from '../../config/constants';
 import { colorGlyph, type MarbleColor, type SortingColor } from '../../lib/marbleColors';
@@ -17,6 +22,8 @@ import { mergeParts } from './mergeParts';
  */
 export const COLORS = {
   walnut: 0x5b3a29,
+  /** The frame is a shade darker than the back panel it holds, so the case reads as layered. */
+  walnutFrame: 0x4a2e20,
   cream: 0xefe3cf,
   brass: 0xc9a14a,
   brassHot: 0xffd479,
@@ -32,10 +39,71 @@ export const COLORS = {
   goalDone: 0xfff1a8,
 } as const;
 
+const GRAIN_SIZE = 256;
+const GRAIN_LINES = 70;
+
+/** Small deterministic PRNG, so the grain is identical on every load. */
+function seeded(seed: number): () => number {
+  let state = seed;
+  return () => {
+    state = (state * 1664525 + 1013904223) % 4294967296;
+    return state / 4294967296;
+  };
+}
+
+/**
+ * Procedural wood grain: wavy, faintly lighter and darker streaks over a mid
+ * tone. Multiplied by each material's color, one shared texture gives every
+ * walnut surface grain at no draw-call cost.
+ */
+function woodGrain(): Texture | null {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = GRAIN_SIZE;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  const random = seeded(7);
+  ctx.fillStyle = '#d8d0c8';
+  ctx.fillRect(0, 0, GRAIN_SIZE, GRAIN_SIZE);
+  for (let i = 0; i < GRAIN_LINES; i++) {
+    const y = random() * GRAIN_SIZE;
+    const shade = random() > 0.5 ? 255 : 120;
+    ctx.strokeStyle = `rgba(${shade}, ${shade * 0.85}, ${shade * 0.7}, ${0.08 + random() * 0.14})`;
+    ctx.lineWidth = 0.6 + random() * 2.4;
+    ctx.beginPath();
+    for (let x = 0; x <= GRAIN_SIZE; x += 8) ctx.lineTo(x, y + Math.sin((x + i * 13) * 0.025) * (2 + random() * 3));
+    ctx.stroke();
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
+const GRAIN = woodGrain();
+
+const SHADOW_SIZE = 128;
+
+/** Soft dark ellipse fading to nothing: the diorama's contact shadow. */
+function shadowTexture(): Texture | null {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = SHADOW_SIZE;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  const half = SHADOW_SIZE / 2;
+  const gradient = ctx.createRadialGradient(half, half, half * 0.35, half, half, half);
+  gradient.addColorStop(0, 'rgba(20, 12, 8, 0.55)');
+  gradient.addColorStop(1, 'rgba(20, 12, 8, 0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, SHADOW_SIZE, SHADOW_SIZE);
+  return new CanvasTexture(canvas);
+}
+
 export const MATERIALS = {
-  walnut: new MeshStandardMaterial({ color: COLORS.walnut, roughness: 0.7 }),
+  walnut: new MeshStandardMaterial({ color: COLORS.walnut, map: GRAIN, roughness: 0.62 }),
+  walnutFrame: new MeshStandardMaterial({ color: COLORS.walnutFrame, map: GRAIN, roughness: 0.55 }),
   cream: new MeshStandardMaterial({ color: COLORS.cream, roughness: 0.9 }),
-  brass: new MeshStandardMaterial({ color: COLORS.brass, metalness: 0.6, roughness: 0.35 }),
+  brass: new MeshStandardMaterial({ color: COLORS.brass, metalness: 0.85, roughness: 0.28 }),
   brassHot: new MeshStandardMaterial({
     color: COLORS.brassHot,
     emissive: COLORS.brassHot,
@@ -62,6 +130,8 @@ export const MATERIALS = {
   }),
   marble: new MeshStandardMaterial({ color: COLORS.marble, metalness: 0.1, roughness: 0.15 }),
   goal: new MeshStandardMaterial({ color: COLORS.goal, roughness: 0.8 }),
+  /** Unlit and never writes depth, so it only darkens what is under the diorama. */
+  contactShadow: new MeshBasicMaterial({ map: shadowTexture(), transparent: true, depthWrite: false }),
   goalDone: new MeshStandardMaterial({
     color: COLORS.goalDone,
     emissive: COLORS.goalDone,
@@ -73,6 +143,8 @@ export const GEOMETRIES = {
   /** Unit cylinder; threads scale a child mesh so physics entities stay unscaled. */
   unitCylinder: new CylinderGeometry(1, 1, 1, 10, 1),
   marble: new SphereGeometry(MARBLE.radius, 20, 14),
+  /** Unit plane lying flat (+Y up), scaled to each diorama's footprint. */
+  shadowPlane: new PlaneGeometry(1, 1).rotateX(-Math.PI / 2),
   /**
    * A whole peg in one draw call: the pin spanning the channel plus the knob in
    * front of the glass (local +Y points toward the player once the peg is placed).

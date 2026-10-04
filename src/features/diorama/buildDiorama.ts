@@ -79,6 +79,20 @@ function staticBox(
   return entity;
 }
 
+/** Shadow margin beyond the base, so it fades out where the case meets the table. */
+const SHADOW_SPREAD = 1.35;
+
+/** A soft shadow on the table under the case: grounds it on the virtual and the real table. */
+function buildContactShadow(world: World, frame: DioramaFrame, level: Level): Entity {
+  const [w] = level.size;
+  const depth = DIORAMA.channelHalfDepth * 2 + DIORAMA.slab * 2 + CONTROLS.ledgeDepth;
+  const shadow = new Mesh(GEOMETRIES.shadowPlane, MATERIALS.contactShadow);
+  shadow.name = 'contact-shadow';
+  shadow.scale.set((w + DIORAMA.wallThickness * 2) * SHADOW_SPREAD, 1, depth * SHADOW_SPREAD * 2);
+  // Just below the base slab; the ledge sits in front, so the shadow centre moves forward with it.
+  return place(world, frame, shadow, [w / 2, -DIORAMA.slab - 0.001, CONTROLS.ledgeDepth / 2]);
+}
+
 function buildCase(world: World, frame: DioramaFrame, level: Level): Entity[] {
   const [w, h] = level.size;
   const { slab, channelHalfDepth: chd, wallThickness: wall } = DIORAMA;
@@ -89,8 +103,8 @@ function buildCase(world: World, frame: DioramaFrame, level: Level): Entity[] {
     staticBox(world, frame, [outerW, h + slab, slab], [w / 2, h / 2, -(chd + slab / 2)], MATERIALS.walnut),
     // Invisible front glass keeps marbles in the channel; hands reach through it freely.
     staticBox(world, frame, [outerW, h + slab, slab], [w / 2, h / 2, chd + slab / 2], null),
-    staticBox(world, frame, [wall, h, depth], [-wall / 2, h / 2, 0], MATERIALS.walnut),
-    staticBox(world, frame, [wall, h, depth], [w + wall / 2, h / 2, 0], MATERIALS.walnut),
+    staticBox(world, frame, [wall, h, depth], [-wall / 2, h / 2, 0], MATERIALS.walnutFrame),
+    staticBox(world, frame, [wall, h, depth], [w + wall / 2, h / 2, 0], MATERIALS.walnutFrame),
   ];
 }
 
@@ -171,6 +185,10 @@ function buildWalls(world: World, frame: DioramaFrame, level: Level): Entity[] {
 }
 
 const SUN_RAYS = 8;
+/** Cap icons lean about 30 degrees toward the player. */
+const ICON_TILT = 0.52;
+/** Raised by this fraction of the cap radius, so the tilted icon's back edge clears the cap. */
+const ICON_LIFT = 0.3;
 
 /** Today's puzzle: a disc with rays, lying flat, merged into one draw call. */
 function sunGeometry(r: number): BufferGeometry {
@@ -222,9 +240,12 @@ function buildButton(
   group.name = `button-${action}`;
   const cap = new Mesh(new CylinderGeometry(r, r, h, 24), action === 'next' ? MATERIALS.goal : MATERIALS.cream);
   cap.position.y = h / 2;
-  const icon = BUTTON_ICONS[action](r);
-  icon.position.y = h + 0.002;
-  group.add(cap, icon);
+  // Tilted toward the player, so the icon reads from a seated head and a low camera alike.
+  const iconMount = new Group();
+  iconMount.rotation.x = ICON_TILT;
+  iconMount.position.y = h + r * ICON_LIFT;
+  iconMount.add(BUTTON_ICONS[action](r));
+  group.add(cap, iconMount);
   const entity = place(world, frame, group, [x, 0, z]);
   entity.addComponent(ControlButton, { action });
   entity.addComponent(RayInteractable);
@@ -273,6 +294,7 @@ export function buildDiorama(world: World, frame: DioramaFrame, level: Level): B
   const nextButton = buildButton(world, frame, level.size[0] - inset, ControlActions.Next);
   return {
     entities: [
+      buildContactShadow(world, frame, level),
       ...buildCase(world, frame, level),
       ...buildWalls(world, frame, level),
       ...level.pegs.map((p) => buildPeg(world, frame, p)),
