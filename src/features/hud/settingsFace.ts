@@ -3,6 +3,7 @@ import { settingsModel } from '../../lib/hud';
 import { DISARMED, RESET_WINDOW_SECONDS, resetLabel, resetPoke, type ResetGuard } from '../../lib/resetGuard';
 import type { DioramaOffset } from '../../lib/placement';
 import { stepOffset, type Settings } from '../../lib/settings';
+import { stringSynth } from '../audio/stringSynth';
 import { onTap } from '../input/onTap';
 import { puzzleStore } from '../puzzle/puzzleStore';
 
@@ -21,13 +22,19 @@ export class SettingsFace {
 
   /** Wires the controls; returns the teardown. */
   bind(): () => void {
-    const element = (id: string) => this.panel.getElementById(id);
+    // Every plaque control clicks like a ledge button.
+    const control = (id: string, action: () => void) =>
+      onTap(this.panel.getElementById(id), () => {
+        stringSynth.unlock();
+        stringSynth.play('button');
+        action();
+      });
     const unbind = [
-      onTap(element('set-slow'), () => {
+      control('set-slow', () => {
         const { slowMotion } = puzzleStore.get().settings;
         puzzleStore.dispatch({ type: 'settings', patch: { slowMotion: !slowMotion } });
       }),
-      onTap(element('set-reset'), () => this.pokeReset()),
+      control('set-reset', () => this.pokeReset()),
       ...(
         [
           ['set-up', 'up', 1],
@@ -35,7 +42,7 @@ export class SettingsFace {
           ['set-near', 'near', 1],
           ['set-far', 'near', -1],
         ] as const
-      ).map(([id, axis, direction]) => onTap(element(id), () => this.move(axis, direction))),
+      ).map(([id, axis, direction]) => control(id, () => this.move(axis, direction))),
     ];
     return () => {
       for (const off of unbind) off();

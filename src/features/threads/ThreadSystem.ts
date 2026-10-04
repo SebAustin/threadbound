@@ -36,7 +36,6 @@ const UP = new Vector3(0, 1, 0);
 /** The drag preview is drawn thinner than a real thread. */
 const PREVIEW_RADIUS = THREAD_TUNING.radius * 0.7;
 const CREATE_VOLUME = 0.8;
-const SNIP_VOLUME = 0.4;
 
 const touchesPeg = (thread: Entity, pegId: string) =>
   thread.getValue(Thread, 'fromPeg') === pegId || thread.getValue(Thread, 'toPeg') === pegId;
@@ -123,6 +122,7 @@ export class ThreadSystem extends createSystem({
   private startDrag(source: Entity, target: Object3D, e: SpatialPointerEvent): void {
     if (this.drag) return;
     stringSynth.unlock();
+    stringSynth.play('pegGrab');
     e.stopPropagation();
     const x = source.getValue(Peg, 'x') ?? 0;
     const y = source.getValue(Peg, 'y') ?? 0;
@@ -310,7 +310,7 @@ export class ThreadSystem extends createSystem({
       threads: puzzleStore.get().threads.filter((t) => !(t.from === from && t.to === to)),
       refusal: null,
     });
-    stringSynth.pluck(pitchForLength(THREAD_TUNING.maxLength), SNIP_VOLUME);
+    stringSynth.play('snip');
     entity.dispose({ disposeResources: false });
   }
 

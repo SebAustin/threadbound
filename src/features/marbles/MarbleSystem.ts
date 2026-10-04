@@ -260,8 +260,13 @@ export class MarbleSystem extends createSystem({
     const raw = marble.getValue(Marble, 'color');
     const color = isMarbleColor(raw) ? raw : 'teal';
     const index = this.cupAt(x, y);
-    if (index < 0 || !goalAccepts(goals[index].color, color) || this.speedOf(marble) > SETTLED_SPEED) return;
+    if (index < 0 || this.speedOf(marble) > SETTLED_SPEED) return;
+    if (!goalAccepts(goals[index].color, color)) {
+      this.reject(marble);
+      return;
+    }
     marble.setValue(Marble, 'scored', true);
+    stringSynth.play('cupCorrect');
     const goalMesh = puzzleStore.diorama?.goalMeshes[index];
     if (goalMesh) goalMesh.material = goalMaterial(goals[index].color, true);
 
@@ -270,6 +275,13 @@ export class MarbleSystem extends createSystem({
     const complete = state.level !== null && scored >= state.level.marbles;
     puzzleStore.update({ scored, status: complete ? 'complete' : state.status });
     if (complete) this.playMelody();
+  }
+
+  /** A marble settled in the wrong cup: a dull thud, once. */
+  private reject(marble: Entity): void {
+    if (marble.getValue(Marble, 'rejected')) return;
+    marble.setValue(Marble, 'rejected', true);
+    stringSynth.play('cupWrong');
   }
 
   /** Index of the cup a marble centre at (x, y) sits in, or -1 (one stacked layer allowed). */

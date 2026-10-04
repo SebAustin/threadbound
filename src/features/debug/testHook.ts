@@ -5,6 +5,7 @@ import { budgetBreaches, type FrameStats } from '../../lib/perfBudget';
 import { handleOffset } from '../../lib/rail';
 import { solutionSteps } from '../../lib/solutionSteps';
 import { puzzleStore, type PuzzleCommand } from '../puzzle/puzzleStore';
+import { drainCues } from '../audio/cueLog';
 import { PerfProbeSystem } from './PerfProbeSystem';
 
 interface ScreenPoint {
@@ -52,6 +53,8 @@ export interface ThreadboundTestHook {
   plaqueElement(id: string): Located | null;
   /** Whether the active XR session exposes a gaze input source (eye-tracked devices). */
   gazeAvailable(): boolean;
+  /** Sound cues the game asked for since the last call (see features/audio/cueLog). */
+  cues(): string[];
   /** Visible meshes (about one draw call each) grouped by what they belong to. */
   meshBreakdown(): Record<string, number>;
   /** Cost of the next rendered frame, and any performance-budget breaches. */
@@ -212,8 +215,9 @@ function visibleInScene(object: Object3D): boolean {
   return true;
 }
 
-function sessionProbes(world: World): Hook<'gazeAvailable' | 'room' | 'frameStats' | 'meshBreakdown'> {
+function sessionProbes(world: World): Hook<'gazeAvailable' | 'room' | 'frameStats' | 'meshBreakdown' | 'cues'> {
   return {
+    cues: () => drainCues(),
     meshBreakdown: () => {
       const counts: Record<string, number> = {};
       world.scene.traverse((o) => {

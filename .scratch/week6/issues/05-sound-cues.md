@@ -4,8 +4,16 @@
 
 **Blocked by:** none
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Unit: every event has a cue; pitches are in the scale; gains are under the ceiling
-- [ ] E2E: a solve logs cup-correct per scored marble; a mis-sort logs cup-wrong; a button press logs button
-- [ ] Existing refusal and settle sounds routed through the table
+- [x] Unit: every event has a cue; pitches are in the scale; gains are under the ceiling
+- [x] E2E: a solve logs cup-correct per scored marble; a mis-sort logs cup-wrong; a button press logs button
+- [x] Existing refusal and settle sounds routed through the table
+
+## Comments
+- **Bug found:** `stringSynth.pluck` only played pitches pre-rendered from the pentatonic scale, so the 98 Hz refusal thunk had **never played** (it failed silently). The synth now pre-renders every cue pitch and renders any other pitch on first use.
+- The cue table (`lib/soundCues.ts`) covers cupCorrect 880, cupWrong 110, button 587.33, pegGrab 659.25 (soft), refused 98, settle 392, snip 261.63, and ambience as an E-G-A-G phrase every 6 s at 0.1. Failure cues sit below the scale, so they never sound like part of a melody.
+- The master gain feeds a DynamicsCompressor limiter (-6 dB threshold, 12:1).
+- New audible events: cup correct and wrong (the wrong thud plays once per marble, via `Marble.rejected`), peg and tab grab, and plaque settings controls (they were silent before).
+- Ambience plays only while the virtual study is visible and the game isn't paused, so never over passthrough.
+- E2E `sound-cues` (9 checks, in the chain) reads a dev-only cue log, because automation can't hear audio and audio needs a gesture to unlock.

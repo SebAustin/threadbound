@@ -38,9 +38,6 @@ export const SLIDER = {
   gripScale: [0.7, 0.25, 1.1] as const,
   /** Rail segments; the rod is thin enough that 8 reads as round. */
   railSegments: 8,
-  /** Soft G4 "click" when a slid peg settles into place. */
-  settleHz: 392.0,
-  settleVolume: 0.35,
 } as const;
 
 export const MARBLE = {

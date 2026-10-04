@@ -1,4 +1,6 @@
+import { CUES, cuePitches, type CueName } from '../../lib/soundCues';
 import { PENTATONIC_HZ } from '../../lib/threadTuning';
+import { recordCue } from './cueLog';
 
 const NOTE_SECONDS = 1.4;
 const DECAY = 0.996;
@@ -24,18 +26,33 @@ class StringSynth {
       this.ctx = new AudioContext();
       this.master = this.ctx.createGain();
       this.master.gain.value = 0.5;
-      this.master.connect(this.ctx.destination);
-      for (const hz of PENTATONIC_HZ) this.buffers.set(hz, this.render(hz));
+      // Limiter: a busy drop plus stacked cues must never clip.
+      const limiter = this.ctx.createDynamicsCompressor();
+      limiter.threshold.value = -6;
+      limiter.ratio.value = 12;
+      this.master.connect(limiter).connect(this.ctx.destination);
+      for (const hz of [...PENTATONIC_HZ, ...cuePitches()]) this.buffers.set(hz, this.render(hz));
     } catch (error) {
       console.warn('[Threadbound] audio unavailable, continuing silently', error);
       this.ctx = null;
     }
   }
 
+  /** The sound for a game event (see lib/soundCues); `hz` overrides its pitch (ambience phrase). */
+  play(name: CueName, hz = CUES[name].hz): void {
+    recordCue(name);
+    this.pluck(hz, CUES[name].volume);
+  }
+
   pluck(hz: number, velocity = 1): void {
     const ctx = this.ctx;
-    const buffer = this.buffers.get(hz);
-    if (!ctx || !this.master || !buffer) return;
+    if (!ctx || !this.master) return;
+    // Any pitch plays: render it on first use (a pitch missing here used to fail silently).
+    let buffer = this.buffers.get(hz);
+    if (!buffer) {
+      buffer = this.render(hz);
+      this.buffers.set(hz, buffer);
+    }
     const source = ctx.createBufferSource();
     const gain = ctx.createGain();
     gain.gain.value = Math.min(1, Math.max(0.05, velocity));

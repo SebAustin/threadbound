@@ -32,6 +32,8 @@ export const MarbleColors = Object.fromEntries(MARBLE_COLORS.map((c) => [c, c]))
 
 export const Marble = createComponent('Marble', {
   scored: { type: Types.Boolean, default: false },
+  /** Settled in a cup of the other color (and already told so, once). */
+  rejected: { type: Types.Boolean, default: false },
   color: { type: Types.Enum, enum: MarbleColors, default: MarbleColors.teal },
 });
 

@@ -75,6 +75,7 @@ export class SliderSystem extends createSystem({
     if (this.drag || !pos) return;
     e.stopPropagation();
     stringSynth.unlock();
+    stringSynth.play('pegGrab');
     this.drag = { pegId, pointerId: e.pointerId, captureTarget: target, x: pos.x, y: pos.y };
     capturePointer(target, e.pointerId);
   }
@@ -121,7 +122,7 @@ export class SliderSystem extends createSystem({
     puzzleStore.update({ pegPositions: { ...pegPositions, [command.pegId]: next }, refusal: null });
     this.placeVisuals(command.pegId, next.x, next.y);
     this.commitPhysics(command.pegId, next.x, next.y);
-    stringSynth.pluck(SLIDER.settleHz, SLIDER.settleVolume);
+    stringSynth.play('settle');
     puzzleStore.dispatch({ type: 'pegMoved', pegId: command.pegId });
   }
 

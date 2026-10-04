@@ -3,9 +3,6 @@ import { stringSynth } from '../audio/stringSynth';
 import { ControlButton, isControlAction, TapReleased, tagRelease, type ControlAction } from '../puzzle/components';
 import { puzzleStore, type PuzzleCommand } from '../puzzle/puzzleStore';
 
-const PRESS_HZ = 587.33;
-const PRESS_VOLUME = 0.5;
-
 const COMMANDS: Readonly<Record<ControlAction, PuzzleCommand>> = {
   restart: { type: 'restart' },
   next: { type: 'next' },
@@ -42,7 +39,7 @@ export class ControlsSystem extends createSystem({
     const action = entity.getValue(ControlButton, 'action');
     if (!isControlAction(action)) return;
     stringSynth.unlock();
-    stringSynth.pluck(PRESS_HZ, PRESS_VOLUME);
+    stringSynth.play('button');
     puzzleStore.dispatch(COMMANDS[action]);
   }
 }
