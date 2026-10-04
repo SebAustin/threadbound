@@ -12,9 +12,13 @@ import {
 } from '@iwsdk/core';
 import { DIORAMA, GLYPH, MARBLE, PEG } from '../../config/constants';
 import { colorGlyph, type MarbleColor, type SortingColor } from '../../lib/marbleColors';
-import { mergeParts } from './mergeParts';
+import { mergeParts } from '../geometry/mergeParts';
 
 /**
+ * Runtime only: this module builds DOM canvases at import (wood grain, contact
+ * shadow), so it must never be imported by the asset manifest or anything the
+ * editor realm evaluates (see src/assets.ts rules).
+ *
  * Art direction: a warm walnut-and-brass music box. Threads are coral "strings",
  * marbles are sea-glass teal so they read against both wood and passthrough.
  * Shared materials/geometries — entities using them must dispose with
@@ -39,8 +43,27 @@ export const COLORS = {
   goalDone: 0xfff1a8,
 } as const;
 
-const GRAIN_SIZE = 256;
-const GRAIN_LINES = 70;
+const GRAIN = {
+  size: 256,
+  lines: 70,
+  /** Base tone the walnut colors are multiplied by (a little below white). */
+  base: '#d8d0c8',
+  /** Streak opacity: a floor plus a random part. */
+  alpha: [0.08, 0.14],
+  /** Streak width in pixels: a floor plus a random part. */
+  width: [0.6, 2.4],
+  /** Bright vs dark streak channel value. */
+  light: 255,
+  dark: 120,
+  /** Waviness: horizontal frequency, per-line phase step, amplitude floor and random part (px). */
+  waveFrequency: 0.025,
+  wavePhase: 13,
+  waveAmplitude: [2, 3],
+  segment: 8,
+} as const;
+
+/** Any fixed seed: the grain must only be identical on every load. */
+const GRAIN_SEED = 7;
 
 /** Small deterministic PRNG, so the grain is identical on every load. */
 function seeded(seed: number): () => number {
@@ -59,19 +82,24 @@ function seeded(seed: number): () => number {
 function woodGrain(): Texture | null {
   if (typeof document === 'undefined') return null;
   const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = GRAIN_SIZE;
+  canvas.width = canvas.height = GRAIN.size;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
-  const random = seeded(7);
-  ctx.fillStyle = '#d8d0c8';
-  ctx.fillRect(0, 0, GRAIN_SIZE, GRAIN_SIZE);
-  for (let i = 0; i < GRAIN_LINES; i++) {
-    const y = random() * GRAIN_SIZE;
-    const shade = random() > 0.5 ? 255 : 120;
-    ctx.strokeStyle = `rgba(${shade}, ${shade * 0.85}, ${shade * 0.7}, ${0.08 + random() * 0.14})`;
-    ctx.lineWidth = 0.6 + random() * 2.4;
+  const random = seeded(GRAIN_SEED);
+  const between = ([floor, spread]: readonly [number, number]) => floor + random() * spread;
+  ctx.fillStyle = GRAIN.base;
+  ctx.fillRect(0, 0, GRAIN.size, GRAIN.size);
+  for (let i = 0; i < GRAIN.lines; i++) {
+    const y = random() * GRAIN.size;
+    const shade = random() > 0.5 ? GRAIN.light : GRAIN.dark;
+    // Warm streaks: green and blue fall off, like real walnut.
+    ctx.strokeStyle = `rgba(${shade}, ${shade * 0.85}, ${shade * 0.7}, ${between(GRAIN.alpha)})`;
+    ctx.lineWidth = between(GRAIN.width);
     ctx.beginPath();
-    for (let x = 0; x <= GRAIN_SIZE; x += 8) ctx.lineTo(x, y + Math.sin((x + i * 13) * 0.025) * (2 + random() * 3));
+    for (let x = 0; x <= GRAIN.size; x += GRAIN.segment) {
+      const wave = Math.sin((x + i * GRAIN.wavePhase) * GRAIN.waveFrequency) * between(GRAIN.waveAmplitude);
+      ctx.lineTo(x, y + wave);
+    }
     ctx.stroke();
   }
   const texture = new CanvasTexture(canvas);
@@ -79,29 +107,36 @@ function woodGrain(): Texture | null {
   return texture;
 }
 
-const GRAIN = woodGrain();
+const WOOD_GRAIN = woodGrain();
 
-const SHADOW_SIZE = 128;
+const SHADOW = {
+  size: 128,
+  /** The shadow is solid out to this fraction of its radius, then fades. */
+  core: 0.35,
+  /** Darkness at the core (warm near-black). */
+  rgb: '20, 12, 8',
+  opacity: 0.55,
+} as const;
 
 /** Soft dark ellipse fading to nothing: the diorama's contact shadow. */
 function shadowTexture(): Texture | null {
   if (typeof document === 'undefined') return null;
   const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = SHADOW_SIZE;
+  canvas.width = canvas.height = SHADOW.size;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
-  const half = SHADOW_SIZE / 2;
-  const gradient = ctx.createRadialGradient(half, half, half * 0.35, half, half, half);
-  gradient.addColorStop(0, 'rgba(20, 12, 8, 0.55)');
-  gradient.addColorStop(1, 'rgba(20, 12, 8, 0)');
+  const half = SHADOW.size / 2;
+  const gradient = ctx.createRadialGradient(half, half, half * SHADOW.core, half, half, half);
+  gradient.addColorStop(0, `rgba(${SHADOW.rgb}, ${SHADOW.opacity})`);
+  gradient.addColorStop(1, `rgba(${SHADOW.rgb}, 0)`);
   ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, SHADOW_SIZE, SHADOW_SIZE);
+  ctx.fillRect(0, 0, SHADOW.size, SHADOW.size);
   return new CanvasTexture(canvas);
 }
 
 export const MATERIALS = {
-  walnut: new MeshStandardMaterial({ color: COLORS.walnut, map: GRAIN, roughness: 0.62 }),
-  walnutFrame: new MeshStandardMaterial({ color: COLORS.walnutFrame, map: GRAIN, roughness: 0.55 }),
+  walnut: new MeshStandardMaterial({ color: COLORS.walnut, map: WOOD_GRAIN, roughness: 0.62 }),
+  walnutFrame: new MeshStandardMaterial({ color: COLORS.walnutFrame, map: WOOD_GRAIN, roughness: 0.55 }),
   cream: new MeshStandardMaterial({ color: COLORS.cream, roughness: 0.9 }),
   brass: new MeshStandardMaterial({ color: COLORS.brass, metalness: 0.85, roughness: 0.28 }),
   brassHot: new MeshStandardMaterial({
@@ -131,7 +166,15 @@ export const MATERIALS = {
   marble: new MeshStandardMaterial({ color: COLORS.marble, metalness: 0.1, roughness: 0.15 }),
   goal: new MeshStandardMaterial({ color: COLORS.goal, roughness: 0.8 }),
   /** Unlit and never writes depth, so it only darkens what is under the diorama. */
-  contactShadow: new MeshBasicMaterial({ map: shadowTexture(), transparent: true, depthWrite: false }),
+  contactShadow: new MeshBasicMaterial({
+    map: shadowTexture(),
+    transparent: true,
+    depthWrite: false,
+    // Lies a hair above the table top: pulled toward the camera so it never z-fights.
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2,
+  }),
   goalDone: new MeshStandardMaterial({
     color: COLORS.goalDone,
     emissive: COLORS.goalDone,

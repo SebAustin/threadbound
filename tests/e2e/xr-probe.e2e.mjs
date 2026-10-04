@@ -12,8 +12,13 @@ export default async function run({ page, frame }) {
       // Solve the current level and let its replay finish, so the melody book has a tune.
       hook.solve();
       hook.dispatch({ type: 'drop' });
-      for (let t = 0; t < 15000 && hook.state().status !== 'complete'; t += 200) await new Promise((r) => setTimeout(r, 200));
-      await new Promise((r) => setTimeout(r, 4000));
+      const poll = () => new Promise((r) => setTimeout(r, 200));
+      for (let t = 0; t < 15000 && hook.state().status !== 'complete'; t += 200) await poll();
+      // The replay is over once no melody note has sounded for a full second.
+      for (let quiet = 0, t = 0; quiet < 1000 && t < 10000; t += 200) {
+        quiet = hook.cues().includes('melody') ? 0 : quiet + 200;
+        await poll();
+      }
     }
     await new Promise((r) => setTimeout(r, 300));
     const s = hook.state();
@@ -40,8 +45,8 @@ export default async function run({ page, frame }) {
       slowToggle: hook.plaqueElement('set-slow')?.world,
       slowMotion: s.settings.slowMotion,
       stars: hook.plaqueElement('hud-stars')?.world,
-      // Melody notes played since the last probe (drains the cue log).
-      melodyNotes: hook.cues().filter((c) => c === 'melody').length,
+      // Side effect: drains the cue log, so this counts melody notes since the last probe.
+      melodyNotesDrained: hook.cues().filter((c) => c === 'melody').length,
     };
   }, setup);
 }

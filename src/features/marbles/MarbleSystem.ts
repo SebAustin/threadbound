@@ -23,6 +23,7 @@ import { Chute, Marble, Thread } from '../puzzle/components';
 import { puzzleStore } from '../puzzle/puzzleStore';
 import { SimulationClockSystem } from '../simulation/SimulationClockSystem';
 import { MELODY_NOTES_MAX } from '../../lib/progress';
+import { CUES } from '../../lib/soundCues';
 
 /** Contact band around a thread that counts as a "pluck". */
 const CONTACT_DIST = MARBLE.radius + THREAD_TUNING.radius + 0.004;
@@ -37,7 +38,6 @@ const SETTLED_SPEED = 0.35;
 /** A visible wobble even for a gentle touch. */
 const MIN_PLUCK_ENERGY = 0.3;
 /** C5 "ding" when a puzzle is solved without touching any thread. */
-const FALLBACK_NOTE_HZ = 523.25;
 const MARBLE_ANGULAR_DAMPING = 0.2;
 /** Sideways speed (m/s) that tips a marble off an unstable perch, like a real wobble. */
 const NUDGE_SPEED = 0.12;
@@ -238,9 +238,10 @@ export class MarbleSystem extends createSystem({
         touching.add(thread.index);
         const pitch = thread.getValue(Thread, 'pitch') ?? 440;
         const strength = this.speedOf(marble) / FULL_VOLUME_SPEED;
-        stringSynth.pluck(pitch, strength);
+        stringSynth.play('bounce', pitch, strength);
         thread.setValue(Thread, 'energy', Math.min(1, Math.max(MIN_PLUCK_ENERGY, strength)));
-        this.melody.push(pitch);
+        // Captured up to the book's length, so completion needs no trimming.
+        if (this.melody.length < MELODY_NOTES_MAX) this.melody.push(pitch);
       } else if (!inContact && wasInContact) {
         touching.delete(thread.index);
       }
@@ -277,7 +278,7 @@ export class MarbleSystem extends createSystem({
       return;
     }
     // One update, so the solve is recorded together with the tune it played.
-    const melody = this.melody.slice(0, MELODY_NOTES_MAX);
+    const melody = this.melody.slice();
     puzzleStore.update({ scored, status: 'complete', melody });
     this.playMelody(melody);
   }
@@ -311,7 +312,7 @@ export class MarbleSystem extends createSystem({
 
   /** Replays the bounces that solved the puzzle: every solution is a song. */
   private playMelody(notes: readonly number[]): void {
-    this.replay = notes.length > 0 ? notes : [FALLBACK_NOTE_HZ];
+    this.replay = notes.length > 0 ? notes : [CUES.melody.hz];
     this.replayNext = 0;
     this.replayTimer = MELODY_STEP_SECONDS;
   }

@@ -1,6 +1,6 @@
-# Shared helpers for the E2E shell runners. Helpers declare loop variables `local`:
+# Shared helpers for the E2E shell runners and the emulated-XR tests (source from
+# tests/e2e/*.sh after cd to repo root). Helpers declare loop variables `local`:
 # zsh function variables are global, and a helper's `i` would clobber the caller's loop.
-# Shared helpers for the emulated-XR shell tests (source from tests/e2e/*.sh after cd to repo root).
 iw() { npx @iwsdk/cli "$@"; }
 FAIL=0
 pass() { echo "PASS $1"; }

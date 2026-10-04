@@ -32,7 +32,7 @@ export interface PuzzleState {
   readonly daily: DailySession | null;
   /** Why the player's last thread or slide was refused; cleared by their next success. */
   readonly refusal: RefusalReason | null;
-  /** Notes the current drop has played (Hz); the melody a solve leaves behind. */
+  /** The melody a solve played (Hz), published when the level completes; empty until then. */
   readonly melody: readonly number[];
 }
 

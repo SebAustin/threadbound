@@ -26,7 +26,7 @@ import { handleOffset, type Rail } from '../../lib/rail';
 import { Chute, ControlActions, ControlButton, Peg, SliderHandle, type ControlAction } from '../puzzle/components';
 import type { DioramaFrame } from './dioramaFrame';
 import { GEOMETRIES, glyphMesh, goalMaterial, MATERIALS, marbleMaterial } from './palette';
-import { mergeParts, type GeometryPart } from './mergeParts';
+import { mergeParts, type GeometryPart } from '../geometry/mergeParts';
 
 export interface GoalRange {
   readonly minX: number;
@@ -81,6 +81,11 @@ function staticBox(
 
 /** Shadow margin beyond the base, so it fades out where the case meets the table. */
 const SHADOW_SPREAD = 1.35;
+/**
+ * Just above the base's underside, which sits flush on the table: the visible
+ * part (beyond the base) lies on the table instead of under it.
+ */
+const SHADOW_LIFT = 0.0008;
 
 /** A soft shadow on the table under the case: grounds it on the virtual and the real table. */
 function buildContactShadow(world: World, frame: DioramaFrame, level: Level): Entity {
@@ -89,8 +94,8 @@ function buildContactShadow(world: World, frame: DioramaFrame, level: Level): En
   const shadow = new Mesh(GEOMETRIES.shadowPlane, MATERIALS.contactShadow);
   shadow.name = 'contact-shadow';
   shadow.scale.set((w + DIORAMA.wallThickness * 2) * SHADOW_SPREAD, 1, depth * SHADOW_SPREAD * 2);
-  // Just below the base slab; the ledge sits in front, so the shadow centre moves forward with it.
-  return place(world, frame, shadow, [w / 2, -DIORAMA.slab - 0.001, CONTROLS.ledgeDepth / 2]);
+  // The ledge sits in front of the case, so the shadow's centre moves forward with it.
+  return place(world, frame, shadow, [w / 2, -DIORAMA.slab + SHADOW_LIFT, CONTROLS.ledgeDepth / 2]);
 }
 
 function buildCase(world: World, frame: DioramaFrame, level: Level): Entity[] {
@@ -113,7 +118,7 @@ function buildPeg(world: World, frame: DioramaFrame, peg: Level['pegs'][number])
   const group = new Group();
   // Pin and knob share one geometry (one draw call); the whole peg glows when hot.
   const body = new Mesh(GEOMETRIES.peg, MATERIALS.brass);
-  body.name = 'peg-knob';
+  body.name = 'peg-body';
   group.add(body);
   group.name = `peg-${peg.id}`;
 
@@ -184,7 +189,16 @@ function buildWalls(world: World, frame: DioramaFrame, level: Level): Entity[] {
   );
 }
 
-const SUN_RAYS = 8;
+/** Sun icon proportions, as fractions of the button cap radius. */
+const SUN = {
+  rays: 8,
+  thickness: 0.12,
+  discRadius: 0.26,
+  discSegments: 20,
+  rayDistance: 0.5,
+  rayLength: 0.2,
+  rayWidth: 0.08,
+} as const;
 /** Cap icons lean about 30 degrees toward the player. */
 const ICON_TILT = 0.52;
 /** Raised by this fraction of the cap radius, so the tilted icon's back edge clears the cap. */
@@ -192,18 +206,19 @@ const ICON_LIFT = 0.3;
 
 /** Today's puzzle: a disc with rays, lying flat, merged into one draw call. */
 function sunGeometry(r: number): BufferGeometry {
-  const thickness = r * 0.12;
+  const thickness = r * SUN.thickness;
+  const distance = r * SUN.rayDistance;
   const rays: GeometryPart[] = [];
-  for (let i = 0; i < SUN_RAYS; i++) {
-    const angle = (i / SUN_RAYS) * Math.PI * 2;
-    const distance = r * 0.5;
+  for (let i = 0; i < SUN.rays; i++) {
+    const angle = (i / SUN.rays) * Math.PI * 2;
     rays.push({
       // A box along x, turned to point outward from the disc.
-      geometry: new BoxGeometry(r * 0.2, thickness, r * 0.08).rotateY(angle),
+      geometry: new BoxGeometry(r * SUN.rayLength, thickness, r * SUN.rayWidth).rotateY(angle),
       at: [Math.cos(angle) * distance, 0, -Math.sin(angle) * distance],
     });
   }
-  return mergeParts([{ geometry: new CylinderGeometry(r * 0.26, r * 0.26, thickness, 20) }, ...rays]);
+  const disc = new CylinderGeometry(r * SUN.discRadius, r * SUN.discRadius, thickness, SUN.discSegments);
+  return mergeParts([{ geometry: disc }, ...rays]);
 }
 
 /** Walnut icon on each ledge button's cap, lying flat and readable from above. */

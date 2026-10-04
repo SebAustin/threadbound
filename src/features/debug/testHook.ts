@@ -5,6 +5,7 @@ import { budgetBreaches, type FrameStats } from '../../lib/perfBudget';
 import { handleOffset } from '../../lib/rail';
 import { solutionSteps } from '../../lib/solutionSteps';
 import { puzzleStore, type PuzzleCommand } from '../puzzle/puzzleStore';
+import type { CueName } from '../../lib/soundCues';
 import { drainCues } from '../audio/cueLog';
 import { PerfProbeSystem } from './PerfProbeSystem';
 
@@ -54,7 +55,7 @@ export interface ThreadboundTestHook {
   /** Whether the active XR session exposes a gaze input source (eye-tracked devices). */
   gazeAvailable(): boolean;
   /** Sound cues the game asked for since the last call (see features/audio/cueLog). */
-  cues(): string[];
+  cues(): CueName[];
   /** Visible meshes (about one draw call each) grouped by what they belong to. */
   meshBreakdown(): Record<string, number>;
   /** Cost of the next rendered frame, and any performance-budget breaches. */
@@ -199,7 +200,11 @@ function plaqueProbes(world: World, probe: Probe): Hook<'hud' | 'plaque' | 'plaq
 
 const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
-/** The name that says what a mesh belongs to: its first named ancestor, digits folded. */
+/**
+ * The name that says what a mesh belongs to: its first named ancestor, with a
+ * trailing instance suffix folded away ('peg-a' / 'chute-1' / 'thread-p2' count
+ * together), so the breakdown groups by kind rather than by instance.
+ */
 function ownerOf(object: Object3D): string {
   for (let o: Object3D | null = object; o; o = o.parent) {
     if (o.name && o.name !== 'Scene') return o.name.replace(/[-_]?[a-z]?\d+$/i, '').replace(/-[a-z]$/, '');
@@ -232,7 +237,9 @@ function sessionProbes(world: World): Hook<'gazeAvailable' | 'room' | 'frameStat
       await nextFrame();
       await nextFrame();
       const { calls, triangles } = world.renderer.info.render;
-      const stats = { drawCalls: calls, triangles, physicsBodies: world.getSystem(PerfProbeSystem)?.physicsBodies ?? -1 };
+      const bodies = world.getSystem(PerfProbeSystem);
+      if (!bodies) throw new Error('PerfProbeSystem is not registered (src/index.ts, DEV only)');
+      const stats = { drawCalls: calls, triangles, physicsBodies: bodies.physicsBodies };
       return { ...stats, breaches: budgetBreaches(stats, PERF_BUDGET) };
     },
     gazeAvailable: () => [...(world.session?.inputSources ?? [])].some((s) => s.targetRayMode === 'gaze'),
@@ -251,7 +258,6 @@ function sessionProbes(world: World): Hook<'gazeAvailable' | 'room' | 'frameStat
  */
 export function installTestHook(world: World): void {
   if (!import.meta.env.DEV) return;
-  world.registerSystem(PerfProbeSystem);
   const probe = new Probe(world);
   window.__threadbound = {
     ...levelProbes(probe),

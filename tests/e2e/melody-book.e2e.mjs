@@ -14,7 +14,9 @@ const resetNotes = () => {
   window.__threadbound.cues();
   window.__notes = 0;
 };
-/** Replay runs at 0.22 s per note, up to 16 notes. */
+/** Mirrors MELODY_NOTES_MAX in src/lib/progress.ts (E2E runs in Node and can't import the TS source). */
+const MELODY_NOTES_MAX = 16;
+/** Comfortably longer than a full replay (MELODY_STEP_SECONDS 0.22 x 16 notes). */
 const REPLAY_MS = 6000;
 
 export default async function run({ page, frame }) {
@@ -31,7 +33,7 @@ export default async function run({ page, frame }) {
   });
   await waitFor(app, isComplete, 15000);
   const saved = await app.evaluate(() => window.__threadbound.state().progress.melodies['w1-01'] ?? []);
-  check('a solve saves the melody its drop played', saved.length > 0 && saved.length <= 16, JSON.stringify(saved));
+  check('a solve saves the melody its drop played', saved.length > 0 && saved.length <= MELODY_NOTES_MAX, JSON.stringify(saved));
   const stored = await app.evaluate(() => localStorage.getItem('threadbound.progress.v1'));
   check('the melody book is saved with progress', (stored ?? '').includes('"melodies":{"w1-01":['), stored);
 

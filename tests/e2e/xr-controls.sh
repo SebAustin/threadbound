@@ -39,8 +39,12 @@ L=$(field "$(probe)" "['levelId']")
 
 P=$(probe solve)
 pinch_at "$(field "$P" "['stars']")"
-sleep 2 # let the replayed melody play (0.22 s a note)
-N=$(field "$(probe)" "['melodyNotes']")
+# Poll until the replay has sounded (each probe drains the cue log, so sum the counts).
+N=0
+for attempt in 1 2 3 4 5 6 7 8; do
+  N=$(( N + $(field "$(probe)" "['melodyNotesDrained']") ))
+  [ "$N" -gt 0 ] && break
+done
 [ "$N" -gt 0 ] && pass "pinching the stars replays the melody ($N notes)" || fail "pinching the stars replays the melody ($N notes)"
 xr_stop
 exit $FAIL

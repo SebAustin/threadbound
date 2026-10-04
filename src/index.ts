@@ -7,6 +7,8 @@
 
 import { World } from '@iwsdk/core';
 import projectOptions from 'virtual:iwsdk-project';
+import { AmbienceSystem } from './features/audio/AmbienceSystem.js';
+import { PerfProbeSystem } from './features/debug/PerfProbeSystem.js';
 import { installTestHook } from './features/debug/testHook.js';
 import { ControlsSystem } from './features/controls/ControlsSystem.js';
 import { EnvironmentSystem } from './features/environment/EnvironmentSystem.js';
@@ -41,7 +43,9 @@ World.create(
   world.registerSystem(PanelSystem);
   world.registerSystem(HudSystem);
   world.registerSystem(OnboardingSystem);
+  world.registerSystem(AmbienceSystem);
   // Last: it pauses systems registered above.
   world.registerSystem(PauseSystem);
+  if (import.meta.env.DEV) world.registerSystem(PerfProbeSystem);
   installTestHook(world);
 });

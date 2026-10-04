@@ -35,7 +35,6 @@ import {
 const UP = new Vector3(0, 1, 0);
 /** The drag preview is drawn thinner than a real thread. */
 const PREVIEW_RADIUS = THREAD_TUNING.radius * 0.7;
-const CREATE_VOLUME = 0.8;
 
 const touchesPeg = (thread: Entity, pegId: string) =>
   thread.getValue(Thread, 'fromPeg') === pegId || thread.getValue(Thread, 'toPeg') === pegId;
@@ -115,7 +114,7 @@ export class ThreadSystem extends createSystem({
   }
 
   private setKnob(entity: Entity, hot: boolean): void {
-    const knob = entity.object3D?.getObjectByName('peg-knob') as Mesh | undefined;
+    const knob = entity.object3D?.getObjectByName('peg-body') as Mesh | undefined;
     if (knob) knob.material = hot ? MATERIALS.brassHot : MATERIALS.brass;
   }
 
@@ -300,7 +299,7 @@ export class ThreadSystem extends createSystem({
       threads: [...puzzleStore.get().threads, { from: from.id, to: to.id, preset }],
       ...(preset ? {} : { refusal: null }),
     });
-    if (pluck) stringSynth.pluck(pitch, CREATE_VOLUME);
+    if (pluck) stringSynth.play('thread', pitch);
   }
 
   private snip(entity: Entity): void {

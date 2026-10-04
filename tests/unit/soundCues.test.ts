@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'vitest';
-import { AMBIENCE_INTERVAL_SECONDS, ambienceHz, CUE_CEILING, CUES, cuePitches, type CueName } from '../../src/lib/soundCues';
+import { AMBIENCE_INTERVAL_SECONDS, ambienceHz, ambienceRests, CUE_CEILING, CUES, cuePitches, type CueName } from '../../src/lib/soundCues';
 import { PENTATONIC_HZ } from '../../src/lib/threadTuning';
 
-const ALL: readonly CueName[] = ['cupCorrect', 'cupWrong', 'button', 'pegGrab', 'refused', 'settle', 'snip', 'ambience', 'melody'];
+const ALL: readonly CueName[] = ['cupCorrect', 'cupWrong', 'button', 'pegGrab', 'refused', 'settle', 'snip', 'ambience', 'melody', 'thread', 'bounce'];
 /** Cues that mean "that didn't work": deliberately outside the music. */
 const DULL: readonly CueName[] = ['cupWrong', 'refused'];
 
@@ -48,5 +48,19 @@ describe('ambience: a slow, quiet phrase for the virtual study', () => {
 
   test('notes are far apart, so it stays in the background', () => {
     expect(AMBIENCE_INTERVAL_SECONDS).toBeGreaterThanOrEqual(4);
+  });
+});
+
+describe('ambienceRests: the background never competes with the puzzle', () => {
+  const open = { roomVisible: true, paused: false, dropping: false };
+
+  test('it plays in the visible study while nothing else is happening', () => {
+    expect(ambienceRests(open)).toBe(false);
+  });
+
+  test('it rests over passthrough, while paused, and while marbles drop (a note could pass for a bounce)', () => {
+    expect(ambienceRests({ ...open, roomVisible: false })).toBe(true);
+    expect(ambienceRests({ ...open, paused: true })).toBe(true);
+    expect(ambienceRests({ ...open, dropping: true })).toBe(true);
   });
 });

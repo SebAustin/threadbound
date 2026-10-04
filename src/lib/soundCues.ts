@@ -22,7 +22,11 @@ export type CueName =
   /** One note of the virtual study's quiet background. */
   | 'ambience'
   /** One note of a solved level's melody, replayed. */
-  | 'melody';
+  | 'melody'
+  /** A new thread is strung (its pitch comes from its length). */
+  | 'thread'
+  /** A marble bounces off a thread (pitch from the thread, gain from the impact). */
+  | 'bounce';
 
 export interface Cue {
   readonly hz: number;
@@ -43,6 +47,8 @@ export const CUES: Readonly<Record<CueName, Cue>> = {
   snip: { hz: 261.63, volume: 0.4 },
   ambience: { hz: 329.63, volume: 0.1 },
   melody: { hz: 523.25, volume: 0.7 },
+  thread: { hz: 440.0, volume: 0.8 },
+  bounce: { hz: 440.0, volume: 0.8 },
 };
 
 /** Every distinct pitch a cue can ask for (the synth renders each once). */
@@ -54,7 +60,19 @@ export function cuePitches(): number[] {
 export const AMBIENCE_INTERVAL_SECONDS = 6;
 
 /** A four-note pentatonic phrase (E G A G) that loops for as long as the study is shown. */
-const AMBIENCE_PHRASE: readonly number[] = [329.63, 392.0, 440.0, 392.0];
+const AMBIENCE_PHRASE: readonly number[] = [CUES.ambience.hz, 392.0, 440.0, 392.0];
+
+/** What the background needs to know to stay out of the way. */
+export interface AmbienceContext {
+  readonly roomVisible: boolean;
+  readonly paused: boolean;
+  readonly dropping: boolean;
+}
+
+/** Ambience rests over passthrough, while paused, and during a drop (a note could pass for a bounce). */
+export function ambienceRests(context: AmbienceContext): boolean {
+  return !context.roomVisible || context.paused || context.dropping;
+}
 
 /** Pitch of the `step`th ambience note. */
 export function ambienceHz(step: number): number {

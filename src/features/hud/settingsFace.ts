@@ -25,8 +25,7 @@ export class SettingsFace {
     // Every plaque control clicks like a ledge button.
     const control = (id: string, action: () => void) =>
       onTap(this.panel.getElementById(id), () => {
-        stringSynth.unlock();
-        stringSynth.play('button');
+        stringSynth.tap();
         action();
       });
     const unbind = [

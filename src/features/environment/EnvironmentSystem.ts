@@ -9,11 +9,8 @@ import {
   VisibilityState,
 } from '@iwsdk/core';
 import { DIORAMA, DIORAMA_DEFAULT_POSITION, VIRTUAL_ROOM } from '../../config/constants';
-import { AMBIENCE_INTERVAL_SECONDS, ambienceHz } from '../../lib/soundCues';
 import { shouldShowVirtualRoom } from '../../lib/xrMode';
-import { stringSynth } from '../audio/stringSynth';
-import { puzzleStore } from '../puzzle/puzzleStore';
-import { mergeParts, type GeometryPart } from '../diorama/mergeParts';
+import { mergeParts, type GeometryPart } from '../geometry/mergeParts';
 
 /**
  * The "cozy study" shown in the browser and in VR sessions (e.g. Safari on
@@ -23,8 +20,6 @@ import { mergeParts, type GeometryPart } from '../diorama/mergeParts';
 export class EnvironmentSystem extends createSystem({}) {
   private room!: Group;
   private background = new Color(VIRTUAL_ROOM.background);
-  private ambienceTimer = AMBIENCE_INTERVAL_SECONDS;
-  private ambienceStep = 0;
 
   init(): void {
     this.room = this.buildRoom();
@@ -32,16 +27,6 @@ export class EnvironmentSystem extends createSystem({}) {
     this.world.createTransformEntity(this.room);
     this.apply();
     this.cleanupFuncs.push(this.world.visibilityState.subscribe(() => this.apply()));
-  }
-
-  /** A quiet phrase while the study is shown and the game isn't paused; never over passthrough. */
-  update(delta: number): void {
-    if (!this.room.visible || puzzleStore.get().paused) return;
-    this.ambienceTimer -= delta;
-    if (this.ambienceTimer > 0) return;
-    this.ambienceTimer = AMBIENCE_INTERVAL_SECONDS;
-    stringSynth.play('ambience', ambienceHz(this.ambienceStep));
-    this.ambienceStep += 1;
   }
 
   private apply(): void {

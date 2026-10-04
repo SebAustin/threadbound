@@ -17,3 +17,4 @@
 - New audible events: cup correct and wrong (the wrong thud plays once per marble, via `Marble.rejected`), peg and tab grab, and plaque settings controls (they were silent before).
 - Ambience plays only while the virtual study is visible and the game isn't paused, so never over passthrough.
 - E2E `sound-cues` (9 checks, in the chain) reads a dev-only cue log, because automation can't hear audio and audio needs a gesture to unlock.
+- Review decisions: the cue "envelope" is the string synth's fixed Karplus-Strong decay; the table sets pitch and gain only. Failure cues (refused 98 Hz, cupWrong 110 Hz) are deliberately below the scale, so they never read as music. After the review, thread creation and bounces are cues too (`thread`, `bounce`, with per-event pitch and gain), so every sound goes through the table and the cue log.

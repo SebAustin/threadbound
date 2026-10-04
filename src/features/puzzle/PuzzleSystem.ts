@@ -5,6 +5,7 @@ import { offsetOrigin, originFromCenter, type DioramaOffset } from '../../lib/pl
 import { INITIAL_PROGRESS, loadProgress, recordCompletion, recordDaily, saveProgress } from '../../lib/progress';
 import { browserStorage } from '../../lib/storage';
 import { starsFor } from '../../lib/scoring';
+import { resumeIndex } from '../../lib/resume';
 import { restoreSteps } from '../../lib/solutionSteps';
 import { playerThreadCount } from '../../lib/threadRules';
 import type { Vec3 } from '../../lib/vec';
@@ -45,7 +46,8 @@ export class PuzzleSystem extends createSystem({
       puzzleStore.onCommand((command) => this.handle(command)),
       puzzleStore.subscribe((state) => this.onStateChange(state)),
     );
-    this.loadLevel(Math.min(progress.unlocked, LEVELS.length - 1));
+    // Resume by solved level ids, not a stored index: adding levels never misplaces a save.
+    this.loadLevel(resumeIndex(LEVELS, progress.best));
   }
 
   private handle(command: PuzzleCommand): void {
@@ -75,13 +77,13 @@ export class PuzzleSystem extends createSystem({
         this.loadLevel(0);
         break;
       case 'place':
-        // Only the table pose changes; rebuild the current level there.
+        // Only the table pose changes: rebuild there with the player's work intact.
         this.placedPose = { origin: command.origin, yaw: command.yaw };
-        this.loadLevel(levelIndex);
+        this.relocate(puzzleStore.get());
         break;
       case 'resetPlacement':
         this.placedPose = null;
-        this.loadLevel(levelIndex);
+        this.relocate(puzzleStore.get());
         break;
       default:
         break;

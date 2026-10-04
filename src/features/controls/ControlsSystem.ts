@@ -38,8 +38,7 @@ export class ControlsSystem extends createSystem({
     if (!entity.active || !entity.object3D?.visible) return;
     const action = entity.getValue(ControlButton, 'action');
     if (!isControlAction(action)) return;
-    stringSynth.unlock();
-    stringSynth.play('button');
+    stringSynth.tap();
     puzzleStore.dispatch(COMMANDS[action]);
   }
 }

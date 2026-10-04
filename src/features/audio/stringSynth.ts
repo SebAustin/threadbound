@@ -1,8 +1,9 @@
-import { CUES, cuePitches, type CueName } from '../../lib/soundCues';
+import { CUE_CEILING, CUES, cuePitches, type CueName } from '../../lib/soundCues';
 import { PENTATONIC_HZ } from '../../lib/threadTuning';
 import { recordCue } from './cueLog';
 
 const NOTE_SECONDS = 1.4;
+const LIMITER = { thresholdDb: -3, ratio: 20, attackSeconds: 0.001, releaseSeconds: 0.1 } as const;
 const DECAY = 0.996;
 
 /**
@@ -26,10 +27,14 @@ class StringSynth {
       this.ctx = new AudioContext();
       this.master = this.ctx.createGain();
       this.master.gain.value = 0.5;
-      // Limiter: a busy drop plus stacked cues must never clip.
+      // Limiter (hard knee, fast attack, high ratio near full scale): a busy drop
+      // plus stacked cues must never clip, while quiet sounds pass untouched.
       const limiter = this.ctx.createDynamicsCompressor();
-      limiter.threshold.value = -6;
-      limiter.ratio.value = 12;
+      limiter.threshold.value = LIMITER.thresholdDb;
+      limiter.knee.value = 0;
+      limiter.ratio.value = LIMITER.ratio;
+      limiter.attack.value = LIMITER.attackSeconds;
+      limiter.release.value = LIMITER.releaseSeconds;
       this.master.connect(limiter).connect(this.ctx.destination);
       for (const hz of [...PENTATONIC_HZ, ...cuePitches()]) this.buffers.set(hz, this.render(hz));
     } catch (error) {
@@ -38,10 +43,19 @@ class StringSynth {
     }
   }
 
-  /** The sound for a game event (see lib/soundCues); `hz` overrides its pitch (ambience phrase). */
-  play(name: CueName, hz = CUES[name].hz): void {
+  /**
+   * The sound for a game event (see lib/soundCues). `hz` overrides the cue's pitch
+   * (thread length, melody, ambience phrase); `gain` scales its volume (impact).
+   */
+  play(name: CueName, hz = CUES[name].hz, gain = 1): void {
     recordCue(name);
-    this.pluck(hz, CUES[name].volume);
+    this.pluck(hz, Math.min(CUE_CEILING, CUES[name].volume * gain));
+  }
+
+  /** A press on a ledge button or plaque control: the gesture also unlocks audio. */
+  tap(): void {
+    this.unlock();
+    this.play('button');
   }
 
   pluck(hz: number, velocity = 1): void {

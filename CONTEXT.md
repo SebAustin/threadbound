@@ -90,6 +90,12 @@ Time dilation of the simulation (physics, releases and rest timers all run at 2/
 **Offset**:
 The player's height and distance adjustment of the diorama, in whole steps. Changing it **relocates** the diorama: a rebuild at the new pose that keeps threads, slides and a solve, and waits for a drop in progress to end.
 
+**Melody book**:
+The tune each campaign level's best solve played, kept with progress. Poking or pinching the plaque's stars replays it.
+
+**Cue**:
+The one sound a game event makes (a cup chime, a button click, a refusal thunk...), defined in a single table. Musical cues stay in the pentatonic scale; failure cues sit below it.
+
 **Command bus**:
 `puzzleStore.dispatch`: the single entry point for every change to the puzzle, used alike by the player's input, the ledge buttons and the tests.
 

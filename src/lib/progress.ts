@@ -8,7 +8,10 @@ const STORAGE_KEY = 'threadbound.progress.v1';
 export const MELODY_NOTES_MAX = 16;
 
 const ProgressSchema = z.object({
-  /** Highest level index the player may open. */
+  /**
+   * Highest campaign index reached. Informational only: resume goes by solved ids
+   * (see lib/resume), because indices shift when levels are added to a world.
+   */
   unlocked: z.number().int().min(0),
   /** Best stars per campaign level id. */
   best: z.record(z.string(), z.number().int().min(1).max(3)),
@@ -50,9 +53,9 @@ export interface Solve {
 
 export function recordCompletion(progress: Progress, solve: Solve): Progress {
   const previous = progress.best[solve.levelId] ?? 0;
-  // The book keeps the tune of the best solve; ties take the newest.
+  // The book keeps the tune of the best solve; ties take the newest. A silent solve has no tune to keep.
   const melodies =
-    solve.stars >= previous
+    solve.stars >= previous && solve.melody.length > 0
       ? { ...progress.melodies, [solve.levelId]: solve.melody.slice(0, MELODY_NOTES_MAX) }
       : progress.melodies;
   return {

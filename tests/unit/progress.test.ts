@@ -52,6 +52,12 @@ describe('melody book: the tune a solve played is kept', () => {
     expect(recordCompletion(first, solve('w1-01', 0, 1, [E4])).melodies['w1-01']).toEqual([C4]);
   });
 
+  test('a solve that played no notes leaves the book as it was', () => {
+    expect(recordCompletion(INITIAL_PROGRESS, solve('w1-01', 0, 3, [])).melodies['w1-01']).toBeUndefined();
+    const kept = recordCompletion(INITIAL_PROGRESS, solve('w1-01', 0, 2, [C4]));
+    expect(recordCompletion(kept, solve('w1-01', 0, 3, [])).melodies['w1-01']).toEqual([C4]);
+  });
+
   test('a long melody is kept to its first notes', () => {
     const long = Array.from({ length: MELODY_NOTES_MAX + 5 }, () => C4);
     expect(recordCompletion(INITIAL_PROGRESS, solve('w1-01', 0, 3, long)).melodies['w1-01']).toHaveLength(MELODY_NOTES_MAX);

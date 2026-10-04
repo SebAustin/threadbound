@@ -56,6 +56,16 @@ export default async function run({ page, frame }) {
   const moved = await waitFor(app, ([y]) => Math.abs(window.__threadbound.frame().origin[1] - y) < 1e-3, 3000, [start[1] + 2 * STEP_UP]);
   check('then the diorama moves, still solved', moved && (await app.evaluate(isComplete)), JSON.stringify(await app.evaluate(origin)));
 
+  // Entering mixed reality places the diorama on the real table: same rebuild, same promise.
+  await app.evaluate(() => {
+    window.__threadbound.dispatch({ type: 'restart' });
+    window.__threadbound.dispatch({ type: 'addThread', from: 'a', to: 'b' });
+    window.__threadbound.dispatch({ type: 'place', origin: [0.1, 0.7, -0.5], yaw: 0.2 });
+  });
+  const placed = await app.evaluate(() => ({ threads: window.__threadbound.state().threads.length, yaw: window.__threadbound.frame()?.yaw }));
+  check('placing the diorama on a table keeps the player\'s threads', placed.threads === 1 && Math.abs(placed.yaw - 0.2) < 1e-6, JSON.stringify(placed));
+  await app.evaluate(() => window.__threadbound.dispatch({ type: 'resetPlacement' }));
+
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'settings', patch: { offset: { up: 0, near: 0 } } }));
   return results;
 }

@@ -18,3 +18,5 @@
 - Evidence: `.scratch/week6/art-review.jpg` (before above after, same view of Last Thread). Coral threads and amber/azure marbles stay distinct.
 - Found while verifying: the passthrough room check (`xr-room.e2e`) was not called by any runner. It is now the first step of `xr-controls.sh` (AR hides the study: alpha-blend).
 - Budget after the pass: busiest w2-06 Three Cups 57/80 (six marbles), w3-06 54, w4-06 53.
+- Review decision: the sun icon and the merged peg and table geometry are procedural primitives in feature code, not manifest models, so `iwsdk-build-model` wasn't required; lighting went through `iwsdk-compose-scene`.
+- Review fix: the contact shadow sat 1 mm under the virtual table top (invisible). It now sits just above it, with polygon offset. Passthrough before/after: `.scratch/week6/ar-review.jpg`.
