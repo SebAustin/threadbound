@@ -6,5 +6,6 @@
 
 **Status:** ready-for-agent
 
+- [ ] Ledge icons tilted toward the player (readable from a seated head and the low browser camera)
 - [ ] Before/after runtime screenshots of both backdrops (600 px)
 - [ ] Level proof still passes with the budget check

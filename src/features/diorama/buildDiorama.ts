@@ -2,6 +2,7 @@ import {
   BoxGeometry,
   ConeGeometry,
   CylinderGeometry,
+  type BufferGeometry,
   Group,
   Mesh,
   PhysicsBody,
@@ -25,6 +26,7 @@ import { handleOffset, type Rail } from '../../lib/rail';
 import { Chute, ControlActions, ControlButton, Peg, SliderHandle, type ControlAction } from '../puzzle/components';
 import type { DioramaFrame } from './dioramaFrame';
 import { GEOMETRIES, glyphMesh, goalMaterial, MATERIALS, marbleMaterial } from './palette';
+import { mergeParts, type GeometryPart } from './mergeParts';
 
 export interface GoalRange {
   readonly minX: number;
@@ -168,6 +170,24 @@ function buildWalls(world: World, frame: DioramaFrame, level: Level): Entity[] {
   );
 }
 
+const SUN_RAYS = 8;
+
+/** Today's puzzle: a disc with rays, lying flat, merged into one draw call. */
+function sunGeometry(r: number): BufferGeometry {
+  const thickness = r * 0.12;
+  const rays: GeometryPart[] = [];
+  for (let i = 0; i < SUN_RAYS; i++) {
+    const angle = (i / SUN_RAYS) * Math.PI * 2;
+    const distance = r * 0.5;
+    rays.push({
+      // A box along x, turned to point outward from the disc.
+      geometry: new BoxGeometry(r * 0.2, thickness, r * 0.08).rotateY(angle),
+      at: [Math.cos(angle) * distance, 0, -Math.sin(angle) * distance],
+    });
+  }
+  return mergeParts([{ geometry: new CylinderGeometry(r * 0.26, r * 0.26, thickness, 20) }, ...rays]);
+}
+
 /** Walnut icon on each ledge button's cap, lying flat and readable from above. */
 const BUTTON_ICONS: Readonly<Record<ControlAction, (r: number) => Mesh>> = {
   next: (r) => {
@@ -180,12 +200,7 @@ const BUTTON_ICONS: Readonly<Record<ControlAction, (r: number) => Mesh>> = {
     loop.rotation.x = -Math.PI / 2;
     return loop;
   },
-  daily: (r) => {
-    // A small sun: today's puzzle.
-    const sun = new Mesh(new TorusGeometry(r * 0.3, r * 0.14, 6, 16), MATERIALS.walnut);
-    sun.rotation.x = -Math.PI / 2;
-    return sun;
-  },
+  daily: (r) => new Mesh(sunGeometry(r), MATERIALS.walnut),
   settings: (r) => {
     // A hexagonal nut reads as "settings" without text.
     const nut = new Mesh(new TorusGeometry(r * 0.42, r * 0.16, 6, 6), MATERIALS.walnut);
