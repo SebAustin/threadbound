@@ -5,3 +5,6 @@
 **Blocked by:** 03, 04, 07 (post once the content is in)
 
 **Status:** ready-for-human
+
+## Comments
+- Drafted in `docs/forum-post.md`. **Waiting on the user to post it** (an outward-facing action). Status stays ready-for-human until they report back with tester feedback.
