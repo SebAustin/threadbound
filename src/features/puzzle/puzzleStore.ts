@@ -32,6 +32,8 @@ export interface PuzzleState {
   readonly daily: DailySession | null;
   /** Why the player's last thread or slide was refused; cleared by their next success. */
   readonly refusal: RefusalReason | null;
+  /** Notes the current drop has played (Hz); the melody a solve leaves behind. */
+  readonly melody: readonly number[];
 }
 
 /** Everything that changes the puzzle goes through here: buttons, placement, tests. */
@@ -47,6 +49,8 @@ export type PuzzleCommand =
   | { readonly type: 'toggleDaily' }
   /** Change and persist player settings. */
   | { readonly type: 'settings'; readonly patch: Partial<Settings> }
+  /** Replay this level's melody from the melody book (the plaque's stars). */
+  | { readonly type: 'playMelody' }
   /** Flip the plaque between the level face and the settings face. */
   | { readonly type: 'toggleSettings' }
   | { readonly type: 'drop' }
@@ -80,6 +84,7 @@ const INITIAL: PuzzleState = {
   settings: DEFAULT_SETTINGS,
   daily: null,
   refusal: null,
+  melody: [],
 };
 
 /**

@@ -1,5 +1,6 @@
 // Helper for the XR shell tests: world positions of everything a hand can pinch,
-// plus puzzle state. Optional SETUP env: 'load0' (level 1, fresh) or 'thread' (add a->b).
+// plus puzzle state. Optional SETUP env: 'load0' (level 1, fresh), 'thread' (add a->b),
+// or 'solve' (solve and drop the current level, then wait out its melody).
 export default async function run({ page, frame }) {
   const app = frame ?? page.mainFrame();
   const setup = process.env.SETUP ?? '';
@@ -7,6 +8,13 @@ export default async function run({ page, frame }) {
     const hook = window.__threadbound;
     if (mode === 'load0') hook.dispatch({ type: 'load', index: 0 });
     if (mode === 'thread') hook.dispatch({ type: 'addThread', from: 'a', to: 'b' });
+    if (mode === 'solve') {
+      // Solve the current level and let its replay finish, so the melody book has a tune.
+      hook.solve();
+      hook.dispatch({ type: 'drop' });
+      for (let t = 0; t < 15000 && hook.state().status !== 'complete'; t += 200) await new Promise((r) => setTimeout(r, 200));
+      await new Promise((r) => setTimeout(r, 4000));
+    }
     await new Promise((r) => setTimeout(r, 300));
     const s = hook.state();
     const knobZ = 0.029;
@@ -31,6 +39,9 @@ export default async function run({ page, frame }) {
       face: hook.plaque()?.face,
       slowToggle: hook.plaqueElement('set-slow')?.world,
       slowMotion: s.settings.slowMotion,
+      stars: hook.plaqueElement('hud-stars')?.world,
+      // Melody notes played since the last probe (drains the cue log).
+      melodyNotes: hook.cues().filter((c) => c === 'melody').length,
     };
   }, setup);
 }

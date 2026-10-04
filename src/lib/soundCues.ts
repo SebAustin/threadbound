@@ -20,7 +20,9 @@ export type CueName =
   /** A thread is snipped. */
   | 'snip'
   /** One note of the virtual study's quiet background. */
-  | 'ambience';
+  | 'ambience'
+  /** One note of a solved level's melody, replayed. */
+  | 'melody';
 
 export interface Cue {
   readonly hz: number;
@@ -40,6 +42,7 @@ export const CUES: Readonly<Record<CueName, Cue>> = {
   settle: { hz: 392.0, volume: 0.35 },
   snip: { hz: 261.63, volume: 0.4 },
   ambience: { hz: 329.63, volume: 0.1 },
+  melody: { hz: 523.25, volume: 0.7 },
 };
 
 /** Every distinct pitch a cue can ask for (the synth renders each once). */

@@ -34,6 +34,7 @@
   .stars {
     flex-direction: row;
     gap: 0.6;
+    padding: 0.6;
   }
 
   .star {
@@ -148,7 +149,8 @@
   <div id="level-face" class="face">
   <div id="hud-header" class="header">
     <span id="hud-title" class="title">Threadbound</span>
-    <div class="stars">
+    <!-- Poke or pinch the stars to replay the level's melody; the padding makes a bigger target. -->
+    <div id="hud-stars" class="stars">
       <div id="hud-star-1" class="star"></div>
       <div id="hud-star-2" class="star"></div>
       <div id="hud-star-3" class="star"></div>

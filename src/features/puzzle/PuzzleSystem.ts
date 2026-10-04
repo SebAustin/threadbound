@@ -126,6 +126,7 @@ export class PuzzleSystem extends createSystem({
       pegPositions,
       daily,
       refusal: null,
+      melody: [],
     });
     puzzleStore.dispatch({ type: 'levelBuilt', relocated });
   }
@@ -146,7 +147,13 @@ export class PuzzleSystem extends createSystem({
     const stars = starsFor(used, state.level.par);
     const progress = state.daily
       ? recordDaily(state.progress, stars, state.daily.day)
-      : recordCompletion(state.progress, state.level.id, state.levelIndex, stars, LEVELS.length);
+      : recordCompletion(state.progress, {
+          levelId: state.level.id,
+          levelIndex: state.levelIndex,
+          stars,
+          levelCount: LEVELS.length,
+          melody: state.melody,
+        });
     saveProgress(this.storage, progress);
     puzzleStore.update({ stars, progress });
   }

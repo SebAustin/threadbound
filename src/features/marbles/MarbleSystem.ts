@@ -22,6 +22,7 @@ import { GEOMETRIES, goalMaterial, marbleMaterial } from '../diorama/palette';
 import { Chute, Marble, Thread } from '../puzzle/components';
 import { puzzleStore } from '../puzzle/puzzleStore';
 import { SimulationClockSystem } from '../simulation/SimulationClockSystem';
+import { MELODY_NOTES_MAX } from '../../lib/progress';
 
 /** Contact band around a thread that counts as a "pluck". */
 const CONTACT_DIST = MARBLE.radius + THREAD_TUNING.radius + 0.004;
@@ -35,11 +36,8 @@ const CUP_TOP = GOAL.wallHeight + MARBLE.radius;
 const SETTLED_SPEED = 0.35;
 /** A visible wobble even for a gentle touch. */
 const MIN_PLUCK_ENERGY = 0.3;
-/** Longest replayed melody; a busy drop would otherwise drone on. */
-const MAX_MELODY_NOTES = 16;
 /** C5 "ding" when a puzzle is solved without touching any thread. */
 const FALLBACK_NOTE_HZ = 523.25;
-const MELODY_VOLUME = 0.7;
 const MARBLE_ANGULAR_DAMPING = 0.2;
 /** Sideways speed (m/s) that tips a marble off an unstable perch, like a real wobble. */
 const NUDGE_SPEED = 0.12;
@@ -92,6 +90,7 @@ export class MarbleSystem extends createSystem({
       }),
       puzzleStore.onCommand((command) => {
         if (command.type === 'drop') this.drop();
+        if (command.type === 'playMelody') this.replaySaved();
         if (command.type === 'levelBuilt') {
           this.queue = [];
           this.released = 0;
@@ -273,8 +272,14 @@ export class MarbleSystem extends createSystem({
     const state = puzzleStore.get();
     const scored = state.scored + 1;
     const complete = state.level !== null && scored >= state.level.marbles;
-    puzzleStore.update({ scored, status: complete ? 'complete' : state.status });
-    if (complete) this.playMelody();
+    if (!complete) {
+      puzzleStore.update({ scored });
+      return;
+    }
+    // One update, so the solve is recorded together with the tune it played.
+    const melody = this.melody.slice(0, MELODY_NOTES_MAX);
+    puzzleStore.update({ scored, status: 'complete', melody });
+    this.playMelody(melody);
   }
 
   /** A marble settled in the wrong cup: a dull thud, once. */
@@ -294,9 +299,19 @@ export class MarbleSystem extends createSystem({
     return -1;
   }
 
+  /** The melody book: replay this level's saved tune (poking the plaque's stars). */
+  private replaySaved(): void {
+    const { level, progress, status } = puzzleStore.get();
+    const saved = level ? progress.melodies[level.id] : undefined;
+    // A drop in progress is already playing its own notes.
+    if (!saved || status === 'dropping') return;
+    stringSynth.unlock();
+    this.playMelody(saved);
+  }
+
   /** Replays the bounces that solved the puzzle: every solution is a song. */
-  private playMelody(): void {
-    this.replay = this.melody.length > 0 ? this.melody.slice(0, MAX_MELODY_NOTES) : [FALLBACK_NOTE_HZ];
+  private playMelody(notes: readonly number[]): void {
+    this.replay = notes.length > 0 ? notes : [FALLBACK_NOTE_HZ];
     this.replayNext = 0;
     this.replayTimer = MELODY_STEP_SECONDS;
   }
@@ -305,7 +320,7 @@ export class MarbleSystem extends createSystem({
     if (this.replayNext >= this.replay.length) return;
     this.replayTimer -= delta;
     if (this.replayTimer > 0) return;
-    stringSynth.pluck(this.replay[this.replayNext], MELODY_VOLUME);
+    stringSynth.play('melody', this.replay[this.replayNext]);
     this.replayNext += 1;
     this.replayTimer = MELODY_STEP_SECONDS;
   }

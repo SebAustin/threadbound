@@ -4,6 +4,9 @@ import { loadJson, saveJson, type StorageLike } from './storage';
 
 const STORAGE_KEY = 'threadbound.progress.v1';
 
+/** Longest melody kept per level; a busy drop would otherwise drone on when replayed. */
+export const MELODY_NOTES_MAX = 16;
+
 const ProgressSchema = z.object({
   /** Highest level index the player may open. */
   unlocked: z.number().int().min(0),
@@ -17,6 +20,10 @@ const ProgressSchema = z.object({
   dailyBest: z
     .object({ day: z.string().nullable(), stars: z.number().int().min(0).max(3) })
     .default({ day: null, stars: 0 }),
+  /** Melody book: the notes each campaign level's best solve played (Hz). */
+  melodies: z
+    .record(z.string(), z.array(z.number().positive()).max(MELODY_NOTES_MAX))
+    .default({}),
 });
 
 export type Progress = Readonly<z.infer<typeof ProgressSchema>>;
@@ -28,20 +35,31 @@ export const INITIAL_PROGRESS: Progress = Object.freeze({
   best: Object.freeze({}),
   streak: NO_STREAK,
   dailyBest: NO_DAILY,
+  melodies: Object.freeze({}),
 });
 
-export function recordCompletion(
-  progress: Progress,
-  levelId: string,
-  levelIndex: number,
-  stars: number,
-  levelCount: number,
-): Progress {
-  const previous = progress.best[levelId] ?? 0;
+/** A finished campaign level, as progress records it. */
+export interface Solve {
+  readonly levelId: string;
+  readonly levelIndex: number;
+  readonly stars: number;
+  readonly levelCount: number;
+  /** Notes the drop played, in order (Hz). */
+  readonly melody: readonly number[];
+}
+
+export function recordCompletion(progress: Progress, solve: Solve): Progress {
+  const previous = progress.best[solve.levelId] ?? 0;
+  // The book keeps the tune of the best solve; ties take the newest.
+  const melodies =
+    solve.stars >= previous
+      ? { ...progress.melodies, [solve.levelId]: solve.melody.slice(0, MELODY_NOTES_MAX) }
+      : progress.melodies;
   return {
     ...progress,
-    unlocked: Math.max(progress.unlocked, Math.min(levelIndex + 1, levelCount - 1)),
-    best: { ...progress.best, [levelId]: Math.max(previous, stars) },
+    unlocked: Math.max(progress.unlocked, Math.min(solve.levelIndex + 1, solve.levelCount - 1)),
+    best: { ...progress.best, [solve.levelId]: Math.max(previous, solve.stars) },
+    melodies,
   };
 }
 

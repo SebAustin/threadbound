@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { AMBIENCE_INTERVAL_SECONDS, ambienceHz, CUE_CEILING, CUES, cuePitches, type CueName } from '../../src/lib/soundCues';
 import { PENTATONIC_HZ } from '../../src/lib/threadTuning';
 
-const ALL: readonly CueName[] = ['cupCorrect', 'cupWrong', 'button', 'pegGrab', 'refused', 'settle', 'snip', 'ambience'];
+const ALL: readonly CueName[] = ['cupCorrect', 'cupWrong', 'button', 'pegGrab', 'refused', 'settle', 'snip', 'ambience', 'melody'];
 /** Cues that mean "that didn't work": deliberately outside the music. */
 const DULL: readonly CueName[] = ['cupWrong', 'refused'];
 

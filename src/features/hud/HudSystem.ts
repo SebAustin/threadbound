@@ -9,6 +9,7 @@ import { dailyStarsOn } from '../../lib/progress';
 import { LEVELS } from '../../levels';
 import { puzzleStore, type PuzzleState } from '../puzzle/puzzleStore';
 import { SettingsFace } from './settingsFace';
+import { onTap } from '../input/onTap';
 
 export type PlaqueFace = 'level' | 'settings';
 
@@ -36,6 +37,8 @@ export class HudSystem extends createSystem({}) {
     this.settingsFace = new SettingsFace(this.panel);
     this.cleanupFuncs.push(
       this.settingsFace.bind(),
+      // The melody book: poking the stars replays the level's saved tune.
+      onTap(this.panel.getElementById('hud-stars'), () => puzzleStore.dispatch({ type: 'playMelody' })),
       puzzleStore.onCommand((command) => {
         if (command.type === 'levelBuilt') {
           this.follow();

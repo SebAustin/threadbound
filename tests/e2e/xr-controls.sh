@@ -34,5 +34,11 @@ case "$L" in daily-*) pass "pinching the sun loads the daily puzzle ($L)";; *) f
 pinch_at "$(field "$P" "['buttons']['daily']")"
 L=$(field "$(probe)" "['levelId']")
 [ "$L" = "w1-01" ] && pass "pinching the sun again returns to the campaign" || fail "pinching the sun again returns to the campaign ($L)"
+
+P=$(probe solve)
+pinch_at "$(field "$P" "['stars']")"
+sleep 2 # let the replayed melody play (0.22 s a note)
+N=$(field "$(probe)" "['melodyNotes']")
+[ "$N" -gt 0 ] && pass "pinching the stars replays the melody ($N notes)" || fail "pinching the stars replays the melody ($N notes)"
 xr_stop
 exit $FAIL
