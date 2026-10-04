@@ -16,6 +16,8 @@ import slide from './world3/01-slide.json';
 import lift from './world3/02-lift.json';
 import twoRails from './world3/03-two-rails.json';
 import crossfade from './world3/04-crossfade.json';
+import hinge from './world3/05-hinge.json';
+import railYard from './world3/06-rail-yard.json';
 import shortSpool from './world4/01-short-spool.json';
 import springboard from './world4/02-springboard.json';
 import budget from './world4/03-budget.json';
@@ -40,6 +42,8 @@ const RAW_LEVELS: readonly unknown[] = [
   lift,
   twoRails,
   crossfade,
+  hinge,
+  railYard,
   shortSpool,
   springboard,
   budget,

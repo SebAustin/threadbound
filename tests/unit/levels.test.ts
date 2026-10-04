@@ -32,4 +32,8 @@ describe('level registry', () => {
       .flatMap((d) => readdirSync(join(root, d.name)).filter((f) => f.endsWith('.json')));
     expect(LEVELS).toHaveLength(files.length);
   });
+
+  test('the campaign is four worlds of six levels, in world order', () => {
+    expect(LEVELS.map((l) => l.world)).toEqual([1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4]);
+  });
 });

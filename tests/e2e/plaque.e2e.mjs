@@ -42,7 +42,12 @@ export default async function run({ page, frame }) {
     Math.abs(onTable.local.x - tableSize[0] / 2) < 0.005 && onTable.local.y > tableSize[1] && Math.abs(onTable.local.z) < 0.05, JSON.stringify(onTable.local));
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'resetPlacement' }));
   // Each world's finale reads N/N: the count covers the whole world, campaign levels only.
-  for (const [id, label] of [['w2-06', 'World 2 - 6/6']]) {
+  for (const [id, label] of [
+    ['w1-06', 'World 1 - 6/6'],
+    ['w2-06', 'World 2 - 6/6'],
+    ['w3-06', 'World 3 - 6/6'],
+    ['w4-06', 'World 4 - 6/6'],
+  ]) {
     await loadLevel(app, id);
     const shown = await waitFor(app, (want) => window.__threadbound.hud()?.model?.worldLabel === want, 2000, label);
     check(`${id} is the last of its world on the plaque`, shown, await app.evaluate(() => window.__threadbound.hud()?.model?.worldLabel));

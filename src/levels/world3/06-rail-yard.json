@@ -1,0 +1,32 @@
+{
+  "id": "w3-06",
+  "name": "Rail Yard",
+  "world": 3,
+  "size": [0.5, 0.4],
+  "chutes": [
+    { "x": 0.1, "y": 0.37, "color": "amber", "count": 2 },
+    { "x": 0.4, "y": 0.37, "color": "azure", "count": 2 }
+  ],
+  "maxThreads": 1,
+  "par": 1,
+  "pegs": [
+    { "id": "p", "x": 0.47, "y": 0.3 },
+    { "id": "q", "x": 0.38, "y": 0.25, "rail": { "axis": "x", "min": 0.15, "max": 0.4 } },
+    { "id": "r", "x": 0.08, "y": 0.14 },
+    { "id": "s", "x": 0.44, "y": 0.24, "rail": { "axis": "y", "min": 0.07, "max": 0.24 } },
+    { "id": "t", "x": 0.3, "y": 0.33 }
+  ],
+  "presetThreads": [{ "from": "r", "to": "s" }],
+  "goals": [
+    { "x": 0.055, "width": 0.09, "color": "azure" },
+    { "x": 0.445, "width": 0.09, "color": "amber" }
+  ],
+  "solution": [
+    { "from": "p", "to": "q" },
+    { "from": "r", "to": "s" }
+  ],
+  "slides": [
+    { "peg": "q", "to": 0.2 },
+    { "peg": "s", "to": 0.07 }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "id": "w3-05",
+  "name": "Hinge",
+  "world": 3,
+  "size": [0.5, 0.4],
+  "chutes": [
+    { "x": 0.15, "y": 0.37, "color": "amber", "count": 2 },
+    { "x": 0.35, "y": 0.37, "color": "azure", "count": 2 }
+  ],
+  "maxThreads": 1,
+  "par": 1,
+  "pegs": [
+    { "id": "h", "x": 0.26, "y": 0.06, "rail": { "axis": "y", "min": 0.06, "max": 0.2 } },
+    { "id": "l", "x": 0.04, "y": 0.16 },
+    { "id": "r", "x": 0.44, "y": 0.12 },
+    { "id": "d", "x": 0.45, "y": 0.3 }
+  ],
+  "presetThreads": [
+    { "from": "h", "to": "l" },
+    { "from": "h", "to": "r" }
+  ],
+  "goals": [
+    { "x": 0.055, "width": 0.09, "color": "amber" },
+    { "x": 0.445, "width": 0.09, "color": "azure" }
+  ],
+  "solution": [
+    { "from": "h", "to": "l" },
+    { "from": "h", "to": "r" }
+  ],
+  "slides": [{ "peg": "h", "to": 0.2 }]
+}
