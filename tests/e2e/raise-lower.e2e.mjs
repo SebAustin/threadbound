@@ -66,6 +66,18 @@ export default async function run({ page, frame }) {
   check('placing the diorama on a table keeps the player\'s threads', placed.threads === 1 && Math.abs(placed.yaw - 0.2) < 1e-6, JSON.stringify(placed));
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'resetPlacement' }));
 
+  // Entering passthrough mid-drop must not end the drop: placement waits for it, like Raise/Lower.
+  await app.evaluate(() => {
+    window.__threadbound.dispatch({ type: 'drop' });
+    window.__threadbound.dispatch({ type: 'place', origin: [0.1, 0.7, -0.5], yaw: 0.3 });
+  });
+  const during = await app.evaluate(() => ({ status: window.__threadbound.state().status, yaw: window.__threadbound.frame()?.yaw }));
+  check('placing mid-drop lets the marbles finish first', during.status === 'dropping' && Math.abs(during.yaw - 0.3) > 1e-6, JSON.stringify(during));
+  await waitFor(app, isComplete, 15000);
+  const after = await waitFor(app, () => Math.abs(window.__threadbound.frame().yaw - 0.3) < 1e-6 && window.__threadbound.state().status === 'complete', 3000);
+  check('then the diorama moves to the table, still solved', after, JSON.stringify(await app.evaluate(() => ({ status: window.__threadbound.state().status, yaw: window.__threadbound.frame()?.yaw }))));
+  await app.evaluate(() => window.__threadbound.dispatch({ type: 'resetPlacement' }));
+
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'settings', patch: { offset: { up: 0, near: 0 } } }));
   return results;
 }

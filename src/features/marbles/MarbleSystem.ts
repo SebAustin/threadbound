@@ -114,7 +114,8 @@ export class MarbleSystem extends createSystem({
     this.releaseTimer = 0;
     this.quiet = 0;
     this.replay = [];
-    puzzleStore.update({ status: 'dropping', scored: 0 });
+    // A new drop is a new attempt: unscored, so a better solve is recorded on completion.
+    puzzleStore.update({ status: 'dropping', scored: 0, stars: 0, melody: [] });
   }
 
   private clearMarbles(): void {

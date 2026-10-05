@@ -67,6 +67,7 @@ export class SliderSystem extends createSystem({
       onPointer(child, 'pointerdown', (e) => this.start(pegId, child, e));
       onPointer(child, 'pointermove', (e) => this.move(e));
       onPointer(child, 'pointerup', (e) => this.end(e));
+      onPointer(child, 'pointercancel', (e) => this.cancel(e));
     });
   }
 
@@ -102,6 +103,16 @@ export class SliderSystem extends createSystem({
     this.drag = null;
     releasePointer(drag.captureTarget, drag.pointerId);
     puzzleStore.dispatch({ type: 'movePeg', pegId: drag.pegId, x: drag.x, y: drag.y });
+  }
+
+  /** The input went away mid-slide: the peg goes back to where it was. */
+  private cancel(e: SpatialPointerEvent): void {
+    const drag = this.drag;
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    this.drag = null;
+    releasePointer(drag.captureTarget, drag.pointerId);
+    const home = this.positionOf(drag.pegId);
+    if (home) this.placeVisuals(drag.pegId, home.x, home.y);
   }
 
   private handleCommand(command: PuzzleCommand): void {

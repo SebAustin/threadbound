@@ -34,6 +34,8 @@ export class PuzzleSystem extends createSystem({
   marbles: { required: [Marble] },
 }) {
   private storage = browserStorage();
+  /** A new pose arrived during a drop; the rebuild waits until the marbles settle. */
+  private relocatePending = false;
   /** Explicit table placement (AR); null means use the default virtual-table pose. */
   private placedPose: FramePose | null = null;
   /** The player's height/distance adjustment the current diorama was built with. */
@@ -79,11 +81,11 @@ export class PuzzleSystem extends createSystem({
       case 'place':
         // Only the table pose changes: rebuild there with the player's work intact.
         this.placedPose = { origin: command.origin, yaw: command.yaw };
-        this.relocate(puzzleStore.get());
+        this.relocateSoon();
         break;
       case 'resetPlacement':
         this.placedPose = null;
-        this.relocate(puzzleStore.get());
+        this.relocateSoon();
         break;
       default:
         break;
@@ -110,6 +112,8 @@ export class PuzzleSystem extends createSystem({
       return;
     }
     this.teardown();
+    // Every build uses the current pose and offset, so a deferred move is now done.
+    this.relocatePending = false;
     const pose = this.placedPose ?? defaultPose(level);
     const { offset } = puzzleStore.get().settings;
     this.builtOffset = offset;
@@ -135,7 +139,8 @@ export class PuzzleSystem extends createSystem({
 
   private onStateChange(state: PuzzleState): void {
     // A move during a drop waits for it to end: this check reruns on every change.
-    if (this.builtOffset !== null && state.settings.offset !== this.builtOffset && state.status !== 'dropping') {
+    const moved = this.relocatePending || (this.builtOffset !== null && state.settings.offset !== this.builtOffset);
+    if (moved && state.status !== 'dropping') {
       this.relocate(state);
       return;
     }
@@ -158,6 +163,13 @@ export class PuzzleSystem extends createSystem({
         });
     saveProgress(this.storage, progress);
     puzzleStore.update({ stars, progress });
+  }
+
+  /** Rebuild at the new pose now, or once a drop in progress has finished. */
+  private relocateSoon(): void {
+    const state = puzzleStore.get();
+    if (state.status === 'dropping') this.relocatePending = true;
+    else this.relocate(state);
   }
 
   /** The player moved the diorama: rebuild it there exactly as they left it, solved or not. */

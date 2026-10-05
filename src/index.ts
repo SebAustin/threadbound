@@ -8,6 +8,7 @@
 import { World } from '@iwsdk/core';
 import projectOptions from 'virtual:iwsdk-project';
 import { AmbienceSystem } from './features/audio/AmbienceSystem.js';
+import { AudioUnlockSystem } from './features/audio/AudioUnlockSystem.js';
 import { ControlsSystem } from './features/controls/ControlsSystem.js';
 import { EnvironmentSystem } from './features/environment/EnvironmentSystem.js';
 import { MarbleSystem } from './features/marbles/MarbleSystem.js';
@@ -41,6 +42,7 @@ World.create(
   world.registerSystem(PanelSystem);
   world.registerSystem(HudSystem);
   world.registerSystem(OnboardingSystem);
+  world.registerSystem(AudioUnlockSystem);
   world.registerSystem(AmbienceSystem);
   // Last: it pauses systems registered above.
   world.registerSystem(PauseSystem);

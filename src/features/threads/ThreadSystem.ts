@@ -110,6 +110,7 @@ export class ThreadSystem extends createSystem({
       onPointer(child, 'pointerdown', (e) => this.startDrag(entity, child, e));
       onPointer(child, 'pointermove', (e) => this.moveDrag(e));
       onPointer(child, 'pointerup', (e) => this.endDrag(e));
+      onPointer(child, 'pointercancel', (e) => this.cancelDrag(e));
     });
   }
 
@@ -160,6 +161,15 @@ export class ThreadSystem extends createSystem({
       return;
     }
     this.tryAddThread(drag.pegId, targetId);
+  }
+
+  /** The input went away mid-pull (tracking lost, mode switch): drop the drag, make nothing. */
+  private cancelDrag(e: SpatialPointerEvent): void {
+    const drag = this.drag;
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    this.drag = null;
+    this.preview.visible = false;
+    releasePointer(drag.captureTarget, drag.pointerId);
   }
 
   /** Player (or test/hint) thread: validated against the level's rules. */

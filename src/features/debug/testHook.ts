@@ -7,6 +7,7 @@ import { solutionSteps } from '../../lib/solutionSteps';
 import { puzzleStore, type PuzzleCommand } from '../puzzle/puzzleStore';
 import type { CueName } from '../../lib/soundCues';
 import { drainCues } from '../audio/cueLog';
+import { stringSynth } from '../audio/stringSynth';
 import { PlacementSystem } from '../placement/PlacementSystem';
 import { PerfProbeSystem } from './PerfProbeSystem';
 
@@ -53,6 +54,8 @@ export interface ThreadboundTestHook {
   /** Which plaque face is showing, and where a plaque element is. */
   plaque(): { face: string; resetLabel: string } | null;
   plaqueElement(id: string): Located | null;
+  /** Audio: 'locked' until a gesture unlocks it, then the AudioContext state. */
+  audio(): string;
   /** Passthrough placement: where the diorama landed and how many detected planes were seen. */
   placement(): { placedOn: string | null; planesSeen: number };
   /** Whether the active XR session exposes a gaze input source (eye-tracked devices). */
@@ -225,8 +228,9 @@ function visibleInScene(object: Object3D): boolean {
 
 function sessionProbes(
   world: World,
-): Hook<'gazeAvailable' | 'room' | 'frameStats' | 'meshBreakdown' | 'cues' | 'placement'> {
+): Hook<'gazeAvailable' | 'room' | 'frameStats' | 'meshBreakdown' | 'cues' | 'placement' | 'audio'> {
   return {
+    audio: () => stringSynth.state,
     placement: () => {
       const placement = world.getSystem(PlacementSystem);
       return { placedOn: placement?.placedOn ?? null, planesSeen: placement?.planesSeen ?? 0 };

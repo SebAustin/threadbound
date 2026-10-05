@@ -1,10 +1,11 @@
-import { Box3, createSystem, Quaternion, Vector3, VisibilityState, XRPlane } from '@iwsdk/core';
+import { Box3, createSystem, Quaternion, Vector3, VisibilityState, XRPlane, type Object3D } from '@iwsdk/core';
 import {
   choosePlacement,
   headRelativePlacement,
   originFromCenter,
   type Placement,
   type PlaneCandidate,
+  type PlanePose,
 } from '../../lib/placement';
 import { shouldShowVirtualRoom } from '../../lib/xrMode';
 import { devLog } from '../debug/devLog';
@@ -16,9 +17,31 @@ const EVALUATE_EVERY_SECONDS = 0.25;
 
 type Phase = 'inactive' | 'searching' | 'placed';
 
+/** The slice of a native WebXR XRPlane we read. Its polygon is in plane space (x, z). */
 interface NativePlaneInfo {
   orientation?: string;
   semanticLabel?: string;
+  polygon?: ReadonlyArray<{ readonly x: number; readonly z: number }>;
+}
+
+function isNativePlane(value: unknown): value is NativePlaneInfo {
+  return typeof value === 'object' && value !== null && 'orientation' in value;
+}
+
+/** Plane-space bounds of a polygon (x, z), or null if it is degenerate. */
+function polygonBounds(
+  polygon: NativePlaneInfo['polygon'],
+): { min: [number, number]; max: [number, number] } | null {
+  if (!polygon || polygon.length < 3) return null;
+  const min: [number, number] = [Infinity, Infinity];
+  const max: [number, number] = [-Infinity, -Infinity];
+  for (const point of polygon) {
+    min[0] = Math.min(min[0], point.x);
+    min[1] = Math.min(min[1], point.z);
+    max[0] = Math.max(max[0], point.x);
+    max[1] = Math.max(max[1], point.z);
+  }
+  return { min, max };
 }
 
 /**
@@ -48,6 +71,9 @@ export class PlacementSystem extends createSystem({
   private head = new Vector3();
   private forward = new Vector3();
   private quat = new Quaternion();
+  private planeOrigin = new Vector3();
+  private planeQuat = new Quaternion();
+  private planeAxis = new Vector3();
 
   init(): void {
     this.cleanupFuncs.push(this.world.visibilityState.subscribe(() => this.onVisibility()));
@@ -107,9 +133,9 @@ export class PlacementSystem extends createSystem({
   private candidates(): PlaneCandidate[] {
     const result: PlaneCandidate[] = [];
     for (const entity of this.queries.planes.entities) {
-      const native = entity.getValue(XRPlane, '_plane') as NativePlaneInfo | undefined;
+      const native: unknown = entity.getValue(XRPlane, '_plane');
       const object = entity.object3D;
-      if (!native || !object) continue;
+      if (!isNativePlane(native) || !object) continue;
       this.box.setFromObject(object);
       if (this.box.isEmpty()) continue;
       result.push({
@@ -117,9 +143,28 @@ export class PlacementSystem extends createSystem({
         label: native.semanticLabel,
         min: [this.box.min.x, this.box.min.y, this.box.min.z],
         max: [this.box.max.x, this.box.max.y, this.box.max.z],
+        pose: this.poseOf(object, native),
       });
     }
     return result;
+  }
+
+  /**
+   * The plane's own frame: world position, rotation about +Y, and its polygon's
+   * bounds in plane space. A rotated table is a true rectangle there.
+   */
+  private poseOf(object: Object3D, native: NativePlaneInfo): PlanePose | undefined {
+    const bounds = polygonBounds(native.polygon);
+    if (!bounds) return undefined;
+    object.getWorldPosition(this.planeOrigin);
+    object.getWorldQuaternion(this.planeQuat);
+    this.planeAxis.set(1, 0, 0).applyQuaternion(this.planeQuat);
+    return {
+      origin: [this.planeOrigin.x, this.planeOrigin.y, this.planeOrigin.z],
+      yaw: Math.atan2(-this.planeAxis.z, this.planeAxis.x),
+      min: bounds.min,
+      max: bounds.max,
+    };
   }
 
   private place(placement: Placement, width: number, where: 'table' | 'in front of you'): void {

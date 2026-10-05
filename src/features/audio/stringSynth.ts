@@ -17,6 +17,11 @@ class StringSynth {
   private buffers = new Map<number, AudioBuffer>();
   private master: GainNode | null = null;
 
+  /** 'locked' until the first unlock; then the AudioContext's own state. */
+  get state(): 'locked' | AudioContextState {
+    return this.ctx ? this.ctx.state : 'locked';
+  }
+
   /** Call from a user-gesture handler (pinch/click) to unlock audio. */
   unlock(): void {
     if (this.ctx) {

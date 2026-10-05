@@ -56,6 +56,7 @@ export default async function run({ page, frame }) {
       slowMotion: s.settings.slowMotion,
       stars: hook.plaqueElement('hud-stars')?.world,
       placement: hook.placement(),
+      audio: hook.audio(),
       frame: await hook.frameStats(),
       // Side effect: drains the cue log, so this counts melody notes since the last probe.
       melodyNotesDrained: hook.cues().filter((c) => c === 'melody').length,
