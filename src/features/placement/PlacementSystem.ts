@@ -30,6 +30,18 @@ export class PlacementSystem extends createSystem({
   planes: { required: [XRPlane] },
 }) {
   private phase: Phase = 'inactive';
+  private where: 'table' | 'in front of you' | null = null;
+  private planes = 0;
+
+  /** Where the diorama was last placed in passthrough (null outside AR or before placing). */
+  get placedOn(): 'table' | 'in front of you' | null {
+    return this.where;
+  }
+
+  /** Detected planes seen at the last evaluation (scene understanding). */
+  get planesSeen(): number {
+    return this.planes;
+  }
   private elapsed = 0;
   private sinceEvaluate = 0;
   private box = new Box3();
@@ -46,6 +58,7 @@ export class PlacementSystem extends createSystem({
     if (visibility === VisibilityState.NonImmersive) {
       if (this.phase === 'placed') puzzleStore.dispatch({ type: 'resetPlacement' });
       this.phase = 'inactive';
+      this.where = null;
       return;
     }
     const passthrough = !shouldShowVirtualRoom(true, this.world.session?.environmentBlendMode);
@@ -68,6 +81,7 @@ export class PlacementSystem extends createSystem({
     this.readHead();
     const head = [this.head.x, this.head.y, this.head.z] as const;
     const candidates = this.candidates();
+    this.planes = candidates.length;
     const forward = [this.forward.x, this.forward.y, this.forward.z] as const;
     const onTable = choosePlacement(candidates, head, level.size[0], forward);
     if (import.meta.env.DEV && (onTable || this.elapsed >= SEARCH_TIMEOUT_SECONDS)) {
@@ -108,8 +122,9 @@ export class PlacementSystem extends createSystem({
     return result;
   }
 
-  private place(placement: Placement, width: number, where: string): void {
+  private place(placement: Placement, width: number, where: 'table' | 'in front of you'): void {
     this.phase = 'placed';
+    this.where = where;
     const origin = originFromCenter(placement.center, placement.yaw, width);
     devLog(`diorama placed ${where}`);
     puzzleStore.dispatch({ type: 'place', origin, yaw: placement.yaw });

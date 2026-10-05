@@ -7,6 +7,7 @@ import { solutionSteps } from '../../lib/solutionSteps';
 import { puzzleStore, type PuzzleCommand } from '../puzzle/puzzleStore';
 import type { CueName } from '../../lib/soundCues';
 import { drainCues } from '../audio/cueLog';
+import { PlacementSystem } from '../placement/PlacementSystem';
 import { PerfProbeSystem } from './PerfProbeSystem';
 
 interface ScreenPoint {
@@ -52,6 +53,8 @@ export interface ThreadboundTestHook {
   /** Which plaque face is showing, and where a plaque element is. */
   plaque(): { face: string; resetLabel: string } | null;
   plaqueElement(id: string): Located | null;
+  /** Passthrough placement: where the diorama landed and how many detected planes were seen. */
+  placement(): { placedOn: string | null; planesSeen: number };
   /** Whether the active XR session exposes a gaze input source (eye-tracked devices). */
   gazeAvailable(): boolean;
   /** Sound cues the game asked for since the last call (see features/audio/cueLog). */
@@ -59,7 +62,7 @@ export interface ThreadboundTestHook {
   /** Visible meshes (about one draw call each) grouped by what they belong to. */
   meshBreakdown(): Record<string, number>;
   /** Cost of the next rendered frame, and any performance-budget breaches. */
-  frameStats(): Promise<FrameStats & { breaches: string[] }>;
+  frameStats(): Promise<FrameStats & { breaches: string[]; multiview: boolean; views: number }>;
   /** Ghost-hand tutorial: current step and whether it is drawn. */
   ghost(): { step: string; visible: boolean } | null;
 }
@@ -220,8 +223,14 @@ function visibleInScene(object: Object3D): boolean {
   return true;
 }
 
-function sessionProbes(world: World): Hook<'gazeAvailable' | 'room' | 'frameStats' | 'meshBreakdown' | 'cues'> {
+function sessionProbes(
+  world: World,
+): Hook<'gazeAvailable' | 'room' | 'frameStats' | 'meshBreakdown' | 'cues' | 'placement'> {
   return {
+    placement: () => {
+      const placement = world.getSystem(PlacementSystem);
+      return { placedOn: placement?.placedOn ?? null, planesSeen: placement?.planesSeen ?? 0 };
+    },
     cues: () => drainCues(),
     meshBreakdown: () => {
       const counts: Record<string, number> = {};
@@ -239,8 +248,14 @@ function sessionProbes(world: World): Hook<'gazeAvailable' | 'room' | 'frameStat
       const { calls, triangles } = world.renderer.info.render;
       const bodies = world.getSystem(PerfProbeSystem);
       if (!bodies) throw new Error('PerfProbeSystem is not registered (src/index.ts, DEV only)');
+      // In XR without multiview (e.g. desktop emulators) each eye is drawn separately, so the
+      // frame's calls are per view times two. Quest Browser has OVR_multiview2: one pass.
+      const presenting = world.renderer.xr.isPresenting;
+      const multiview = world.renderer.extensions.has('OVR_multiview2');
+      const views = presenting && !multiview ? 2 : 1;
       const stats = { drawCalls: calls, triangles, physicsBodies: bodies.physicsBodies };
-      return { ...stats, breaches: budgetBreaches(stats, PERF_BUDGET) };
+      const perView = { ...stats, drawCalls: Math.ceil(calls / views), triangles: Math.ceil(triangles / views) };
+      return { ...stats, breaches: budgetBreaches(perView, PERF_BUDGET), multiview, views };
     },
     gazeAvailable: () => [...(world.session?.inputSources ?? [])].some((s) => s.targetRayMode === 'gaze'),
     room: () => ({

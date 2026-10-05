@@ -38,6 +38,19 @@ field() { echo "$1" | python3 -c "import sys,json;v=json.load(sys.stdin)$2;print
 lerp_point() { python3 -c "import json;a=json.loads('$1');b=json.loads('$2');print(json.dumps({k:a[k]+(b[k]-a[k])*$3 for k in a}))"; }
 # Where a seated player's right hand rests relative to a target: below and in front.
 rest_hand_for() { python3 -c "import json;t=json.loads('$1');print(json.dumps({'x':t['x']+0.1,'y':t['y']-0.3,'z':t['z']+0.35}))"; }
+# pinch_pull <from json> <to json>: pinch at one point, sweep the ray to another, release (a thread).
+pinch_pull() {
+  local t
+  # Hold the hand where a seated player would: below and in front of the pegs.
+  local hand=$(python3 -c "import json;a=json.loads('$1');b=json.loads('$2');print(json.dumps({'x':(a['x']+b['x'])/2+0.1,'y':(a['y']+b['y'])/2-0.25,'z':(a['z']+b['z'])/2+0.3}))")
+  iw xr set-transform --input-json "{\"device\":\"hand-right\",\"position\":$hand}" >/dev/null 2>&1; sleep 0.3
+  iw xr look-at --input-json "{\"device\":\"hand-right\",\"target\":$1}" >/dev/null 2>&1; sleep 0.5
+  iw xr set-select-value --input-json '{"device":"hand-right","value":1}' >/dev/null 2>&1; sleep 0.4
+  for t in 0.25 0.5 0.75 1.0; do
+    iw xr look-at --input-json "{\"device\":\"hand-right\",\"target\":$(lerp_point "$1" "$2" "$t")}" >/dev/null 2>&1; sleep 0.3
+  done
+  iw xr set-select-value --input-json '{"device":"hand-right","value":0}' >/dev/null 2>&1; sleep 0.5
+}
 # pinch_at <target json>: aim the right-hand ray at the target, pinch, release.
 # The short sleeps are gesture timing (how long a hand aims and holds), not waits for state.
 pinch_at() {

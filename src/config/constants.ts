@@ -81,8 +81,11 @@ export const CONTROLS = {
   ledgeDepth: 0.05,
   buttonRadius: 0.017,
   buttonHeight: 0.012,
-  /** Distance of each button from its side of the diorama. */
-  buttonInset: 0.05,
+  /**
+   * Distance of each button from its side of the diorama. 6 cm keeps the outer
+   * buttons within a seated 2 ft reach even at the Farther setting (reach.e2e).
+   */
+  buttonInset: 0.06,
   /** Gap between neighbouring ledge buttons (centre to centre). */
   buttonSpacing: 0.05,
 } as const;

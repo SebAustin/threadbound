@@ -8,6 +8,16 @@ export default async function run({ page, frame }) {
     const hook = window.__threadbound;
     if (mode === 'load0') hook.dispatch({ type: 'load', index: 0 });
     if (mode === 'thread') hook.dispatch({ type: 'addThread', from: 'a', to: 'b' });
+    if (mode === 'busiest') {
+      // The heaviest frame in the campaign: Three Cups, solution hung, every marble in flight.
+      hook.dispatch({ type: 'load', index: hook.levels().findIndex((l) => l.id === 'w2-06') });
+      await new Promise((r) => setTimeout(r, 300));
+      hook.solve();
+      hook.dispatch({ type: 'drop' });
+      for (let t = 0; t < 8000 && hook.marbles().length < hook.state().level.marbles && hook.state().status !== 'complete'; t += 100) {
+        await new Promise((r) => setTimeout(r, 100));
+      }
+    }
     if (mode === 'solve') {
       // Solve the current level and let its replay finish, so the melody book has a tune.
       hook.solve();
@@ -45,6 +55,8 @@ export default async function run({ page, frame }) {
       slowToggle: hook.plaqueElement('set-slow')?.world,
       slowMotion: s.settings.slowMotion,
       stars: hook.plaqueElement('hud-stars')?.world,
+      placement: hook.placement(),
+      frame: await hook.frameStats(),
       // Side effect: drains the cue log, so this counts melody notes since the last probe.
       melodyNotesDrained: hook.cues().filter((c) => c === 'melody').length,
     };
