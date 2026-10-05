@@ -10,5 +10,6 @@ const MIN_SPARE_M = 0.01;
  */
 export function dailyVariant(level: Level): Level {
   const spool = Math.ceil((solutionLength(level) + MIN_SPARE_M) * 100) / 100;
-  return { ...level, id: `daily-${level.id}`, name: `${level.name}, tight`, spool };
+  // The plaque already says Daily, so the board keeps its name (and its title fits one line).
+  return { ...level, id: `daily-${level.id}`, spool };
 }

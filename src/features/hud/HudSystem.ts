@@ -42,8 +42,8 @@ export class HudSystem extends createSystem({}) {
       puzzleStore.onCommand((command) => {
         if (command.type === 'levelBuilt') {
           this.follow();
-          // A new level opens on its own face; moving the diorama keeps the settings open.
-          if (!command.relocated) this.showFace('level');
+          // A new level opens on its own face; moving it or browsing levels keeps the settings open.
+          if (command.reason === 'fresh') this.showFace('level');
         }
         if (command.type === 'toggleSettings') this.showFace(this.face === 'level' ? 'settings' : 'level');
       }),
@@ -74,6 +74,7 @@ export class HudSystem extends createSystem({}) {
 
   private render(state: PuzzleState): void {
     this.settingsFace?.render(state.settings);
+    this.settingsFace?.renderLevel(state.levelIndex);
     const { level } = state;
     if (!this.panel || !level || !this.changed(state)) return;
     this.shownFrom = state;
@@ -91,6 +92,8 @@ export class HudSystem extends createSystem({}) {
         level.spool === undefined ? undefined : { used: spoolUsed(state.threads, state.pegPositions), total: level.spool },
       daily: state.daily ? { streak: currentStreak(state.progress.streak, state.daily.day) } : undefined,
       refusal: state.refusal,
+      levelHint: state.status === 'complete' ? undefined : level.hint,
+      campaignComplete: !state.daily && state.levelIndex === LEVELS.length - 1 && state.status === 'complete',
     });
     this.apply(hud);
   }

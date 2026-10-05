@@ -9,7 +9,8 @@ describe('dailyVariant: a campaign level replayed on a tight spool', () => {
   test('keeps the board and its solution, under its own id and name', () => {
     const daily = dailyVariant(relay);
     expect(daily.id).toBe('daily-w1-04');
-    expect(daily.name).toBe('Relay, tight');
+    // The plaque already says Daily; the board keeps its name, so the title fits one line.
+    expect(daily.name).toBe('Relay');
     expect(daily.pegs).toEqual(relay.pegs);
     expect(daily.solution).toEqual(relay.solution);
   });

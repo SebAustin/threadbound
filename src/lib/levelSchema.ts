@@ -10,6 +10,9 @@ const link = z.object({ from: z.string().min(1), to: z.string().min(1) });
 const color = z.enum(MARBLE_COLORS);
 const rail = z.object({ axis: z.enum(['x', 'y']), min: z.number(), max: z.number() });
 
+/** The longest hint that fits one plaque line. */
+const LEVEL_HINT_MAX = 40;
+
 const LevelObject = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -21,6 +24,12 @@ const LevelObject = z.object({
     .array(z.object({ ...point, color: color.default('teal'), count: z.number().int().min(1).max(6) }))
     .min(1),
   maxThreads: z.number().int().min(1).max(8),
+  /** One plaque line teaching the mechanic this level introduces (plain ASCII: the plaque font). */
+  hint: z
+    .string()
+    .max(LEVEL_HINT_MAX)
+    .regex(/^[\x20-\x7E]*$/, 'Plain ASCII only: the plaque font has no typographic glyphs')
+    .optional(),
   /** World 4: total length (meters) of thread the player may spend. */
   spool: z.number().positive().optional(),
   par: z.number().int().min(1),

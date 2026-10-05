@@ -175,6 +175,11 @@
     </div>
     <span id="set-offset" class="readout">Height 0   Distance 0</span>
     <div class="pair">
+      <span id="set-prev" class="toggle quarter">Prev</span>
+      <span id="set-level" class="readout half">Level 1 of 24</span>
+      <span id="set-skip" class="toggle quarter">Next</span>
+    </div>
+    <div class="pair">
       <span id="set-up" class="toggle quarter">Raise</span>
       <span id="set-down" class="toggle quarter">Lower</span>
       <span id="set-near" class="toggle quarter">Nearer</span>

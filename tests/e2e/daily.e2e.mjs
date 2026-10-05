@@ -24,7 +24,7 @@ export default async function run({ page, frame }) {
   const loaded = await waitFor(app, () => window.__threadbound.state().level.id.startsWith('daily-'), 3000);
   const level = await app.evaluate(() => ({ id: window.__threadbound.state().level.id, spool: window.__threadbound.state().level.spool }));
   check('the ledge sun loads a daily puzzle on a tight spool', loaded && level.spool > 0, JSON.stringify(level));
-  check('the plaque invites a streak', (await app.evaluate(plaqueWorld)) === 'Daily - start a streak', await app.evaluate(plaqueWorld));
+  check('the plaque names the daily', (await app.evaluate(plaqueWorld)) === 'Daily puzzle', await app.evaluate(plaqueWorld));
   const session = await app.evaluate(() => window.__threadbound.state().daily);
   const today = await app.evaluate(localDay);
   check('the daily belongs to the day it was opened, and remembers where the player was', session?.day === today && session?.returnTo === RETURN_TO, JSON.stringify(session));

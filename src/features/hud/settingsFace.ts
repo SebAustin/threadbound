@@ -1,5 +1,7 @@
 import type { UIKit, UIKitMLAsset } from '@iwsdk/core';
+import { LEVELS } from '../../levels';
 import { settingsModel } from '../../lib/hud';
+import { levelSelectLabel, stepLevel } from '../../lib/levelSelect';
 import { DISARMED, RESET_WINDOW_SECONDS, resetLabel, resetPoke, type ResetGuard } from '../../lib/resetGuard';
 import type { DioramaOffset } from '../../lib/placement';
 import { stepOffset, type Settings } from '../../lib/settings';
@@ -15,6 +17,7 @@ const DISARM_REPAINT_MS = RESET_WINDOW_SECONDS * 1000 + 50;
 /** The plaque's settings face: each control dispatches a settings change on the bus. */
 export class SettingsFace {
   private shown: Settings | null = null;
+  private shownLevel = -1;
   private resetGuard: ResetGuard = DISARMED;
   private disarmTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -34,6 +37,9 @@ export class SettingsFace {
         puzzleStore.dispatch({ type: 'settings', patch: { slowMotion: !slowMotion } });
       }),
       control('set-reset', () => this.pokeReset()),
+      // Revisit any level reached so far (its stars and melody), never skipping ahead.
+      control('set-prev', () => this.stepLevel(-1)),
+      control('set-skip', () => this.stepLevel(1)),
       ...(
         [
           ['set-up', 'up', 1],
@@ -47,6 +53,20 @@ export class SettingsFace {
       for (const off of unbind) off();
       clearTimeout(this.disarmTimer);
     };
+  }
+
+  private stepLevel(direction: 1 | -1): void {
+    const { levelIndex, progress } = puzzleStore.get();
+    const index = stepLevel(levelIndex, direction, LEVELS, progress.best);
+    if (index !== levelIndex) puzzleStore.dispatch({ type: 'load', index, browsing: true });
+  }
+
+  /** The level readout between Prev and Next. */
+  renderLevel(levelIndex: number): void {
+    if (levelIndex === this.shownLevel) return;
+    this.shownLevel = levelIndex;
+    const text = levelSelectLabel(levelIndex, LEVELS.length);
+    this.panel.getElementById<UIKit.Text>('set-level')?.setProperties({ text });
   }
 
   /** One-handed diorama adjustment: each poke is one clamped step. */

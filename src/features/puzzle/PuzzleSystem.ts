@@ -15,7 +15,7 @@ import { buildDiorama } from '../diorama/buildDiorama';
 import { DioramaFrame } from '../diorama/dioramaFrame';
 import { disposeLevelEntity } from '../diorama/disposeLevelEntity';
 import { Marble, Thread } from './components';
-import { puzzleStore, type DailySession, type PuzzleCommand, type PuzzleState } from './puzzleStore';
+import { puzzleStore, type BuildReason, type DailySession, type PuzzleCommand, type PuzzleState } from './puzzleStore';
 
 interface FramePose {
   readonly origin: Vec3;
@@ -56,7 +56,7 @@ export class PuzzleSystem extends createSystem({
     const { levelIndex } = puzzleStore.get();
     switch (command.type) {
       case 'load':
-        this.loadLevel(command.index);
+        this.loadLevel(command.index, command.browsing ? 'browsing' : 'fresh');
         break;
       case 'restart':
         this.loadLevel(levelIndex);
@@ -97,15 +97,15 @@ export class PuzzleSystem extends createSystem({
     const { daily, levelIndex } = puzzleStore.get();
     const day = today();
     const pick = index ?? dailyIndex(day, DAILY_LEVELS.length);
-    this.build(LEVELS.length + pick, { day, returnTo: daily?.returnTo ?? levelIndex }, false);
+    this.build(LEVELS.length + pick, { day, returnTo: daily?.returnTo ?? levelIndex }, 'fresh');
   }
 
   /** Load a level fresh. Restarting a daily keeps its session; any campaign level ends it. */
-  private loadLevel(index: number): void {
-    this.build(index, isDailyIndex(index) ? puzzleStore.get().daily : null, false);
+  private loadLevel(index: number, reason: BuildReason = 'fresh'): void {
+    this.build(index, isDailyIndex(index) ? puzzleStore.get().daily : null, reason);
   }
 
-  private build(index: number, daily: DailySession | null, relocated: boolean): void {
+  private build(index: number, daily: DailySession | null, reason: BuildReason): void {
     const level = PLAYABLE[index];
     if (!level) {
       console.error(`[Threadbound] no level at index ${index}`);
@@ -134,7 +134,7 @@ export class PuzzleSystem extends createSystem({
       refusal: null,
       melody: [],
     });
-    puzzleStore.dispatch({ type: 'levelBuilt', relocated });
+    puzzleStore.dispatch({ type: 'levelBuilt', reason });
   }
 
   private onStateChange(state: PuzzleState): void {
@@ -175,7 +175,7 @@ export class PuzzleSystem extends createSystem({
   /** The player moved the diorama: rebuild it there exactly as they left it, solved or not. */
   private relocate(state: PuzzleState): void {
     const { level, levelIndex, threads, pegPositions, daily, status, scored, stars } = state;
-    this.build(levelIndex, daily, true);
+    this.build(levelIndex, daily, 'relocated');
     if (!level) return;
     for (const step of restoreSteps(level, threads, pegPositions)) puzzleStore.dispatch(step);
     // Stars of 0 here means the solve isn't recorded yet; onStateChange records it.

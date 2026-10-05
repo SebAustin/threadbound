@@ -8,6 +8,12 @@ import type { DioramaFrame } from '../diorama/dioramaFrame';
 
 export type PuzzleStatus = 'idle' | 'dropping' | 'complete';
 
+/**
+ * Why a diorama was (re)built: a fresh level, the same level moved (offset or
+ * table placement), or a level stepped to from the settings face.
+ */
+export type BuildReason = 'fresh' | 'relocated' | 'browsing';
+
 /** An open daily puzzle: the day it belongs to, and the campaign level to return to. */
 export interface DailySession {
   readonly day: string;
@@ -38,7 +44,8 @@ export interface PuzzleState {
 
 /** Everything that changes the puzzle goes through here: buttons, placement, tests. */
 export type PuzzleCommand =
-  | { readonly type: 'load'; readonly index: number }
+  /** `browsing`: stepped to from the settings face (which stays open). */
+  | { readonly type: 'load'; readonly index: number; readonly browsing?: boolean }
   | { readonly type: 'restart' }
   | { readonly type: 'next' }
   /** Forget all stars and unlocks, back to level 1 (first-time experience). */
@@ -65,8 +72,8 @@ export type PuzzleCommand =
   | { readonly type: 'pegPreview'; readonly pegId: string; readonly x: number; readonly y: number }
   /** Emitted after a rail peg's position (and collider) changed. */
   | { readonly type: 'pegMoved'; readonly pegId: string }
-  /** Emitted after a level's diorama is (re)built; `relocated` when only its pose changed. */
-  | { readonly type: 'levelBuilt'; readonly relocated?: boolean };
+  /** Emitted after a level's diorama is (re)built, and why. */
+  | { readonly type: 'levelBuilt'; readonly reason: BuildReason };
 
 type Listener = (state: PuzzleState) => void;
 type CommandListener = (command: PuzzleCommand) => void;

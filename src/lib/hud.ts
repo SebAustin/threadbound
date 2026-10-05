@@ -21,6 +21,10 @@ export interface HudInput {
   readonly daily?: { readonly streak: number };
   /** The player's last attempt was refused, and why (cleared by their next success). */
   readonly refusal?: RefusalReason | null;
+  /** One line teaching the mechanic this level introduces (shown until it is solved). */
+  readonly levelHint?: string;
+  /** The last campaign level is solved. */
+  readonly campaignComplete?: boolean;
 }
 
 export interface HudModel {
@@ -34,7 +38,8 @@ export interface HudModel {
   readonly spoolLabel: string;
 }
 
-const dailyLabel = (streak: number) => (streak > 0 ? `Daily - streak ${streak}` : 'Daily - start a streak');
+/** Short enough to share the details row with the thread budget. */
+const dailyLabel = (streak: number) => (streak > 0 ? `Daily - streak ${streak}` : 'Daily puzzle');
 
 const wholeCm = (meters: number) => Math.round(toCm(meters));
 
@@ -52,10 +57,16 @@ const REFUSAL_HINTS: Readonly<Record<RefusalReason, string>> = {
 
 const DAILY_HINT = 'Poke the sun to return';
 
-/** One hint line: why something was refused, else onboarding, else how to leave a daily. */
+const endingHint = (campaignLength: number) => `All ${campaignLength} solved - poke the sun for a daily`;
+
+/**
+ * One hint line, most urgent first: why something was refused, onboarding, the
+ * mechanic this level introduces, the campaign's ending, how to leave a daily.
+ */
 function hintFor(input: HudInput): string {
   const refusal = input.refusal ? REFUSAL_HINTS[input.refusal] : '';
-  return refusal || input.hint || (input.daily ? DAILY_HINT : '');
+  const ending = input.campaignComplete ? endingHint(input.levels.length) : '';
+  return refusal || input.hint || input.levelHint || ending || (input.daily ? DAILY_HINT : '');
 }
 
 /** Plaque copy: plain ASCII, because the panel font has no typographic glyphs. */

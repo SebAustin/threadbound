@@ -105,3 +105,18 @@ describe('solution vs presets', () => {
     expect(r.ok).toBe(true);
   });
 });
+
+describe('level hint: one plaque line teaching a new mechanic', () => {
+  test('a short ASCII hint is kept', () => {
+    const r = parseLevel({ ...valid, hint: 'Pinch a thread to snip it' });
+    expect(r.ok && r.level.hint).toBe('Pinch a thread to snip it');
+  });
+
+  test('a hint too long for one plaque line is refused', () => {
+    expect(parseLevel({ ...valid, hint: 'x'.repeat(41) }).ok).toBe(false);
+  });
+
+  test('typographic characters the plaque font lacks are refused', () => {
+    expect(parseLevel({ ...valid, hint: 'Pinch a peg’s tab' }).ok).toBe(false);
+  });
+});

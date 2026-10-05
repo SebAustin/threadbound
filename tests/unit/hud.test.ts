@@ -42,7 +42,7 @@ describe('hudModel: what the diorama plaque says', () => {
 
   test('a daily puzzle shows the streak instead of its place in a world', () => {
     expect(hudModel({ ...base, daily: { streak: 4 } }).worldLabel).toBe('Daily - streak 4');
-    expect(hudModel({ ...base, daily: { streak: 0 } }).worldLabel).toBe('Daily - start a streak');
+    expect(hudModel({ ...base, daily: { streak: 0 } }).worldLabel).toBe('Daily puzzle');
   });
 
   test('a solved level says so', () => {
@@ -76,5 +76,23 @@ describe('hint line: refusals are shown, not only heard', () => {
 
   test('a daily says how to get back to the campaign', () => {
     expect(hudModel({ ...base, daily: { streak: 2 } }).hint).toBe('Poke the sun to return');
+  });
+});
+
+describe('hint line: teaching each new mechanic, and an ending', () => {
+  test("a level that introduces a mechanic says so in one line", () => {
+    expect(hudModel({ ...base, levelHint: 'Pinch a thread to snip it' }).hint).toBe('Pinch a thread to snip it');
+  });
+
+  test('onboarding and refusals still come first', () => {
+    expect(hudModel({ ...base, hint: 'Pinch a peg', levelHint: 'x' }).hint).toBe('Pinch a peg');
+    expect(hudModel({ ...base, refusal: 'limit', levelHint: 'x' }).hint).toBe('No threads left - snip one first');
+  });
+
+  test('solving the last level ends the campaign and points to the daily', () => {
+    const campaign = Array.from({ length: 24 }, () => ({ world: 4 }));
+    expect(hudModel({ ...base, levels: campaign, levelIndex: 23, campaignComplete: true }).hint).toBe(
+      'All 24 solved - poke the sun for a daily',
+    );
   });
 });
