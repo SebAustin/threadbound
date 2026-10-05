@@ -8,8 +8,6 @@
 import { World } from '@iwsdk/core';
 import projectOptions from 'virtual:iwsdk-project';
 import { AmbienceSystem } from './features/audio/AmbienceSystem.js';
-import { PerfProbeSystem } from './features/debug/PerfProbeSystem.js';
-import { installTestHook } from './features/debug/testHook.js';
 import { ControlsSystem } from './features/controls/ControlsSystem.js';
 import { EnvironmentSystem } from './features/environment/EnvironmentSystem.js';
 import { MarbleSystem } from './features/marbles/MarbleSystem.js';
@@ -28,7 +26,7 @@ import { PanelSystem } from './panel.js';
 World.create(
   document.getElementById('scene-container') as HTMLDivElement,
   projectOptions,
-).then((world) => {
+).then(async (world) => {
   world.registerSystem(EnvironmentSystem);
   // Settings first: the first level's marbles read them.
   world.registerSystem(SettingsSystem);
@@ -46,6 +44,13 @@ World.create(
   world.registerSystem(AmbienceSystem);
   // Last: it pauses systems registered above.
   world.registerSystem(PauseSystem);
-  if (import.meta.env.DEV) world.registerSystem(PerfProbeSystem);
-  installTestHook(world);
+  if (import.meta.env.DEV) {
+    // Dev-only tooling, imported dynamically so none of it reaches the production bundle.
+    const [{ PerfProbeSystem }, { installTestHook }] = await Promise.all([
+      import('./features/debug/PerfProbeSystem.js'),
+      import('./features/debug/testHook.js'),
+    ]);
+    world.registerSystem(PerfProbeSystem);
+    installTestHook(world);
+  }
 });

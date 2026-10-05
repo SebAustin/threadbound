@@ -1,7 +1,5 @@
-import type { BufferGeometry, Entity, Mesh } from '@iwsdk/core';
-import { GEOMETRIES } from './palette';
-
-const SHARED_GEOMETRIES = new Set<BufferGeometry>(Object.values(GEOMETRIES));
+import type { Entity, Mesh } from '@iwsdk/core';
+import { SHARED_GEOMETRIES } from './palette';
 
 /**
  * Frees an entity's own geometries but never the shared palette materials or

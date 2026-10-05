@@ -8,6 +8,7 @@ import {
   PlaneGeometry,
   SphereGeometry,
   SRGBColorSpace,
+  type BufferGeometry,
   type Texture,
 } from '@iwsdk/core';
 import { DIORAMA, GLYPH, MARBLE, PEG } from '../../config/constants';
@@ -240,6 +241,15 @@ const GLYPH_MATERIALS: Partial<Record<MarbleColor, MeshStandardMaterial>> = {
 };
 
 /** A flat, player-facing shape for a sorting color, or null for colors without one. */
+/**
+ * Every geometry shared across levels. Level teardown must never dispose these,
+ * or the GPU re-uploads them on every load (see disposeLevelEntity).
+ */
+export const SHARED_GEOMETRIES: ReadonlySet<BufferGeometry> = new Set<BufferGeometry>([
+  ...Object.values(GEOMETRIES),
+  ...Object.values(GLYPH_GEOMETRIES),
+]);
+
 export function glyphMesh(color: MarbleColor): Mesh | null {
   const glyph = colorGlyph(color);
   const material = GLYPH_MATERIALS[color];
