@@ -30,7 +30,7 @@
 
 **Blocked by:** none (merge before 02's step 1 starts, or after its step-4 log push)
 
-**Status:** done except: Dry run (user: the OBS capture, steps in Comments)
+**Status:** ready-for-human (the user runs the OBS dry run of three-cups; steps in Comments)
 
 - [x] Unit: no `src/lib` change, so no new unit tests; `npm test` and `npm run typecheck` stay green
 - [x] E2E (write first): new `tests/e2e/shots.sh` (`npm run test:e2e:shots`) stages every shot in `SHOTS` through shot.sh. Each one exits 0, and the preflight reports: no visible "Remote Control Active" or "Enter XR" text in any shadow root (pierced as `clickCanvas` does, `lib.mjs:77`), no visible `#enter-xr` once ticket 08 has landed, audio `running`, no Vite overlay, and settings at their defaults
@@ -65,8 +65,8 @@
   - The `daily` shot's code comment now names the boards that don't solve on the table, with the evidence below.
 - **Where things are:**
   - preflight: `hideChrome` `shot-preflight.e2e.mjs:18`, `visibleChrome` :38, `canvasSize` :70.
-  - shot.sh: aims the hand once (:31), runs the preflight (:36), and prints "start recording" (:38).
-  - shot-setup: `SHOTS` :14, `seedStreak` :43, `unlockAudio` :65, with the reset at :122 and the unlock at :124.
+  - shot.sh (line numbers after the review fixes): aims the hand once (:45), runs the preflight (:50), and prints "start recording" (:52).
+  - shot-setup (after the review fixes): `SHOTS` :14, `seedStreak` :43, `unlockAudio` :69, with the reset at :140 and the unlock at :142.
   - xr-lib.sh: `iw` with `IW_LOG` :5, `rest_hand_for` :43, `aim_hand` :76, `glide_to` :81, `glide_pinch_at` :85, `glide_pinch_pull` :91, `wait_solved` :98.
   - hand-pinch.sh's glide block: :45-53.
   - Ticket 06's script lines moved: "every solution is a song ... carries its own shape" is now script.md:21 (was :17), and "A new daily puzzle every day" is :41 (was :33).
@@ -76,14 +76,14 @@
     - in passthrough on the dining table (`placedOn: table`, yaw 1.5705 rad), pools 0, 2, 4 and 5 solved, and pools 1 (Relay), 3 (w2-02) and 6 (w3-04) ended `idle`;
     - in the browser view, all 7 solved.
     - Campaign w1-04 (Relay) also ends `idle` on the table at yaw 90°. `daily-w1-04` solves in an unseated session (`placedOn: in front of you`, yaw 0) and fails again when seated.
-    - **Out-of-scope defect, not fixed here:** a stored solution's outcome depends on the placement pose. It probably belongs with ticket 07 (placement) or a new ticket, and a player on a table at that angle would see it too. No shot is affected: the melody-book shot drops Relay in the browser view before passthrough.
+    - **Out-of-scope defect, not fixed here:** a stored solution's outcome depends on the placement pose. It probably belongs with ticket 07 (placement) or a new ticket, and a player on a table at that angle would see it too. No shot is affected: the melody-book shot drops Relay in the browser view before passthrough. Filed as ticket 18 (`.scratch/week8/issues/18-solve-depends-on-placement.md`, needs-triage) after the review; 07's Comments point to it.
   - **`rest_hand_for` turns its offset by `REST_YAW`** (default 0, so `pinch_at` and the jump-based tests are unchanged). Video shots place the diorama at yaw 1.5705 rad beside the seated player, and an unturned offset would rest the hand beside the diorama instead of in front of it. shot.sh, take.sh and the glide block read the yaw from the probe's new `yaw` field. The probe also gains `raiseToggle`, `offset` and `worldLabel`.
   - **Take timing:** `GLIDE_S` 0.8 s and `PULL_S` 1.0 s. IWER queues `animate_to` as a duration action (`RemoteControlInterface.js:1260-1287`), so the call returns once the move ends and no extra wait is needed. `IW_LOG=<file>` makes `iw` log each call's domain and action. shots.sh uses that log to check that a take moved the hand only with `xr animate-to`.
   - **Unlock click:** 12 px in from the canvas's bottom-right corner, through `click()` (lead-in move). It first checks that the point lands on the app (an IFRAME or CANVAS, not the managed window's buttons).
   - **`resetSettings` only dispatches when the settings differ:** a new offset object rebuilds the diorama. `DEFAULT_SETTINGS` is mirrored in `reset-settings.e2e.mjs` because a Playwright script can't import TypeScript. **Note for ticket 15:** when high contrast joins `Settings`, add it there too, or the reset and the preflight's defaults check will ignore it.
 - **Evidence, Oct 23 (logs in `.scratch/week8/logs/05-*.log`, gitignored, so this entry is the committed evidence). All runs are on the final tree, committed as d8d2c75:**
   - unit: `npm run typecheck` exit 0; `npm test`: 34 files, 281 tests passed.
-  - `npm run test:e2e:shots`: 41 PASS, 0 FAIL, exit 0. That is 5 docs checks, and for all 10 shots a staging check plus a preflight check (no chrome, audio `running`, no Vite overlay, default settings). It also covers:
+  - `npm run test:e2e:shots`: 41 PASS, 0 FAIL, exit 0. That is 5 docs checks, and for all 9 shots in SHOTS a staging check plus a preflight check (no chrome, audio `running`, no Vite overlay, default settings). It also covers:
     - cold-open stages w1-06 with a-b and without c-d, and its take pulls c-d and solves;
     - daily stages "Daily - streak 6", and its take ends on "Daily - streak 7";
     - the settings take ends with `slowMotion` true, solved and `offset.up` 1;
@@ -128,3 +128,23 @@
       - `npx @iwsdk/cli dev down`
       - `npx @iwsdk/cli dev up --headless --allow-browser-automation`
       - wait for `"browserCommandReady": true`. Don't use `dev restart`: it drops `--allow-browser-automation`.
+- **Oct 23, agent: review fixes, committed locally on main as `fix: ticket 05 review findings`; nothing pushed.**
+  - **Finding 1 (medium): shot.sh now checks both staging passes.**
+    - shot.sh's `result` exits 1 when a `browser run` reports `ok: false`, or prints something that isn't JSON. shot.sh stops on a failed seed pass ("the seed pass failed, do not record") or a failed main pass ("staging failed, do not record"). Either way it stops before anything is staged and never prints "start recording".
+    - shot-setup throws when a `solveAndDrop` shot's drop doesn't solve within 15 s (`DROP_TIMEOUT_MS`). It also throws when a seeded daily's plaque doesn't read "Daily - streak <streak>" within 2 s (`expectStreak`), so shot.sh run on its own refuses a daily whose seed didn't land.
+    - shots.sh has two new guards, which `zsh tests/e2e/shots.sh --guards` runs alone. `shot.sh no-such-shot` must exit 1 at the seed pass with no "staged" line. The daily's main pass, run on a fresh save (the onboarding shot's staging) without its seed pass, must fail naming "Daily - streak 6".
+    - Red first, against the old shot.sh and shot-setup: both guards FAILED. The first printed "staged no-such-shot in the browser view, but chrome shows ..." (it failed only because audio was `locked`). The second staged the daily without its streak. Both pass now.
+    - The melody-book drop timeout has no red check: w1-04's browser-view drop can't be made to fail without a test-only switch. Its staging still passes.
+  - **Finding 2 (medium):** the placement-dependent solve is filed as ticket 18 (`18-solve-depends-on-placement.md`, needs-triage). It holds the sweep table, the seated pose, leads and candidate boxes. 07's Comments point to it.
+  - **Low findings, all fixed (each was a line or two):**
+    - The evidence above now says "all 9 shots in SHOTS", not 10.
+    - Status is now `ready-for-human`, one of the five roles in docs/agents/triage-labels.md.
+    - 06's and 12's Comments carry the moved script and shot-list lines. 12's also says `offset` is already in `PROBE_FIELDS` (xr-probe.e2e.mjs:77), so 12 adds only `nearToggle` and `ledge`.
+    - shots.sh FAILs ("shot-setup.e2e.mjs lists the shots") and exits 1 when the shot list comes back empty. Red: with `NODE_OPTIONS=--no-such-flag` (node can't start, so nothing is listed), the old shots.sh ran the 5 docs checks and exited 0. Now it prints the FAIL and exits 1.
+    - The new tests/unit/e2eDefaults.test.ts checks that reset-settings.e2e.mjs's copy of `DEFAULT_SETTINGS` equals src/lib/settings.ts. Red with `near` dropped from the copy (1 failed); green once restored.
+  - **Open: the gaze shot (shot-list row 9) has no shot.sh path.** It gets no chrome hiding, no audio unlock and no preflight, and gaze-pinch.sh's EXIT trap switches the device back to Quest 3. It needs a `gaze` entry in SHOTS with the Quest Pro preset before the final takes (Nov 11-13). Row 9 now says so.
+  - **Evidence, Oct 23** (logs `.scratch/week8/logs/05-fix-*.log`, gitignored):
+    - `npm run typecheck` exit 0; `npm test`: 35 files, 282 tests passed (the new e2eDefaults test included).
+    - `npm run test:e2e:shots`: 43 PASS, 0 FAIL, exit 0, in 3 min 33 s. That is 5 docs checks, the 2 new guards, staging and preflight for all 9 shots, and the takes, as before. `zsh tests/e2e/shots.sh --docs` is 5/5 after the row 9 note.
+    - Not re-run: `test:e2e`, `test:e2e:hands`, levels and smoke. Nothing under `src/` changed, and no shared helper changed (lib.mjs, xr-lib.sh, run.sh and reset-settings.e2e.mjs are untouched). Only test:e2e:shots runs shot.sh, shot-setup.e2e.mjs and shots.sh.
+    - Before the run there was no Vite overlay (`no-overlay.e2e.mjs` true). The dev server stayed headless with browser automation and still reports `browserCommandReady: true`.

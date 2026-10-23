@@ -5,19 +5,33 @@
 # the diorama sits on the emulator's table, then aim the right hand once (take.sh only
 # glides it). Last, shot-preflight.e2e.mjs hides the emulator chrome and checks the frame.
 # The last line says "start recording" with the preflight report, or exit 1 when any
-# chrome still shows, audio isn't running, or the Vite error overlay is up.
+# chrome still shows, audio isn't running, or the Vite error overlay is up. A staging pass
+# that fails (the shot throws, or the bridge drops) stops it before anything is staged.
 cd "$(dirname "$0")/../.."
 source tests/e2e/xr-lib.sh
 SHOT=${1:?usage: zsh tests/e2e/shot.sh <shot>}
 setup() { SHOT=$SHOT SEED=$1 iw browser run tests/e2e/shot-setup.e2e.mjs 2>&1; }
-result() { python3 -c "import sys,json;d=json.load(sys.stdin);print(json.dumps(d['data']['result'],separators=(',',':')) if d.get('ok') else d['error']['message'])"; }
+# result: a `browser run`'s result as compact JSON, or its error (or raw output) and exit 1.
+result() {
+  python3 -c "
+import sys, json
+raw = sys.stdin.read()
+try:
+    d = json.loads(raw)
+except ValueError:
+    d = {'error': {'message': raw.strip() or 'no output'}}
+if not d.get('ok'):
+    print(d.get('error', {}).get('message', raw.strip()))
+    sys.exit(1)
+print(json.dumps(d['data']['result'], separators=(',', ':')))"
+}
 fresh_page || { echo "app not ready"; exit 1; }
 # A shot that needs a save (the daily's streak) writes it, then reloads so the game loads it.
-SEEDED=$(setup 1 | result)
+SEEDED=$(setup 1 | result) || { echo "$SHOT: the seed pass failed, do not record: $SEEDED"; exit 1; }
 case "$SEEDED" in *'"seeded":true'*) fresh_page || { echo "app not ready after seeding"; exit 1; } ;; esac
-R=$(setup)
-echo "$R" | result
-XR=$(echo "$R" | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['result']['xr'])" 2>/dev/null)
+R=$(setup | result) || { echo "$SHOT: staging failed, do not record: $R"; exit 1; }
+echo "$R"
+XR=$(echo "$R" | python3 -c "import sys,json;print(json.load(sys.stdin)['xr'])" 2>/dev/null)
 if [ "$XR" = "True" ]; then
   iw xr enter --input-json '{}' >/dev/null 2>&1
   iw xr set-input-mode --input-json '{"mode":"hand"}' >/dev/null 2>&1

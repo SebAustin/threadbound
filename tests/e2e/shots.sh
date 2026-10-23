@@ -4,7 +4,8 @@
 # emulator chrome on screen, audio running, no Vite overlay and default settings,
 # and the scripted takes (take.sh) end where the shot list says, moving the hand
 # only with `xr animate-to`. Exit 1 on any failure.
-# Usage: zsh tests/e2e/shots.sh [shot ...]   (default: every shot in SHOTS; --docs: the docs checks only)
+# Usage: zsh tests/e2e/shots.sh [shot ...]   (default: every shot in SHOTS; --docs: the docs checks
+# only; --guards: the staging guards only)
 # Needs: npx @iwsdk/cli dev up --headless --allow-browser-automation
 cd "$(dirname "$0")/../.."
 source tests/e2e/xr-lib.sh
@@ -50,6 +51,23 @@ missing_from() {
   local text=$1 phrase
   shift
   for phrase in "$@"; do echo "$text" | grep -q -i -F -- "$phrase" || printf "'%s' " "$phrase"; done
+}
+
+# Guards: staging stops, with no "start recording", when a pass fails. An unknown shot fails
+# shot.sh's first (seed) pass; the daily's main pass, run on a fresh save without its seed pass,
+# finds no 6-day streak on the plaque. The onboarding shot's staging is the fresh save.
+guards_check() {
+  local out code msg
+  out=$(zsh tests/e2e/shot.sh no-such-shot 2>&1); code=$?
+  [ $code -ne 0 ] && ! echo "$out" | grep -q -e 'staged' -e 'start recording' && echo "$out" | grep -q 'unknown shot "no-such-shot"' &&
+    pass "shot.sh stops when a staging pass fails, before staging" ||
+    fail "shot.sh stops when a staging pass fails, before staging (exit $code: $(echo "$out" | tail -2 | tr '\n' ' '))"
+  fresh_page
+  SHOT=onboarding iw browser run tests/e2e/shot-setup.e2e.mjs >/dev/null 2>&1
+  msg=$(SHOT=daily iw browser run tests/e2e/shot-setup.e2e.mjs 2>&1 |
+    python3 -c "import sys,json;d=json.load(sys.stdin);print('staged' if d.get('ok') else d['error']['message'])" 2>&1)
+  echo "$msg" | grep -q 'Daily - streak 6' && pass "the daily won't stage without its 6-day streak" ||
+    fail "the daily won't stage without its 6-day streak ($msg)"
 }
 
 # stage <shot>: run shot.sh and check the preflight JSON it prints on its last line.
@@ -115,15 +133,19 @@ after_take() {
 }
 
 TAKES=(three-cups daily settings cold-open)
-if [ "$1" = "--docs" ]; then
-  docs_check
-  exit $FAIL
-elif (( $# )); then
+case "$1" in
+  --docs) docs_check; exit $FAIL ;;
+  --guards) guards_check; exit $FAIL ;;
+esac
+docs_check
+if (( $# )); then
   SHOTS=("$@")
 else
-  SHOTS=(${=$(node -e "import('./tests/e2e/shot-setup.e2e.mjs').then((m) => console.log(Object.keys(m.SHOTS).join(' ')))")})
+  LIST=$(node -e "import('./tests/e2e/shot-setup.e2e.mjs').then((m) => console.log(Object.keys(m.SHOTS).join(' ')))") && SHOTS=(${=LIST})
+  # A failed import lists nothing: say so rather than pass on the docs checks alone.
+  (( ${#SHOTS} )) || { fail "shot-setup.e2e.mjs lists the shots (node could not import it, or SHOTS is empty)"; exit 1; }
 fi
-docs_check
+guards_check
 for s in $SHOTS; do
   stage "$s"
   after_stage "$s"

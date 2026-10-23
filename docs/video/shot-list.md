@@ -21,8 +21,8 @@ Vimeo (public). **The author records, uploads and submits.**
 3. Stage a shot: `zsh tests/e2e/shot.sh <shot>`. XR shots seat the emulated player at
    the room's dining table and enter passthrough, so the diorama sits on the emulator's
    stand-in table. Its last step hides the emulator's chrome, and its last line says
-   "start recording", with what it hid, the audio state and the canvas size. It exits 1
-   if any chrome still shows, audio isn't running, or a Vite error overlay is up.
+   "start recording", with what it hid, the audio state and the canvas size. It exits 1 if
+   a staging pass fails, any chrome still shows, audio isn't running, or a Vite overlay is up.
 4. Start recording, then perform the gesture: `zsh tests/e2e/take.sh <shot>` for a
    scripted take (`three-cups`, `daily`, `settings`, `cold-open`), or live by hand.
    Stop when `take.sh` prints "take done". Between takes, rerun `shot.sh`: every shot
@@ -55,7 +55,7 @@ Check every item before the upload.
 | 6 | `melody-book` | 1:25–1:45 | Pinch the lit stars: the level's tune replays. Caption: "Pinch the stars to hear it again." |
 | 7 | `daily` | 1:45–2:00 | A daily on a 6-day streak: the plaque reads "Daily - streak 6". Pinch the chute: solved, and it reads "Daily - streak 7". |
 | 8 | `settings` | 2:00–2:25 | The settings button has opened the settings face: pinch Slow motion, pinch the chute for a 2/3-speed drop, then pinch Raise; the diorama moves, threads intact. |
-| 9 | gaze (`zsh tests/e2e/gaze-pinch.sh` staging, Quest Pro preset) | 2:25–2:35 | Look at a peg, pinch, pull: a thread with eyes plus pinch. Caption: "Emulated eye tracking (Quest Pro preset)". |
+| 9 | gaze (`zsh tests/e2e/gaze-pinch.sh` staging, Quest Pro preset) | 2:25–2:35 | Look at a peg, pinch, pull: a thread with eyes plus pinch. Caption: "Emulated eye tracking (Quest Pro preset)". **Open:** no `shot.sh` path yet, so no chrome hiding, audio unlock or preflight, and `gaze-pinch.sh` switches the device back to Quest 3 when it exits. A `gaze` shot with the Quest Pro preset is due before the final takes (Nov 11-13). |
 | 10 | `study` | 2:35–2:45 | No passthrough: the virtual study; the end card with the URL. |
 
 Total: 2:45 (15 s of slack for titles).

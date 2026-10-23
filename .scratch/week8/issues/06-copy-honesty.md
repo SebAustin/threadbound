@@ -50,3 +50,5 @@
 - Copy written ahead of tickets 09, 10 and the stars, hints and accessibility tickets brings overclaims back: write what the build does on the day, keep `[if shipped]` brackets, and leave the final match to week 9's copy pass (.scratch/week9/spec.md:18). If week 9 self-hosts the hand models, the privacy note and xr-hosts.sh both change.
 
 ## Comments
+
+- **Oct 23, from ticket 05's review: the `docs/video/script.md` lines this ticket cites have moved.** Ticket 05's docs change is on main locally (d8d2c75, not pushed). "every solution is a song ... carries its own shape" is now script.md:21 (was :17). "A new daily puzzle every day" is :41 (was :33). The stars line is :34-36 (was :28-29), and the settings-button line is :44 (was :36). `zsh tests/e2e/shots.sh --docs` already finds no "poke" or "gear" in docs/video.

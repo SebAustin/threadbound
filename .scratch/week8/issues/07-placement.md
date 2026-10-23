@@ -72,3 +72,5 @@
 - `ACCEPT_REACH` is 0.61 m, so a table whose controls would sit farther than 2 ft is refused, and the board floats within reach instead. Don't raise the limit without the user: ticket 06's "2 ft" copy depends on it.
 
 ## Comments
+
+- **Oct 23, from ticket 05's review:** ticket 18 (`18-solve-depends-on-placement.md`, needs-triage) records stored solutions that end `idle` on the emulator's table at yaw 90 degrees but solve at yaw 0 and in the browser view: w1-04 (Relay) and daily pools 1, 3 and 6. This ticket changes the table pose (the slab lift, the near-edge inset), so re-run 18's sweep once 07 lands. Triage may fold 18's boxes into this ticket.

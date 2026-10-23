@@ -64,3 +64,5 @@
 - Ticket 05's dry run (Oct 23-24) comes before this ticket, so re-check the plaque and ledge shots before the final takes (Nov 11-13) instead. `spool` (shot-list.md:25, script.md:24) still puts the spool readout and the refusal on the plaque; `daily` keeps its streak there (shot-list.md:27, script.md:32); `settings` (shot-list.md:28, script.md:36) shows the new icon and the shorter face. Those lines change when the final takes are scripted, not in this ticket.
 
 ## Comments
+
+- **Oct 23, from ticket 05's review: the video lines in Risks have moved, and `offset` is already probed.** spool is now shot-list.md:54 and script.md:28-31, daily is shot-list.md:56 and script.md:38-41, and settings is shot-list.md:57 and script.md:43-46. Ticket 05 added the `offset` entry to `PROBE_FIELDS` (tests/e2e/xr-probe.e2e.mjs:77), so this ticket adds only `nearToggle` and `ledge`.

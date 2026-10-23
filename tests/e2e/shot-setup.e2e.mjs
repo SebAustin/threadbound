@@ -57,6 +57,10 @@ const seedStreak = (count) => {
  */
 const UNLOCK_INSET = 12;
 
+/** How long a solved shot's drop may take to finish, and the plaque to show the seeded streak. */
+const DROP_TIMEOUT_MS = 15000;
+const LABEL_TIMEOUT_MS = 2000;
+
 /**
  * One real click on an empty canvas corner: the document pointerdown that unlocks audio
  * (AudioUnlockSystem). IWER's scripted pinches may not count as a user gesture.
@@ -94,7 +98,21 @@ async function prepare(app, shot) {
     if (s.face === 'settings' && hook.plaque()?.face !== 'settings') hook.dispatch({ type: 'toggleSettings' });
   }, shot);
   // A solved shot must finish its drop before passthrough re-places the diorama.
-  if (shot.solveAndDrop) await waitFor(app, isComplete, 15000);
+  if (shot.solveAndDrop && !(await waitFor(app, isComplete, DROP_TIMEOUT_MS))) {
+    throw new Error(`${shot.level}: the drop did not solve within ${DROP_TIMEOUT_MS / 1000} s`);
+  }
+  if (shot.streak) await expectStreak(app, shot.streak);
+}
+
+/**
+ * The plaque shows the seeded streak. If the seed pass didn't land, the take's chute pinch
+ * wouldn't show the streak going up (a fresh save reads "Daily puzzle", then "Daily - streak 1").
+ */
+async function expectStreak(app, streak) {
+  const want = `Daily - streak ${streak}`;
+  if (await waitFor(app, (w) => window.__threadbound.hud()?.model?.worldLabel === w, LABEL_TIMEOUT_MS, want)) return;
+  const shown = await app.evaluate(() => window.__threadbound.hud()?.model?.worldLabel);
+  throw new Error(`the daily shows "${shown}", not "${want}": its seed pass did not land`);
 }
 
 async function stageByIndex(app) {
