@@ -21,7 +21,7 @@ The deadline is Nov 18, 2026, 12:00 PT. The code freeze is Nov 14, and the targe
 
 Every decision below was made by the user in the Oct 22 grilling session. Where a decision has an ADR, it is named.
 
-- **Scope:** keep Threadbound as the Entry (Gaming track, New Experience division). Development stays emulator-only (ADR 0002). Borrowing or buying a Quest for one session before Nov 10 is the user's call; the plan works without one.
+- **Scope:** keep Threadbound as the Entry (Gaming track, New Experience division). Development stays emulator-only (ADR 0002). There is no Quest (confirmed Oct 23), so community testers (ticket 04) are the only source of real-device evidence, and the copy says plainly that the game was built and verified in the emulator.
 - **Award target:** Best First Five Minutes is the headline. Name Best Reason to Come Back and Best Accessibility Forward only for features that ship.
 - **Melody** (ADR 0004): a thread's length sets its **root**. Each further bounce on that thread plays the next note of its climb: up the pentatonic scale from the root to the top, then down from just below the root, then from the root again, so all ten notes sound before one repeats. This revises the Q27 "turn back down" wording, which the user approved on Oct 23 (Q40); a plain mirror gave w1-03 only two notes. All of a drop's marbles share the climb, and every drop starts again from the roots. Preset threads climb like any other. A solve closes on the cups' **cadence**; a drop that misses ends without it. The replay keeps the real bounce timing.
 - **Stars** (ADR 0005): one star for the solve, one for using par threads or fewer, one for solving on the first drop since the level loaded or restarted. The thread limit is par + 1 on every level. The settings face shows a "Stars N/72" total.
@@ -53,7 +53,7 @@ Every decision below was made by the user in the Oct 22 grilling session. Where 
   - `.scratch/` and the agent tooling stay public.
 - **Deploys:** docs changes stop triggering deploys, and a CI smoke test checks the production build before upload. The full local regression runs before every push. At the freeze, a `v1.0` tag becomes the only thing that deploys, and pushes to `main` are blocked until about Dec 11.
 - **Video:** dry-run the capture pipeline this week. The final takes are Nov 11-13 on the release-candidate build: the user runs OBS and the agent scripts the takes. The narration is the user's own voice, or captions only. Emulator shots carry a "Recorded in the IWER emulator" caption. A tester's footage is used only with their written permission and after a frame-by-frame check.
-- **Real-device evidence:** run the deployed build in an emulated XR session. Rewrite `docs/forum-post.md` with specific asks and a footage-permission paragraph; the user posts it.
+- **Real-device evidence:** run the deployed build in an emulated XR session. Rewrite `docs/forum-post.md` with specific asks and a footage-permission paragraph, and draft a short message for a Start program mentor (Q43). The user posts both this week.
 
 ## Schedule
 
@@ -78,6 +78,8 @@ Every decision below was made by the user in the Oct 22 grilling session. Where 
 8. 11's snap highlight and miss cue
 
 11's larger hit areas and steadier release go last, if at all, because they address Meta's minimum target sizes.
+
+**No tester by Nov 7 (Q44).** If no real-Quest report has arrived by Nov 7, nothing extra gets built. The submission says the game was built and verified in the emulator, the fps line describes the draw-call budget instead of a measured number, and the video uses emulator footage only. The brief allows emulator footage.
 
 ## User Stories
 
@@ -130,7 +132,7 @@ Every decision below was made by the user in the Oct 22 grilling session. Where 
 
 - **Week 9 stretch:** finger-strum (only if the melody ticket lands by Nov 4), mirrored daily variants, extra XR tests, the soak test, the frame-time log, self-hosted hand models, cue timbres, the snip demo.
 - **Out entirely:** a song star or echo levels (ADR 0004), capstone levels, persistent anchors (ADR 0006), depth occlusion, voice, gaze-dwell, a depth hit-test fallback, bending-string visuals, real-table puzzles, runtime field-of-view adaptation, social and agentic features.
-- **The user's actions:** posting the forum request, recording and uploading the video, buying or borrowing a Quest, submitting.
+- **The user's actions:** posting the forum request, recording and uploading the video, submitting.
 
 ## Further Notes
 

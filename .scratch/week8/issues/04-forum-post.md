@@ -25,8 +25,9 @@
   - never name or credit a tester anywhere in the entry;
   - use a clip only after a frame-by-frame check (spec, "Video");
   - keep the existing pointer to `tests/e2e/levels.sh` for frame cost.
+- **A mentor message** (Q43): `docs/mentor-message.md`, a short direct message (at most about 120 words) to a Start program mentor. It asks for the same five-minute check (asks 1-4 only), with the same framing and permission terms, and links to the forum post for the full list. The entrant has no Quest, so testers are the only real-device evidence: the post and the message both go out this week.
 
-**Blocked by:** none
+**Blocked by:** none. Do this ticket first, so reports have time to arrive before the Nov 10 feature freeze.
 
 **Status:** ready-for-agent (then ready-for-human: the user posts it)
 
@@ -34,7 +35,8 @@
 - [ ] Check: every label the post names exists in the live build: `Enter XR` (public/ui/welcome.uikitml:71); `Slow-mo`, `Raise`, `Lower`, `Nearer` and `Farther` (public/ui/hud.uikitml:173-186); `Three Cups` (src/levels/world2/06-three-cups.json:3).
 - [ ] Check: `grep -inwE 'gear|poke[ds]?|poking|HUD|menu|budget|board|win|clear|goals?|we|our' docs/forum-post.md` prints nothing.
 - [ ] Check: the `?fresh=1` line stays bracketed until ticket 09's "XR (deployed build)" box passes (09 pushes, then runs it on the live URL). The user then adds it as an edit to the post, or drops the brackets before posting if 09 has already shipped.
-- [ ] Human: the user posts it in the competition Discord or forum channel of their choice, then adds the post link, the date and the deployed commit to Comments.
+- [ ] Check: `docs/mentor-message.md` passes the same grep, keeps the framing and permission terms, and links to the post.
+- [ ] Human: the user posts it in the competition Discord or forum channel of their choice, sends the mentor message, then adds the post link, the date and the deployed commit to Comments.
 - [ ] Human: each tester reply is summarized in Comments against the seven asks, with no names or handles. Defects feed week 9 (.scratch/week9/spec.md:5). No clip enters the repo or the video edit before both the written yes and the frame-by-frame check.
 
 **Effort:** S (~0.5 days, plus waiting on testers)
