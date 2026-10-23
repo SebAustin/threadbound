@@ -38,20 +38,20 @@
 
 **Status:** ready-for-agent
 
-- [ ] Unit: `tests/unit/prodXrTargets.test.ts` recomputes the fixture's knob and chute points and matches them to within 1 mm. It uses the scripted head pose, `headRelativePlacement` and `originFromCenter` (src/lib/placement.ts:220-239), the frame transform (src/features/puzzle/PuzzleSystem.ts:120, src/features/diorama/dioramaFrame.ts:12-21), `AIM_PLANE_Z` (src/config/constants.ts:29) and src/levels/world1/01-first-thread.json:6-15. A level or placement change then can't silently leave the fixture stale.
-- [ ] Unit: `npm run coverage` is green on main after 01 and 03, with the count and coverage in the baseline log.
-- [ ] E2E: all 24 `npm run test:e2e` scripts pass with real input.
-- [ ] E2E: `test:e2e:levels` proves 24/24, `test:e2e:levels:slow` proves 24/24, and `test:e2e:dailies` proves 7/7.
-- [ ] E2E: `npm run test:smoke` prints all PASS on the `NODE_ENV=production` build of the baseline commit.
-- [ ] XR: `npm run test:e2e:hands` passes (hand-pinch, xr-full-level, xr-controls, gaze-pinch).
-- [ ] XR: `npm run test:e2e:prod-xr` on the local preview shows:
+- [x] Unit: `tests/unit/prodXrTargets.test.ts` recomputes the fixture's knob and chute points and matches them to within 1 mm. It uses the scripted head pose, `headRelativePlacement` and `originFromCenter` (src/lib/placement.ts:220-239), the frame transform (src/features/puzzle/PuzzleSystem.ts:120, src/features/diorama/dioramaFrame.ts:12-21), `AIM_PLANE_Z` (src/config/constants.ts:29) and src/levels/world1/01-first-thread.json:6-15. A level or placement change then can't silently leave the fixture stale.
+- [x] Unit: `npm run coverage` is green on main after 01 and 03, with the count and coverage in the baseline log.
+- [x] E2E: all 24 `npm run test:e2e` scripts pass with real input.
+- [x] E2E: `test:e2e:levels` proves 24/24, `test:e2e:levels:slow` proves 24/24, and `test:e2e:dailies` proves 7/7.
+- [x] E2E: `npm run test:smoke` prints all PASS on the `NODE_ENV=production` build of the baseline commit.
+- [x] XR: `npm run test:e2e:hands` passes (hand-pinch, xr-full-level, xr-controls, gaze-pinch).
+- [x] XR: `npm run test:e2e:prod-xr` on the local preview shows:
   - zero console errors and zero page errors;
   - status 200 for the worker, wasm, scene and UI files, with the wasm served as `application/wasm`;
   - the Enter XR click starting an AR session;
   - level 1 solved by hand pinch only, as read from the save.
 - [ ] CI: one push to `main`, made only after the baseline log is green, deploys the week 8 docs commit, 01, 03, this ticket and any merged 04 or 05 (named in Comments), and nothing else. Its run shows the smoke green before the upload and the deploy job green, the whole run takes under about 3 min, and the run URL is in Comments.
 - [ ] XR: after that deploy, the same run passes against https://sebaustin.github.io/threadbound/, and the log names the bundle tested and the pushed SHA. `SMOKE_URL` at the live URL also prints all PASS.
-- [ ] `.scratch/week8/regression-baseline.log` and `.scratch/week8/prod-xr-smoke.log` are committed, and every failure has a Comments entry.
+- [ ] `.scratch/week8/regression-baseline.log` and `.scratch/week8/prod-xr-smoke.log` are committed, and every failure has a Comments entry. (Oct 23: both logs exist locally, but `*.log` is gitignored (.gitignore:24), so Comments carry the pass counts as the committed evidence. Every failure so far has a Comments entry. The main session closes this box after the live run.)
 - [ ] CI: the `.scratch/`-only push of `prod-xr-smoke.log` starts no run in `gh run list --workflow deploy.yml` (03's `paths-ignore`).
 
 **Effort:** M (~1 day)
@@ -70,3 +70,44 @@
   - levels run one per 110 s lease.
 
 ## Comments
+
+- **Oct 23, agent: the local parts landed on main; nothing pushed, no workflow dispatched.** Commits:
+  - `54f5eab test: production bundle in an XR session, entered by the Enter XR click and solved by hand pinch`: tests/e2e/prod-xr.mjs, tests/e2e/fixtures/prod-xr-w1-01.json, tests/unit/prodXrTargets.test.ts, the `test:e2e:prod-xr` script and a README "Develop" entry.
+  - `4f76529 test: xr-controls' chute check counts marbles, so a drop that already ended still passes`: the fix for the first baseline's only red (see the defect below).
+  - The docs commit carrying these Comments.
+- **Ready to push: the docs commit on top of 4f76529.** The baseline ran on 4f76529, and the docs commit changes only `.scratch/`. origin/main is still 83977c8, so the push deploys the week 8 docs commits (7917cfc, d1cda98, 7b4f9e1), 04 (a7bca6d, 189b9a7), 01 (72b2c91 to f9b7c5e, plus b862f5b, f0be201 and 1364512), 03 (4d61352, 74e08d5, e38094d, 9126b02) and this ticket. 05 has not merged.
+- **Decisions beyond the ticket text:**
+  - Fixture: a seated head at (0, 1.15, 0), yaw 0, looking 25° down (quaternion x -0.21643961, w 0.97629601). With no planes the diorama floats with its centre at (0, 0.73, -0.45), yaw 0. That puts knob a at (-0.2, 0.97, -0.421), knob b at (0.05, 0.86, -0.421) and the chute's funnel centre at (-0.15, 1.12, -0.45). Besides the inputs the ticket lists, the unit test uses `DEFAULT_SETTINGS.offset` (a fresh save) and `CHUTE.lift`, because the chute point is the funnel centre, as in `hook.chute()`.
+  - Enter XR is canvas point (180, 192), measured on a 1280x720 screenshot of the production flat view. The button spans about x 42-318, y 172-212.
+  - Look rotation: the script imports `lookRotation` and `directionTo` from `iwer/lib/utils/control-math.js`. Those are the functions the CLI's look-at runs (`RemoteControlInterface.executeLookAt`). Targets go through the device's `remote.transformXROriginToGlobal`, as in the CLI. The script sets the hand position and `hands.right.quaternion` directly and calls `updatePinchValue(1|0)`, with xr-lib.sh's gesture timing.
+  - Ready to click: the script waits for IWSDK's session offer, then two frames. IWSDK makes the offer right after the first level loads, just before `World.create` resolves and the systems register.
+  - Session check: `remote.dispatch('get_session_status')`, a passive IWER query, gives the mode. The detail also says whether the offer is still pending ("offer still pending: true"), which shows the click started the session, not the offer.
+  - AudioContext NOTE: an init script wraps `window.AudioContext` in a Proxy that records each instance, and the NOTE lists their states.
+  - Save check: it also requires no solve in the save before the pinches ("before: no save").
+- **Evidence, Oct 23 (Node v26.7.0 locally; .nvmrc and CI use 22.12.0, and no version manager is installed. The logs stay local because `*.log` is gitignored):**
+  - Unit, written first: prodXrTargets went RED (ENOENT, fixture missing), then 6/6 green. With knob a moved 2 mm, its test fails.
+  - prod-xr, red runs:
+    - Enter XR point moved to (640, 700): exit 1 with `FAIL the Enter XR click starts an immersive-ar session — canvas (640, 700): no session within 5 s`. Then `NOTE fallback — entered through grantOfferedSession(): mode immersive-ar, blend alpha-blend`, and the solve still PASSes.
+    - Knob a raised 10 cm: exit 1 with `FAIL level 1 solved by hand pinch only, read from the save — before: no save; after: no save`.
+  - prod-xr, three repeat runs on 54f5eab: 14 PASS, 0 FAIL, 6 NOTE each, in 14.5-15.0 s.
+  - Baseline run 1, on 54f5eab, right after `npm ci` (exit 0, 289 packages, package-lock.json unchanged) and a dev server restart (`dev up --headless --allow-browser-automation`). Everything was green except `test:e2e:hands`, which exited 1 in xr-controls, so gaze-pinch never ran. Log: `.scratch/week8/regression-baseline-first-run.log`.
+  - **Defect (fixed here, 4f76529):** `FAIL pinching the chute starts a drop (idle)` / `aimed at {"x": -0.15, "y": 1.570000023841858, "z": -0.45}; now {"chute": {"x": -0.15, "y": 1.570000023841858, "z": -0.45}, ... "status": "idle", "levelId": "w1-01"}`. This is the race from ticket 01's review, which ticket 17 carried. With no thread, the drop ends and `status` goes back to `idle` before the probe reads it.
+    - Red, reproduced on purpose: the same chute pinch, read 4 s later, gives `status=idle` and the old check FAILs.
+    - Fix: xr-probe gains a `marbleCount` field. An unsolved drop's marbles stay until the next drop or level build. The check now passes on `status != idle || marbleCount > 0`, and it needs 0 marbles before the pinch.
+    - After the fix, the late read gives `idle, 3 marbles` and PASSes. A pinch aimed 30 cm off the chute gives `idle, 0 marbles` and still FAILs.
+    - xr-controls.sh then ran 3/3 with 9/9 checks. All three runs read `idle, 3 marbles`, so the old check would have failed all three.
+  - **Baseline run 2, on 4f76529** (`.scratch/week8/regression-baseline.log`, week 6 layout plus `--- smoke`):
+    - unit: `npm run typecheck` exit 0; `npm run coverage` exit 0 with 34 files, 281 tests, and 96.39 % statements, 94.82 % branches, 98.73 % functions, 97.12 % lines.
+    - e2e: `npm run test:e2e` ran all 24 scripts with 137 checks, exit 0.
+    - levels 24/24 exit 0; levels slow 24/24 exit 0; dailies 7/7 exit 0.
+    - xr: `npm run test:e2e:hands` passed all 4 scripts, exit 0. That is 20 checks: hand-pinch 3, xr-full-level 5, xr-controls 9 and gaze-pinch 3. The busiest XR frame is 110 calls over 2 views, with no breach. After gaze-pinch, iwsdk.config.json has 0 changes.
+    - build: `NODE_ENV=production npm run build` exit 0.
+    - smoke: `npm run test:smoke` gave 17 PASS, 0 FAIL, 5 NOTE in 10.6 s, exit 0.
+  - **prod-xr, local preview of 4f76529's build** (`.scratch/week8/prod-xr-smoke.log`, first section): 14 PASS, 0 FAIL, 6 NOTE in 14.2 s, exit 0.
+    - Zero console errors and zero page errors. Status 200 for the physics worker, `HavokPhysics-BqNY-4N9.wasm` (served as `application/wasm`), `scenes/main.iwsdk.scene.json`, `ui/welcome.uikitml` and `ui/hud.uikitml`.
+    - `PASS the Enter XR click starts an immersive-ar session — canvas (180, 192): mode immersive-ar, blend alpha-blend, offer still pending: true`.
+    - `PASS level 1 solved by hand pinch only, read from the save — before: no save; after: best['w1-01'] 3, melody 6 notes`.
+    - NOTEs: 2 AudioContexts, both `running` after the first pinch. Bundle `assets/index-BT5FWaKs.js`. The only cross-origin requests are jsDelivr's generic-hand `left.glb` and `right.glb`.
+    - The screenshots (diorama placed, thread a to b, three marbles in the cup with 3 stars) were checked by eye and copied to `.scratch/week8/prod-xr/local-{entered,thread,solved}.png`. They are untracked, for step 4's commit.
+    - Not errors, left as they are: IWSDK's two gaze warnings (no `gaze-tracking` on the Quest 3 preset) and Chromium's "GPU stall due to ReadPixels" warnings from the screenshots.
+- **Pending, for the main session:** steps 2 to 4. Push main (the CI box), watch the run, run prod-xr and the smoke against the live URL (the live-URL box), add the live runs to `.scratch/week8/prod-xr-smoke.log` next to the local one, then commit and make the `.scratch/`-only push (the last two boxes). The dev server is still running headless with browser automation.
