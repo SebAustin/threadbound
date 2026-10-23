@@ -43,17 +43,33 @@ export async function loadIndex(app, index) {
   if (!(await waitFor(app, (i) => window.__threadbound.state().levelIndex === i, 5000, index))) {
     throw new Error(`level ${index} did not load`);
   }
-  await frames(app, SETTLE_FRAMES);
+  const { complete, rendered } = await frames(app, SETTLE_FRAMES);
+  if (!complete) throw new Error(`level ${index}: frames stalled (rendered ${rendered} of ${SETTLE_FRAMES} in 1 s)`);
 }
 
-/** Resolves after `n` rendered frames (bounded, so a hidden page can't hang a test). */
+/**
+ * Waits for `n` rendered frames, for at most 1 s so a hidden page can't hang a test.
+ * Reports whether all `n` ran (`complete`) and how many did (`rendered`).
+ */
 export async function frames(app, n) {
-  await app.evaluate(
+  return app.evaluate(
     (count) =>
       new Promise((resolve) => {
-        const timeout = setTimeout(resolve, 1000);
-        const step = (left) => (left === 0 ? (clearTimeout(timeout), resolve()) : requestAnimationFrame(() => step(left - 1)));
-        step(count);
+        let rendered = 0;
+        const done = () => resolve({ complete: rendered === count, rendered });
+        const timeout = setTimeout(done, 1000);
+        const step = () => {
+          if (rendered === count) {
+            clearTimeout(timeout);
+            done();
+            return;
+          }
+          requestAnimationFrame(() => {
+            rendered += 1;
+            step();
+          });
+        };
+        step();
       }),
     n,
   );
