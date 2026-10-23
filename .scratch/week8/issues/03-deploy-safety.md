@@ -26,7 +26,7 @@
 
 **Blocked by:** none
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] Unit: `tests/unit/smokeVerdict.test.ts`, written first. A clean record passes, and a cross-origin request or the bundle name gives a NOTE, not a FAIL. A caller `{ name, note }` check prints a NOTE line and leaves the exit code at 0. Each of these fails, with the URL or message in the detail: a console error, a page error, a failed same-origin request, a 404 for the wasm, the scene JSON or a `.uikitml`, a wasm served as anything but `application/wasm`, no worker, and a failed caller check (a one-colour canvas, no session, the wrong blend mode, a session that ended)
 - [x] Unit: `tests/unit/deployWorkflow.test.ts` reads `deploy.yml` as text. It checks that the three `paths-ignore` globs sit under `push`, and that `npm run test:smoke` comes after `npm run build` and before `upload-pages-artifact`

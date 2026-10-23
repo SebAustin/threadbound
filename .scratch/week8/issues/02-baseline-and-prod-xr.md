@@ -36,7 +36,7 @@
 
 **Blocked by:** 01, 03
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] Unit: `tests/unit/prodXrTargets.test.ts` recomputes the fixture's knob and chute points and matches them to within 1 mm. It uses the scripted head pose, `headRelativePlacement` and `originFromCenter` (src/lib/placement.ts:220-239), the frame transform (src/features/puzzle/PuzzleSystem.ts:120, src/features/diorama/dioramaFrame.ts:12-21), `AIM_PLANE_Z` (src/config/constants.ts:29) and src/levels/world1/01-first-thread.json:6-15. A level or placement change then can't silently leave the fixture stale.
 - [x] Unit: `npm run coverage` is green on main after 01 and 03, with the count and coverage in the baseline log.
@@ -52,7 +52,7 @@
 - [x] CI: one push to `main`, made only after the baseline log is green, deploys the week 8 docs commit, 01, 03, this ticket and any merged 04 or 05 (named in Comments), and nothing else. Its run shows the smoke green before the upload and the deploy job green, the whole run takes under about 3 min, and the run URL is in Comments.
 - [x] XR: after that deploy, the same run passes against https://sebaustin.github.io/threadbound/, and the log names the bundle tested and the pushed SHA. `SMOKE_URL` at the live URL also prints all PASS.
 - [x] `.scratch/week8/regression-baseline.log` and `.scratch/week8/prod-xr-smoke.log` are committed, and every failure has a Comments entry. (Oct 23: both logs exist locally, but `*.log` is gitignored (.gitignore:24), so Comments carry the pass counts as the committed evidence. Every failure so far has a Comments entry. The main session closes this box after the live run.)
-- [ ] CI: the `.scratch/`-only push of `prod-xr-smoke.log` starts no run in `gh run list --workflow deploy.yml` (03's `paths-ignore`).
+- [x] CI: the `.scratch/`-only push of `prod-xr-smoke.log` starts no run in `gh run list --workflow deploy.yml` (03's `paths-ignore`).
 
 **Effort:** M (~1 day)
 
@@ -125,3 +125,4 @@
   - Both runs are appended to `.scratch/week8/prod-xr-smoke.log`.
   - The saved melody had 4 notes live against 6 locally, for the same solution. That matches the frame-rate dependence ADR 0004 records, and ticket 10 should expect it.
 - **Logs:** `*.log` is gitignored by design, so the logs stay local and this Comments entry is the committed evidence. The box is ticked on that basis.
+- **Docs-only push:** e328f30 (`.scratch/` files only) went to origin/main. 45 s later, `gh run list --workflow deploy.yml` still showed the deploy run 39991524233 as the newest run, so the push started nothing. Ticket 03's `paths-ignore` works. Tickets 02 and 03 are done.
