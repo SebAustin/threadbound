@@ -74,6 +74,7 @@ npm run test:e2e:levels   # every level solvable, not self-solving, within budge
 npm run test:e2e:hands    # emulated XR: hands-only level, ledge/plaque pinches, gaze + pinch
 npm run build             # production build to dist/
 npm run test:smoke        # production smoke on dist/: headless Chromium + IWER, flat view and an AR session
+npm run test:e2e:prod-xr  # production bundle in AR: the Enter XR click, then level 1 by hand pinch only
 ```
 
 E2E scripts need the dev server started with browser automation:
@@ -83,7 +84,9 @@ The smoke (`tests/smoke/`) needs no dev server. It serves `dist/` under `/thread
 does, or tests the URL in `SMOKE_URL` instead. It fails on any console or page error, a failed request,
 a missing worker, the Havok wasm, scene or UI files not served with status 200, or an AR session that
 doesn't start and hold for 5 s. Build first: `NODE_ENV=production npm run build && npm run test:smoke`.
-Its log and screenshots go to `.tmp/prod-smoke/`.
+Its log and screenshots go to `.tmp/prod-smoke/`. `npm run test:e2e:prod-xr` (`tests/e2e/prod-xr.mjs`) uses the
+same harness and target: it clicks Enter XR, solves level 1 with emulated hand pinches aimed at
+`tests/e2e/fixtures/prod-xr-w1-01.json`, and reads the solve from the save; output in `.tmp/prod-xr/`.
 
 **Before any push to `main` that deploys** (one that touches any path outside `docs/**`, `**/*.md` and
 `.scratch/**`), run the full local regression and keep its log in `.scratch/<week>/`:

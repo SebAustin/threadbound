@@ -1,0 +1,15 @@
+{
+  "about": "Targets for tests/e2e/prod-xr.mjs (week 8 ticket 02): the production bundle has no test hook, so the emulated hand aims at these world points (metres, IWER global space = IWSDK world). The head is a seated player looking 25 degrees down; with no planes the diorama floats in front of them (headRelativePlacement). tests/unit/prodXrTargets.test.ts recomputes knobs and chute from the game's placement code to within 1 mm. enterXr is the welcome panel's Enter XR button, measured once in canvas pixels at the harness's 1280x720 viewport.",
+  "level": "w1-01",
+  "viewport": { "width": 1280, "height": 720 },
+  "enterXr": { "x": 180, "y": 192 },
+  "head": {
+    "position": { "x": 0, "y": 1.15, "z": 0 },
+    "orientation": { "x": -0.21643961, "y": 0, "z": 0, "w": 0.97629601 }
+  },
+  "knobs": {
+    "a": { "x": -0.2, "y": 0.97, "z": -0.421 },
+    "b": { "x": 0.05, "y": 0.86, "z": -0.421 }
+  },
+  "chute": { "x": -0.15, "y": 1.12, "z": -0.45 }
+}

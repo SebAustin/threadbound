@@ -20,7 +20,8 @@
     "test:e2e:hands": "zsh tests/e2e/hand-pinch.sh && zsh tests/e2e/xr-full-level.sh && zsh tests/e2e/xr-controls.sh && zsh tests/e2e/gaze-pinch.sh",
     "test:e2e:levels": "zsh tests/e2e/levels.sh",
     "test:e2e:levels:slow": "SLOW=1 zsh tests/e2e/levels.sh",
-    "test:e2e:dailies": "zsh tests/e2e/dailies.sh"
+    "test:e2e:dailies": "zsh tests/e2e/dailies.sh",
+    "test:e2e:prod-xr": "node tests/e2e/prod-xr.mjs"
   },
   "dependencies": {
     "@iwsdk/core": "1.0.0-rc.2",
