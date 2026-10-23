@@ -29,13 +29,13 @@
 
 **Blocked by:** none. Do this ticket first, so reports have time to arrive before the Nov 10 feature freeze.
 
-**Status:** ready-for-agent (then ready-for-human: the user posts it)
+**Status:** ready-for-human (the user posts the forum request and sends the mentor message)
 
-- [ ] Check: the post keeps the title idea and the link, says it was built only in the emulator, numbers all seven asks, puts the framing and permission paragraph above the clip ask, and carries the bracketed `?fresh=1` line.
-- [ ] Check: every label the post names exists in the live build: `Enter XR` (public/ui/welcome.uikitml:71); `Slow-mo`, `Raise`, `Lower`, `Nearer` and `Farther` (public/ui/hud.uikitml:173-186); `Three Cups` (src/levels/world2/06-three-cups.json:3).
-- [ ] Check: `grep -inwE 'gear|poke[ds]?|poking|HUD|menu|budget|board|win|clear|goals?|we|our' docs/forum-post.md` prints nothing.
-- [ ] Check: the `?fresh=1` line stays bracketed until ticket 09's "XR (deployed build)" box passes (09 pushes, then runs it on the live URL). The user then adds it as an edit to the post, or drops the brackets before posting if 09 has already shipped.
-- [ ] Check: `docs/mentor-message.md` passes the same grep, keeps the framing and permission terms, and links to the post.
+- [x] Check: the post keeps the title idea and the link, says it was built only in the emulator, numbers all seven asks, puts the framing and permission paragraph above the clip ask, and carries the bracketed `?fresh=1` line.
+- [x] Check: every label the post names exists in the live build: `Enter XR` (public/ui/welcome.uikitml:71); `Slow-mo`, `Raise`, `Lower`, `Nearer` and `Farther` (public/ui/hud.uikitml:173-186); `Three Cups` (src/levels/world2/06-three-cups.json:3).
+- [x] Check: `grep -inwE 'gear|poke[ds]?|poking|HUD|menu|budget|board|win|clear|goals?|we|our' docs/forum-post.md` prints nothing.
+- [x] Check: the `?fresh=1` line stays bracketed until ticket 09's "XR (deployed build)" box passes (09 pushes, then runs it on the live URL). The user then adds it as an edit to the post, or drops the brackets before posting if 09 has already shipped.
+- [x] Check: `docs/mentor-message.md` passes the same grep, keeps the framing and permission terms, and links to the post.
 - [ ] Human: the user posts it in the competition Discord or forum channel of their choice, sends the mentor message, then adds the post link, the date and the deployed commit to Comments.
 - [ ] Human: each tester reply is summarized in Comments against the seven asks, with no names or handles. Defects feed week 9 (.scratch/week9/spec.md:5). No clip enters the repo or the video edit before both the written yes and the frame-by-frame check.
 
@@ -49,3 +49,35 @@
 - `.scratch/` is public. A pasted reply, handle or DM screenshot would publish a tester's identity, and crediting a tester anywhere in the entry breaks the rule against naming anyone but entrants.
 
 ## Comments
+
+- **Oct 23, agent: docs written; nothing posted or sent.**
+  - `docs/forum-post.md` rewritten:
+    - Title keeps the idea and says "10-15 minutes, no install" ("5 minutes" dropped).
+    - The opening paragraph says it was built without a headset, entirely in the IWER emulator (Meta's browser-based WebXR emulator), so a tester's run would be its first on a real Quest.
+    - The link is unchanged, and the bracketed `?fresh=1` line is verbatim from this ticket.
+    - Five try-it steps:
+      - "pinch" for Enter XR, pegs, the chute, the rail tab and the settings-face controls;
+      - "press" for ledge buttons, which take a pinch from a distance or a fingertip press;
+      - the settings button is named as "the button between Restart (the leftmost ledge button) and the sun".
+    - Seven numbered asks. The framing and permission paragraph sits directly above ask 7 and opens with the no-credit rule.
+    - One addition: the asks' lead-in asks testers for the date they played, so a report can be matched to a deployed commit.
+    - The author notes cover the deployed commit and date (`gh run list --workflow deploy.yml -L 1`), when to drop the `?fresh=1` brackets, DM screenshots kept outside the repo, never naming or crediting a tester, a written yes plus a frame-by-frame check before any clip is used, and the existing `tests/e2e/levels.sh` frame-cost pointer.
+  - `docs/mentor-message.md` (new): 120 words by `wc -w` on the message body, counting list numbers, the URL and placeholders.
+    - Asks 1-4 only. Ask 2 drops Three Cups, because five minutes can't reach level 12, and asks for a drop on any level.
+    - Same no-credit, framing, mic-off and written-DM-yes terms.
+    - The post link is a `[forum post link]` placeholder: the post doesn't exist until the user posts it. The header says to fill it in, along with `[name]`.
+  - `.scratch/week6/issues/09-forum-post-draft.md` is left as history.
+- **Check results (Oct 23):**
+  - Box 1, by script:
+    - the title matches `Quest owner.*WebXR marble puzzle.*no install`;
+    - the link appears twice (main link and guest line);
+    - "entirely in the IWER emulator" is in paragraph 1;
+    - the asks are numbered 1-7 in order;
+    - the framing paragraph is the only block between ask 6 and ask 7, and it contains every framing and permission term;
+    - the bracketed `?fresh=1` line matches this ticket's text exactly;
+    - no "5 minutes" or "five minutes" remains.
+  - Box 2: each label found at the cited lines, namely `Enter XR` (public/ui/welcome.uikitml:71), `Slow-mo`, `Raise`, `Lower`, `Nearer` and `Farther` (public/ui/hud.uikitml:173-186), and `"name": "Three Cups"` (src/levels/world2/06-three-cups.json:3). Three Cups is level 12: World 1 has 6 levels and it is World 2's 6th. "Restart" is the leftmost ledge button's action, not a text label (`ControlActions.Restart`, src/features/diorama/buildDiorama.ts:320). The post names no other label.
+  - Box 3: `grep -inwE 'gear|poke[ds]?|poking|HUD|menu|budget|board|win|clear|goals?|we|our' docs/forum-post.md` prints nothing (exit 1).
+  - Box 4: the line is still bracketed (docs/forum-post.md:13). Ticket 09's "XR (deployed build)" box is unticked (09-guest-play.md:52), so it stays bracketed. Dropping the brackets, or adding the line as an edit, is the user's step, and the author notes say so.
+  - Box 5: the same grep on `docs/mentor-message.md` prints nothing (exit 1). The message has the no-credit rule, "table and diorama only", the full no-people/faces/mirrors/screens/posters/brands list, mic off, "free of charge", "competition video" and "Only a written yes in a DM counts". It links the post through the placeholder and names `docs/forum-post.md` in its header.
+- No code or tests changed, so typecheck and the test suites were not run. The dev server was not started.
