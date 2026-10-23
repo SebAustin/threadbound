@@ -5,3 +5,7 @@
 **Blocked by:** 02, 03, 04
 
 **Status:** ready-for-human
+
+## Comments
+
+- **Oct 23, week 8 ticket 03:** the freeze plan is now to tag `v1.0`, deploy from `v*` tags (or `workflow_dispatch`) only, and have a ruleset block pushes to `main` until about Dec 11. The github-pages environment's main-only branch policy must then also admit `v*` tags, or the tag's deploy job is refused (gap 8). Ticket 03 itself only added `paths-ignore` for docs, Markdown and `.scratch/` pushes; it didn't change the trigger, add a ruleset or disable the workflow.

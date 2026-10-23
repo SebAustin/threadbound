@@ -73,10 +73,29 @@ npm run test:e2e          # real-input E2E suite (needs the dev server, see belo
 npm run test:e2e:levels   # every level solvable, not self-solving, within budget
 npm run test:e2e:hands    # emulated XR: hands-only level, ledge/plaque pinches, gaze + pinch
 npm run build             # production build to dist/
+npm run test:smoke        # production smoke on dist/: headless Chromium + IWER, flat view and an AR session
 ```
 
 E2E scripts need the dev server started with browser automation:
 `npx @iwsdk/cli dev up --headless --allow-browser-automation`.
+
+The smoke (`tests/smoke/`) needs no dev server. It serves `dist/` under `/threadbound/`, as GitHub Pages
+does, or tests the URL in `SMOKE_URL` instead. It fails on any console or page error, a failed request,
+a missing worker, the Havok wasm, scene or UI files not served with status 200, or an AR session that
+doesn't start and hold for 5 s. Build first: `NODE_ENV=production npm run build && npm run test:smoke`.
+Its log and screenshots go to `.tmp/prod-smoke/`.
+
+**Before any push to `main` that deploys** (one that touches any path outside `docs/**`, `**/*.md` and
+`.scratch/**`), run the full local regression and keep its log in `.scratch/<week>/`:
+
+1. `npm run coverage`;
+2. `NODE_ENV=production npm run build && npm run test:smoke`, the build CI runs;
+3. with the dev server up: `npm run test:e2e`, `npm run test:e2e:levels`, `npm run test:e2e:levels:slow`,
+   `npm run test:e2e:hands` and `npm run test:e2e:dailies`.
+
+CI (`.github/workflows/deploy.yml`) runs only the typecheck, the unit tests, the production build and the
+smoke, so the E2E and XR suites are a local gate. Pushes that touch only docs, Markdown or `.scratch/`
+don't deploy.
 
 Level-design probe (the trajectory of each marble every 0.15 s):
 `zsh tests/e2e/probe.sh <levelIndex> '[["a","b"]]' [seconds]`
@@ -87,7 +106,7 @@ Level-design probe (the trajectory of each marble every 0.15 s):
 src/lib/        pure, unit-tested logic (rules, scoring, schema, progress, daily, sound cues)
 src/features/   ECS systems by feature (puzzle, threads, marbles, sliders, hud, audio, placement...)
 src/levels/     level data (JSON, validated with zod)
-tests/          unit (vitest) and e2e (IWSDK CLI + Playwright) tests
+tests/          unit (vitest), e2e (IWSDK CLI + Playwright) and smoke (production build, Playwright) tests
 docs/           decisions (ADRs), submission copy, video kit
 ```
 
