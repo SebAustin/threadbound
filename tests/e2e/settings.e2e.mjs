@@ -24,6 +24,30 @@ const fallenAfter200ms = () =>
     tick();
   });
 
+/**
+ * Where the open settings face sits in the flat (non-XR) view, in canvas pixels.
+ * The plaque grows up from its bottom edge (the panel's origin), so its top edge
+ * is as far above its centre as the bottom edge is below. The ledge buttons are
+ * the lowest controls: a framing that shows the face must keep them in view too.
+ */
+const settingsFaceInView = () => {
+  const hook = window.__threadbound;
+  const { width, height } = document.querySelector('canvas').getBoundingClientRect();
+  const inView = (p) => Boolean(p) && p.x >= 0 && p.x <= width && p.y >= 0 && p.y <= height;
+  const bottom = hook.hud().local;
+  const centreY = hook.plaqueElement('plaque').world.y - hook.frame().origin[1];
+  const top = hook.project(bottom.x, 2 * centreY - bottom.y, bottom.z);
+  const topRow = ['set-slow', 'set-reset'].map((id) => hook.plaqueElement(id));
+  const ledge = ['restart', 'settings', 'daily', 'next'].map((id) => hook.button(id));
+  const round = (p) => p && [Math.round(p.x), Math.round(p.y)];
+  return {
+    faceTop: top.y >= 0,
+    topRow: topRow.every(inView),
+    ledge: ledge.every(inView),
+    detail: { canvas: [width, height], top: Math.round(top.y), topRow: topRow.map(round), ledge: ledge.map(round) },
+  };
+};
+
 /** Median of three drops, each on a freshly loaded level. */
 async function typicalFall(app) {
   const falls = [];
@@ -47,6 +71,10 @@ export default async function run({ page, frame }) {
 
   const toggle = await plaqueElementAt(app, 'set-slow');
   check('the slow motion toggle is on the plaque', Boolean(toggle), JSON.stringify(toggle));
+  const view = await app.evaluate(settingsFaceInView);
+  check('the whole settings face is in the flat view, top edge included', view.faceTop, JSON.stringify(view.detail));
+  check('its top row (Slow-mo, Reset progress) is on screen', view.topRow, JSON.stringify(view.detail));
+  check('the ledge buttons stay on screen below it', view.ledge, JSON.stringify(view.detail));
   if (!toggle) return results;
   await clickCanvas(page, app, at, toggle);
   check('poking it turns slow motion on', await waitFor(app, () => window.__threadbound.state().settings.slowMotion, 2000));
