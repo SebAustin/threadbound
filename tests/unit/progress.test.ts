@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import {
   dailyStarsOn,
   INITIAL_PROGRESS,
@@ -71,6 +71,11 @@ describe('melody book: the tune a solve played is kept', () => {
 });
 
 describe('load/save', () => {
+  // Restores the console.warn spy below even when one of its assertions fails.
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   test('round-trips through storage', () => {
     const storage = memoryStorage();
     const p = recordCompletion(INITIAL_PROGRESS, solve('w1-01', 0, 3));
@@ -91,7 +96,6 @@ describe('load/save', () => {
     expect(loadProgress(storage)).toEqual(INITIAL_PROGRESS);
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0][0]).toContain('saved progress');
-    warn.mockRestore();
   });
 
   test('survives storage that throws (private mode, blocked site data)', () => {
