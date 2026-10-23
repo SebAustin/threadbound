@@ -6,7 +6,6 @@ import {
   type Mesh,
   type Object3D,
 } from '@iwsdk/core';
-import { SLIDER } from '../../config/constants';
 import { clampToRailInto, handleOffset, type Rail } from '../../lib/rail';
 import { stringSynth } from '../audio/stringSynth';
 import { capturePointer, onPointer, releasePointer, type SpatialPointerEvent } from '../input/pointerEvents';
