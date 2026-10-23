@@ -59,3 +59,5 @@
 - Tester replies may not have arrived by Nov 4. Write the week 9 tickets anyway with a slot kept for tester fixes, and add tickets as replies come in.
 
 ## Comments
+- **Carried over from ticket 01's post-landing review:** make xr-controls' chute check race-free with a `marbleCount` PROBE_FIELDS entry, passing on `status != idle || marbleCount > 0`. Details are in ticket 01's Comments.
+- **From ticket 01:** the flat-view camera moved to (0, 1.07, 0.40) (`iwsdk.config.json`), so flat-view screenshots and shots look about 10% smaller and lower. Re-check ticket 05's flat-view shots. The Enter XR pill still covers the settings face's (unclickable) title.
