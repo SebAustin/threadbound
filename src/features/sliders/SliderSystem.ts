@@ -23,6 +23,9 @@ interface SlideDrag {
   readonly rail: Rail;
   readonly tabX: number;
   readonly tabY: number;
+  /** The peg and its tab, found once at grab time so a move looks nothing up. */
+  readonly peg: Object3D | undefined;
+  readonly handle: Object3D | undefined;
   x: number;
   y: number;
 }
@@ -83,7 +86,9 @@ export class SliderSystem extends createSystem({
     stringSynth.unlock();
     stringSynth.play('pegGrab');
     const [tabX, tabY] = handleOffset(rail.axis);
-    this.drag = { pegId, pointerId: e.pointerId, captureTarget: target, rail, tabX, tabY, x: pos.x, y: pos.y };
+    const peg = this.findPeg(pegId)?.object3D;
+    const handle = this.findHandle(pegId)?.object3D;
+    this.drag = { pegId, pointerId: e.pointerId, captureTarget: target, rail, tabX, tabY, peg, handle, x: pos.x, y: pos.y };
     capturePointer(target, e.pointerId);
   }
 
@@ -96,7 +101,7 @@ export class SliderSystem extends createSystem({
     clampToRailInto(drag.x, drag.y, drag.rail, this.point.x - drag.tabX, this.point.y - drag.tabY, this.clamped);
     drag.x = this.clamped.x;
     drag.y = this.clamped.y;
-    this.placeVisuals(drag.pegId, drag.x, drag.y);
+    this.placeVisualsAt(drag.peg, drag.handle, drag.x, drag.y, drag.tabX, drag.tabY);
     // One reused preview command: listeners read it synchronously and never keep it.
     this.previewCommand.pegId = drag.pegId;
     this.previewCommand.x = drag.x;
@@ -159,19 +164,30 @@ export class SliderSystem extends createSystem({
     return undefined;
   }
 
-  /** Moves the peg and its tab (render transforms only). */
+  /** Moves the peg and its tab (render transforms only), looking both up by id. */
   private placeVisuals(pegId: string, x: number, y: number): void {
-    const frame = puzzleStore.frame;
     const rail = this.railOf(pegId);
-    const peg = this.findPeg(pegId)?.object3D;
-    const handle = this.findHandle(pegId)?.object3D;
-    if (!frame || !rail) return;
+    if (!rail) return;
+    const [tabX, tabY] = handleOffset(rail.axis);
+    this.placeVisualsAt(this.findPeg(pegId)?.object3D, this.findHandle(pegId)?.object3D, x, y, tabX, tabY);
+  }
+
+  /** Moves a peg and its tab already in hand: the drag path's lookup-free, allocation-free form. */
+  private placeVisualsAt(
+    peg: Object3D | undefined,
+    handle: Object3D | undefined,
+    x: number,
+    y: number,
+    tabX: number,
+    tabY: number,
+  ): void {
+    const frame = puzzleStore.frame;
+    if (!frame) return;
     if (peg) frame.localToWorld(x, y, 0, peg.position);
     if (handle) {
-      const [ox, oy] = handleOffset(rail.axis);
       // Keep the tab's depth; only slide it in the diorama plane.
       const local = frame.worldToLocal(handle.position, this.handleLocal);
-      frame.localToWorld(x + ox, y + oy, local.z, handle.position);
+      frame.localToWorld(x + tabX, y + tabY, local.z, handle.position);
     }
   }
 
