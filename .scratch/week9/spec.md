@@ -4,6 +4,8 @@ Status: needs-triage
 
 Tickets get written when week 8's ticket 17 closes, once real-Quest tester reports are in. Fixes from those reports come before any item below. Feature freeze is **Nov 10**.
 
+Anything cut from week 8 at its Oct 30 checkpoint lands here first, in the cut order in `.scratch/week8/spec.md` (Schedule).
+
 ## Candidate items (from the Oct 22 grilling session, in priority order)
 
 1. **Finger-strum.** Only if week 8's melody ticket landed by Nov 4; otherwise drop it. A fingertip crossing a thread inside the marble channel sounds the thread's root. It doesn't fire while pinching or dragging, and it isn't part of the melody. The copy calls it "touch a string and it sounds", not "the loop depends on hands".

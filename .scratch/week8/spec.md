@@ -23,12 +23,13 @@ Every decision below was made by the user in the Oct 22 grilling session. Where 
 
 - **Scope:** keep Threadbound as the Entry (Gaming track, New Experience division). Development stays emulator-only (ADR 0002). Borrowing or buying a Quest for one session before Nov 10 is the user's call; the plan works without one.
 - **Award target:** Best First Five Minutes is the headline. Name Best Reason to Come Back and Best Accessibility Forward only for features that ship.
-- **Melody** (ADR 0004): a thread's length sets its **root**. Each further bounce on that thread climbs the pentatonic scale and turns back down at the top. All of a drop's marbles share the climb, and every drop starts again from the roots. Preset threads climb like any other. A solve closes on the cups' **cadence**; a drop that misses ends without it. The replay keeps the real bounce timing.
+- **Melody** (ADR 0004): a thread's length sets its **root**. Each further bounce on that thread plays the next note of its climb: up the pentatonic scale from the root to the top, then down from just below the root, then from the root again, so all ten notes sound before one repeats. This revises the Q27 "turn back down" wording, which the user approved on Oct 23 (Q40); a plain mirror gave w1-03 only two notes. All of a drop's marbles share the climb, and every drop starts again from the roots. Preset threads climb like any other. A solve closes on the cups' **cadence**; a drop that misses ends without it. The replay keeps the real bounce timing.
 - **Stars** (ADR 0005): one star for the solve, one for using par threads or fewer, one for solving on the first drop since the level loaded or restarted. The thread limit is par + 1 on every level. The settings face shows a "Stars N/72" total.
 - **Skip:** after three drops that end without a solve, the settings face offers a skip. The skipped level earns no stars and stays unsolved. A returning player resumes past it. The ending, and reopening on the daily, need real solves.
 - **The room** (ADR 0006): it places the board and shapes nothing else. Placement becomes robust. Plucks and cup chimes become positional. The copy drops "Purposeful mixed reality" and "Passthrough is the stage". Persistent anchors stay future work.
 - **Field of view and the ledge:** the hint line and the thread count move from the plaque to the **ledge**, within reach. The plaque keeps the title, world progress and best stars. Gaps between controls widen to 12 mm, and Nearer is capped at +2. The "gear button" becomes the **settings button**.
 - **Guest play:** a `?fresh=1` link plays from the first level without reading or changing the save. A finished campaign reopens on today's daily.
+- **Level name:** the World 4 level "Budget" becomes "Thrift" (Q42). Its id `w4-03` stays, so saves still work.
 - **The daily:** each daily gets a name of its own, not its campaign board's name. It only uses mechanics the player has reached. The sun pulses while today's daily is unsolved. Mirrored variants are a week 9 stretch.
 - **Return-visit hints:**
   - after a level's first solve: "Pinch the stars to hear it again";
@@ -66,6 +67,18 @@ Every decision below was made by the user in the Oct 22 grilling session. Where 
 | Nov 15-16 | Video edit and upload |
 | Nov 17 | Submit |
 
+**Checkpoint, Oct 30 (Q39).** The tickets estimate about 25 days of work for 13 calendar days. But Oct 3-4 alone shipped weeks 3-7 with agents, so the full scope stays. If tickets 06-12 aren't done by Oct 30, these move to week 9, first to go first:
+1. 08's welcome-card restyle
+2. 12's new settings-button icon (the label stays)
+3. 07's facing-gate and study-table fixes
+4. 16, spatial audio (the copy then says the room only places the board)
+5. 14's melody-book play-all
+6. 10's celebration extras (star stagger, thread shimmer)
+7. 15's high-contrast toggle and star pulse (Accessibility then stops being named)
+8. 11's snap highlight and miss cue
+
+11's larger hit areas and steadier release go last, if at all, because they address Meta's minimum target sizes.
+
 ## User Stories
 
 1. As a judge, I want the first minute to teach the pinch, play a real phrase and reward me, so that the opening earns Best First Five Minutes.
@@ -92,7 +105,7 @@ Every decision below was made by the user in the Oct 22 grilling session. Where 
   - while the level is idle with no threads, the search continues for 15-20 s;
   - the reference-space `reset` event places the board again;
   - the board stays hidden until its final pose, then fades in;
-  - a desk's acceptance distance comes from measured reach;
+  - a table is accepted only while every control stays within 0.61 m (2 ft) of the seated head (Q41), so "within a seated 2 ft" holds on every accepted table;
   - the contact shadow hides while the board floats;
   - a relocation waits while a drag is in progress.
 

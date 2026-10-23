@@ -74,7 +74,7 @@ The diorama's front lip, within reach: its buttons, the hint line, and the threa
 The translucent fingertips that demonstrate pinch-pull and the chute pinch on a first-time player's first level.
 
 **Melody**:
-The notes a drop plays: each bounce on a thread sounds that thread's next note, climbing from its **root**, and a solve closes on the **cadence**. A drop's marbles share each thread's climb, which turns back down at the top of the scale; the next drop starts again from the roots. A drop without a solve ends without the cadence. Replayed on a solve with its original timing.
+The notes a drop plays: each bounce on a thread sounds that thread's next note, climbing from its **root**, and a solve closes on the **cadence**. A drop's marbles share each thread's climb: up from the root to the top of the scale, then down from just below the root to the bottom, then from the root again, so a thread sounds every note of the scale before one repeats. The next drop starts again from the roots. A drop without a solve ends without the cadence. Replayed on a solve with its original timing.
 
 **Root**:
 A thread's first note, set by its length: shorter rings higher.
