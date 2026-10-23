@@ -114,7 +114,7 @@ export const ONBOARDING = {
   ringRadius: 0.024,
   ringTube: 0.0025,
   threadRadius: 0.003,
-  /** Pinch point above a chute's mouth. */
+  /** Pinch point above the level's chute point. */
   chuteLift: 0.035,
   emissiveIntensity: 0.8,
   /** Target rings glow steadily (independent of the ghost's fade) with a slow pulse. */
@@ -134,7 +134,7 @@ export const GOAL = {
 
 /** The brass funnel marbles drop from. */
 export const CHUTE = {
-  /** The funnel sits this far above the level's chute point (its mouth is where pinches aim). */
+  /** The funnel's centre sits this far above the level's chute point; pinches aim there. */
   lift: 0.02,
   topRadius: 0.03,
   bottomRadius: 0.014,

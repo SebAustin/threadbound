@@ -1,4 +1,4 @@
-// Failure diagnostics for xr-controls.sh: where the first chute's mouth is now,
+// Failure diagnostics for xr-controls.sh: where the first chute's funnel centre is now,
 // the diorama frame it was placed in, and the puzzle status. Printed next to the
 // point a chute pinch aimed at, so a miss shows whether the diorama moved.
 export default async function run({ page, frame }) {

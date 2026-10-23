@@ -29,7 +29,7 @@ export interface ThreadboundTestHook {
   /** Canvas-relative CSS pixel position of a diorama-local point. */
   project(x: number, y: number, z?: number): ScreenPoint;
   pegs(): Array<{ id: string } & ScreenPoint>;
-  /** A chute's funnel mouth (the first chute by default), where pinches aim; null if absent. */
+  /** A chute's funnel centre (the first chute by default), where pinches aim; null if absent. */
   chute(index?: number): Located | null;
   state(): ReturnType<typeof puzzleStore.get>;
   levels(): Array<{ id: string; name: string }>;
