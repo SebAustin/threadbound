@@ -7,8 +7,16 @@ xr_start
 R=$(iw browser run tests/e2e/xr-room.e2e.mjs 2>/dev/null | python3 -c "import sys,json;r=json.load(sys.stdin)['data']['result'];print(r['visible'] or r['background'], r['blendMode'])")
 case "$R" in False\ alpha-blend) pass "passthrough hides the virtual study ($R)";; *) fail "passthrough hides the virtual study ($R)";; esac
 P=$(probe load0)
-pinch_at "$(field "$P" "['chute']")"
-S=$(field "$(probe)" "['status']"); [ "$S" != "idle" ] && pass "pinching the chute starts a drop ($S)" || fail "pinching the chute starts a drop ($S)"
+AIM=$(field "$P" "['chute']")
+pinch_at "$AIM"
+S=$(field "$(probe)" "['status']")
+if [ "$S" != "idle" ]; then
+  pass "pinching the chute starts a drop ($S)"
+else
+  fail "pinching the chute starts a drop ($S)"
+  # Did the diorama move between the probe and the pinch? Aim point vs where the chute is now.
+  echo "  aimed at $AIM; now $(iw browser run tests/e2e/chute-where.e2e.mjs 2>/dev/null | python3 -c "import sys,json;print(json.dumps(json.load(sys.stdin)['data']['result']))")"
+fi
 
 P=$(probe thread)
 pinch_at "$(field "$P" "['buttons']['restart']")"
