@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "build": "vite build",
     "preview": "vite preview",
+    "test:smoke": "node tests/smoke/prod-smoke.mjs",
     "test": "vitest run",
     "coverage": "vitest run --coverage",
     "test:e2e": "zsh tests/e2e/run.sh tests/e2e/first-thread.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/jump-drag.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/controls.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/slider.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/color-rule.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/pause.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/plaque.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/onboarding.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/onboarding-comeback.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/resume-setup.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/resume-check.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/missed-drop.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/settings.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/spool.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/guarded-reset.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/raise-lower.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/daily.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/sound-cues.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/melody-book.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/resume-insert.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/reach.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/first-melody.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/better-solve.e2e.mjs && zsh tests/e2e/run.sh tests/e2e/level-select.e2e.mjs",
@@ -36,6 +37,8 @@
     "@meta-quest/metavr": "^1.3.2",
     "@types/three": "^0.181.0",
     "@vitest/coverage-v8": "^5.0.2",
+    "iwer": "2.5.0",
+    "playwright": "1.63.0",
     "typescript": "^5.5.0",
     "vite": "^7.1.4",
     "vitest": "^5.0.2"
