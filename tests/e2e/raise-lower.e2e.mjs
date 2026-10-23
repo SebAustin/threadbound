@@ -8,7 +8,7 @@ const STEP_NEAR = 0.04;
 const origin = () => window.__threadbound.frame()?.origin;
 
 const atHeight = ([y]) => Math.abs(window.__threadbound.frame().origin[1] - y) < 1e-3;
-const replayDrop = () => {
+const restartWithThread = () => {
   window.__threadbound.dispatch({ type: 'restart' });
   window.__threadbound.dispatch({ type: 'addThread', from: 'a', to: 'b' });
 };
@@ -67,7 +67,7 @@ async function movingKeepsSolve({ page, app, at, check, start }) {
 
 /** A move made mid-drop waits for the marbles, then happens. */
 async function moveWaitsForDrop({ app, check, start }) {
-  await app.evaluate(replayDrop);
+  await app.evaluate(restartWithThread);
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'drop' }));
   const before = await app.evaluate(origin);
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'settings', patch: { offset: { up: 2, near: -1 } } }));
@@ -80,7 +80,7 @@ async function moveWaitsForDrop({ app, check, start }) {
 
 /** Entering mixed reality places the diorama on the real table: same rebuild, same promise. */
 async function placementKeepsThreads({ app, check }) {
-  await app.evaluate(replayDrop);
+  await app.evaluate(restartWithThread);
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'place', origin: [0.1, 0.7, -0.5], yaw: 0.2 }));
   const placed = await app.evaluate(() => ({ threads: window.__threadbound.state().threads.length, yaw: window.__threadbound.frame()?.yaw }));
   check('placing the diorama on a table keeps the player\'s threads', placed.threads === 1 && Math.abs(placed.yaw - 0.2) < 1e-6, JSON.stringify(placed));
