@@ -18,7 +18,7 @@ VO: *"Threadbound teaches itself. A ghost hand shows the move, and your first th
 **0:30–0:50 · Every thread is tuned (`three-cups`)**
 On screen: drop; amber and azure marbles sort into their cups.
 Text: *"Shorter threads ring higher. Amber and azure each find their cup."*
-VO: *"Each thread is tuned by its length, so every bounce is a note and every solution is a song. Sort colors, and each one carries its own shape."*
+VO: *"Each thread is tuned by its length, so every bounce is a note and every solution is a song. Sort colors, and every cup and chute shows its color's shape."* <!-- true once week 8 ticket 10 lands; re-check in week 9's final copy pass -->
 
 **0:50–1:10 · Four worlds (`hinge`)**
 On screen: pinch a rail tab; slide; the threads reshape; solved.
@@ -38,7 +38,7 @@ VO: *"Solved levels keep their tune. Pinch the stars to hear it again."*
 **1:45–2:00 · A reason to come back (`daily`)**
 On screen: the daily's streak on the plaque; pinch the chute, solved, and the streak goes up by one.
 Text: *"A daily puzzle, and a streak to keep."*
-VO: *"A new daily puzzle every day, and a streak to keep."*
+VO: *"A daily puzzle on a tight spool, and a streak to keep."*
 
 **2:00–2:35 · Made for everyone (`settings`, then gaze)**
 On screen: the settings button opens the settings face; pinch Slow motion, drop, then pinch Raise; then look and pinch with eye tracking, captioned "Emulated eye tracking (Quest Pro preset)".
