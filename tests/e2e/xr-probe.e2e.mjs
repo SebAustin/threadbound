@@ -50,6 +50,8 @@ const PROBE_FIELDS = [
     return Object.fromEntries(s.level.pegs.map((p) => [p.id, hook.worldOf(s.pegPositions[p.id].x, s.pegPositions[p.id].y, knobZ)]));
   }],
   ['chute', () => window.__threadbound.chute()?.world ?? null],
+  // The diorama's yaw: hands rest in its frame (REST_YAW, xr-lib.sh's rest_hand_for).
+  ['yaw', () => window.__threadbound.frame()?.yaw ?? 0],
   // Aim at the top of each button's cap (1.2 cm above its base on the ledge).
   ['buttons', () => Object.fromEntries(
     ['restart', 'next', 'settings', 'daily'].map((id) => {
@@ -71,6 +73,10 @@ const PROBE_FIELDS = [
   ['face', () => window.__threadbound.plaque()?.face],
   ['slowToggle', () => window.__threadbound.plaqueElement('set-slow')?.world],
   ['slowMotion', () => window.__threadbound.state().settings.slowMotion],
+  ['raiseToggle', () => window.__threadbound.plaqueElement('set-up')?.world],
+  ['offset', () => window.__threadbound.state().settings.offset],
+  // The plaque's details row: the world and place, or the daily and its streak.
+  ['worldLabel', () => window.__threadbound.hud()?.model?.worldLabel],
   ['stars', () => window.__threadbound.plaqueElement('hud-stars')?.world],
   ['placement', () => window.__threadbound.placement()],
   ['audio', () => window.__threadbound.audio()],

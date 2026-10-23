@@ -21,6 +21,7 @@
     "test:e2e:levels": "zsh tests/e2e/levels.sh",
     "test:e2e:levels:slow": "SLOW=1 zsh tests/e2e/levels.sh",
     "test:e2e:dailies": "zsh tests/e2e/dailies.sh",
+    "test:e2e:shots": "zsh tests/e2e/shots.sh",
     "test:e2e:prod-xr": "node tests/e2e/prod-xr.mjs"
   },
   "dependencies": {

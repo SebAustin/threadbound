@@ -1,7 +1,8 @@
 # Shared helpers for the E2E shell runners and the emulated-XR tests (source from
 # tests/e2e/*.sh after cd to repo root). Helpers declare loop variables `local`:
 # zsh function variables are global, and a helper's `i` would clobber the caller's loop.
-iw() { npx @iwsdk/cli "$@"; }
+# IW_LOG=<file> appends each call's domain and action (e.g. "xr animate-to"), so a test can check which moves a script made.
+iw() { [ -n "$IW_LOG" ] && echo "$1 $2" >> "$IW_LOG"; npx @iwsdk/cli "$@"; }
 FAIL=0
 pass() { echo "PASS $1"; }
 fail() { echo "FAIL $1"; FAIL=1; }
@@ -37,7 +38,11 @@ field() { echo "$1" | python3 -c "import sys,json;v=json.load(sys.stdin)$2;print
 # lerp_point <a json> <b json> <t>: the point a fraction t of the way from a to b.
 lerp_point() { python3 -c "import json;a=json.loads('$1');b=json.loads('$2');print(json.dumps({k:a[k]+(b[k]-a[k])*$3 for k in a}))"; }
 # Where a seated player's right hand rests relative to a target: below and in front.
-rest_hand_for() { python3 -c "import json;t=json.loads('$1');print(json.dumps({'x':t['x']+0.1,'y':t['y']-0.3,'z':t['z']+0.35}))"; }
+# REST_YAW (radians, default 0) turns that offset with a diorama that doesn't face +z,
+# like the video shots' diorama on the table beside the seated player.
+rest_hand_for() {
+  python3 -c "import json,math;t=json.loads('$1');a=${REST_YAW:-0};print(json.dumps({'x':t['x']+0.1*math.cos(a)+0.35*math.sin(a),'y':t['y']-0.3,'z':t['z']-0.1*math.sin(a)+0.35*math.cos(a)}))"
+}
 # pinch_pull <from json> <to json>: pinch at one point, sweep the ray to another, release (a thread).
 pinch_pull() {
   local t
@@ -58,4 +63,40 @@ pinch_at() {
   iw xr look-at --input-json "{\"device\":\"hand-right\",\"target\":$1}" >/dev/null 2>&1; sleep 0.5
   iw xr set-select-value --input-json '{"device":"hand-right","value":1}' >/dev/null 2>&1; sleep 0.3
   iw xr set-select-value --input-json '{"device":"hand-right","value":0}' >/dev/null 2>&1; sleep 0.8
+}
+
+# Smooth hands for the video takes (tests/e2e/take.sh). Aim once while staging (aim_hand),
+# then move only with position-only `xr animate-to` glides, which IWER interpolates every
+# frame. rest_hand_for is a fixed offset, so a pure translation keeps the ray on its target:
+# a glide to rest_hand_for(t) aims at t, and a pull from rest_hand_for(a) to rest_hand_for(b)
+# sweeps the ray from a to b. The jump-based pinch_at/pinch_pull above stay for the tests.
+GLIDE_S=0.8
+PULL_S=1.0
+# aim_hand <target json>: staging only. Rest the right hand for the target and point its ray there.
+aim_hand() {
+  iw xr set-transform --input-json "{\"device\":\"hand-right\",\"position\":$(rest_hand_for "$1")}" >/dev/null 2>&1
+  iw xr look-at --input-json "{\"device\":\"hand-right\",\"target\":$1}" >/dev/null 2>&1
+}
+# glide_to <position json> [seconds]: one position-only move. The call returns once the move has ended.
+glide_to() {
+  iw xr animate-to --input-json "{\"device\":\"hand-right\",\"position\":$1,\"duration\":${2:-$GLIDE_S}}" >/dev/null 2>&1
+}
+# glide_pinch_at <target json>: glide to rest for the target, pinch, release.
+glide_pinch_at() {
+  glide_to "$(rest_hand_for "$1")"
+  iw xr set-select-value --input-json '{"device":"hand-right","value":1}' >/dev/null 2>&1; sleep 0.3
+  iw xr set-select-value --input-json '{"device":"hand-right","value":0}' >/dev/null 2>&1; sleep 0.5
+}
+# glide_pinch_pull <from json> <to json>: glide to rest for one peg, pinch, glide the ray to the other, release.
+glide_pinch_pull() {
+  glide_to "$(rest_hand_for "$1")"
+  iw xr set-select-value --input-json '{"device":"hand-right","value":1}' >/dev/null 2>&1; sleep 0.3
+  glide_to "$(rest_hand_for "$2")" $PULL_S
+  iw xr set-select-value --input-json '{"device":"hand-right","value":0}' >/dev/null 2>&1; sleep 0.5
+}
+# wait_solved [probes=15]: poll until the level is solved (a drop runs a few seconds; slow motion 1.5x).
+wait_solved() {
+  local i
+  for i in $(seq 1 ${1:-15}); do [ "$(field "$(probe)" "['status']")" = "complete" ] && return 0; done
+  return 1
 }

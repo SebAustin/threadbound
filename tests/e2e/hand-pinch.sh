@@ -1,7 +1,8 @@
 #!/bin/zsh
 # Hand pinch-pull E2E in an emulated Quest 3 session (no eye tracking, so hand
 # far rays target): aim the right hand at knob a, pinch, sweep to knob b, release.
-# Exit 1 unless exactly the thread a->b is made.
+# Exit 1 unless exactly the thread a->b is made. The last block checks the video
+# takes' glide helpers (xr-lib.sh): glide pinch-pull a->b, then a glide chute pinch solves.
 cd "$(dirname "$0")/../.."
 source tests/e2e/xr-lib.sh
 xr_start
@@ -39,5 +40,16 @@ iw xr set-connected --input-json '{"device":"hand-right","connected":true}' >/de
 pinch_pull "$A" "$B"
 T=$(field "$(probe)" "['threads']")
 echo "$T" | grep -q '"from": "a", "to": "b"' && pass "losing the hand mid-pinch leaves no stuck drag" || fail "losing the hand mid-pinch leaves no stuck drag ($T)"
+xr_stop
+
+# The video takes' smooth hands (take.sh): in a fresh session, aim once, then only glide.
+xr_start
+P=$(probe load0); C=$(field "$P" "['chute']"); REST_YAW=$(field "$P" "['yaw']")
+aim_hand "$C"
+glide_pinch_pull "$(field "$P" "['knobs']['a']")" "$(field "$P" "['knobs']['b']")"
+T=$(field "$(probe)" "['threads']")
+echo "$T" | grep -q '"from": "a", "to": "b"' && pass "a glided pinch-pull makes the thread a->b" || fail "a glided pinch-pull makes the thread a->b ($T)"
+glide_pinch_at "$C"
+wait_solved && pass "a glided pinch on the chute solves level 1" || fail "a glided pinch on the chute solves level 1 ($(field "$(probe)" "['status']"))"
 xr_stop
 exit $FAIL
