@@ -1,6 +1,6 @@
 # Draft: message to a Start program mentor
 
-Send as a direct message to a Start program mentor, in the same week as the forum post (`docs/forum-post.md`). **The author sends this; nothing has been sent automatically.** Replace the bracketed placeholders first: the mentor's name, and the forum post's link once it is posted.
+Send as a direct message to a Start program mentor, in the same week as the forum post (`docs/forum-post.md`). **The author sends this; nothing has been sent automatically.** Replace [name] with the mentor's name first; the forum post link is filled in.
 
 ---
 
@@ -13,4 +13,4 @@ Hi [name], my WebXR marble puzzle Threadbound was built entirely in the IWER emu
 
 Entry rules allow no credit by name or handle. Any clip: table and diorama only (no people, faces, mirrors, screens, posters or brands), mic off. May I use it, free of charge, in my competition video? Only a written yes in a DM counts.
 
-Full list: [forum post link]
+Full list: https://communityforums.atmeta.com/off-topic-15/looking-for-a-quest-owner-to-try-a-webxr-marble-puzzle-10-15-minutes-no-install-180846
