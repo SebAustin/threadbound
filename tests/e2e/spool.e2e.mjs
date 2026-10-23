@@ -6,6 +6,11 @@ const plaque = () => window.__threadbound.hud()?.model?.spoolLabel;
 const threadCount = () => window.__threadbound.state().threads.length;
 const hint = () => window.__threadbound.hud()?.model?.hint;
 const pegB = () => window.__threadbound.state().pegPositions.b;
+/** No refusal is held, and the hint line is back to the level's own hint (or empty without one). */
+const refusalCleared = () => {
+  const s = window.__threadbound.state();
+  return s.refusal === null && window.__threadbound.hud()?.model?.hint === (s.level.hint ?? '');
+};
 
 export default async function run({ page, frame }) {
   const app = frame ?? page.mainFrame();
@@ -21,7 +26,8 @@ export default async function run({ page, frame }) {
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'addThread', from: 'a', to: 'b' }));
   const spent = await waitFor(app, () => window.__threadbound.hud()?.model?.spoolLabel === 'Spool 4/12 cm', 2000);
   check('a short thread fits and the readout drops', spent, await app.evaluate(plaque));
-  check('success clears the refusal', await waitFor(app, () => window.__threadbound.hud()?.model?.hint === '', 2000), await app.evaluate(hint));
+  // The refusal line gives way to whatever the plaque showed before it: here w4-01's own level hint.
+  check('success clears the refusal', await waitFor(app, refusalCleared, 2000), await app.evaluate(hint));
 
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'snip', from: 'a', to: 'b' }));
   const back = await waitFor(app, () => window.__threadbound.hud()?.model?.spoolLabel === 'Spool 12/12 cm', 2000);
