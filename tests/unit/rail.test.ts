@@ -1,18 +1,21 @@
 import { describe, expect, test } from 'vitest';
-import { clampToRail, clampToRailInto, handleOffset, positionAlong } from '../../src/lib/rail';
+import { clampToRailInto, handleOffset, type Rail, positionAlong } from '../../src/lib/rail';
 
 const rail = { axis: 'x' as const, min: 0.05, max: 0.4 };
 
-describe('clampToRail', () => {
+const clamp = (pegX: number, pegY: number, r: Rail, tx: number, ty: number) =>
+  clampToRailInto(pegX, pegY, r, tx, ty, { x: 0, y: 0 });
+
+describe('clampToRailInto: sliding a peg along its rail', () => {
   test('moves only along the rail axis', () => {
-    expect(clampToRail({ x: 0.2, y: 0.3 }, rail, [0.25, 0.9])).toEqual({ x: 0.25, y: 0.3 });
+    expect(clamp(0.2, 0.3, rail, 0.25, 0.9)).toEqual({ x: 0.25, y: 0.3 });
   });
   test('clamps to the rail ends', () => {
-    expect(clampToRail({ x: 0.2, y: 0.3 }, rail, [0.9, 0.3])).toEqual({ x: 0.4, y: 0.3 });
-    expect(clampToRail({ x: 0.2, y: 0.3 }, rail, [-1, 0.3])).toEqual({ x: 0.05, y: 0.3 });
+    expect(clamp(0.2, 0.3, rail, 0.9, 0.3)).toEqual({ x: 0.4, y: 0.3 });
+    expect(clamp(0.2, 0.3, rail, -1, 0.3)).toEqual({ x: 0.05, y: 0.3 });
   });
   test('vertical rails move y only', () => {
-    expect(clampToRail({ x: 0.2, y: 0.1 }, { axis: 'y', min: 0.05, max: 0.3 }, [0.9, 0.2])).toEqual({ x: 0.2, y: 0.2 });
+    expect(clamp(0.2, 0.1, { axis: 'y', min: 0.05, max: 0.3 }, 0.9, 0.2)).toEqual({ x: 0.2, y: 0.2 });
   });
 });
 

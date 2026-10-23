@@ -6,7 +6,7 @@
  */
 
 /** Marble speed (m/s) below which it counts as at rest. */
-export const REST_SPEED = 0.05;
+const REST_SPEED = 0.05;
 /** Rest this long above the floor, outside a cup, before a nudge. */
 export const STALL_SECONDS = 0.8;
 /** Every marble at rest this long ends an unsolved drop. */

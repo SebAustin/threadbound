@@ -1,5 +1,5 @@
 import { createSystem } from '@iwsdk/core';
-import { shouldPause, type XrVisibility } from '../../lib/pausePolicy';
+import { shouldPause, toXrVisibility } from '../../lib/pausePolicy';
 import { MarbleSystem } from '../marbles/MarbleSystem';
 import { OnboardingSystem } from '../onboarding/OnboardingSystem';
 import { puzzleStore } from '../puzzle/puzzleStore';
@@ -20,7 +20,7 @@ export class PauseSystem extends createSystem({}) {
   init(): void {
     const apply = () => this.setPaused(
       shouldPause({
-        xrVisibility: this.world.visibilityState.peek() as XrVisibility,
+        xrVisibility: toXrVisibility(this.world.visibilityState.peek()),
         documentHidden: document.hidden,
       }),
     );

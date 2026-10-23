@@ -9,15 +9,15 @@ import {
   Vector3,
   type Object3D,
 } from '@iwsdk/core';
-import { DIORAMA, ONBOARDING, PEG } from '../../config/constants';
+import { AIM_PLANE_Z, ONBOARDING } from '../../config/constants';
 import { ghostPose, type GhostPose, type OnboardingStep } from '../../lib/onboarding';
 import { GEOMETRIES } from '../diorama/palette';
 import { puzzleStore } from '../puzzle/puzzleStore';
 import { onboardingStepOf } from './onboardingState';
 
 const UP = new Vector3(0, 1, 0);
-/** Peg knobs sit in front of the glass; the ghost hovers just in front of them. */
-const KNOB_Z = DIORAMA.channelHalfDepth + PEG.radius;
+/** The ghost aims at the knobs' plane, the surface players pinch (see AIM_PLANE_Z). */
+const KNOB_Z = AIM_PLANE_Z;
 const GHOST_Z = KNOB_Z + ONBOARDING.hover;
 
 /** Never let the demonstration intercept the pinch it is demonstrating. */

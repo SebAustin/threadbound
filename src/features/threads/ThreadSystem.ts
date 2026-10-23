@@ -96,6 +96,13 @@ export class ThreadSystem extends createSystem({
     return (level?.pegs ?? []).map((p) => ({ id: p.id, ...(pegPositions[p.id] ?? p) }));
   }
 
+  /** One peg's live snap point, without building the whole list. */
+  private pegPoint(id: string): PegPoint | undefined {
+    const { level, pegPositions } = puzzleStore.get();
+    const peg = level?.pegs.find((p) => p.id === id);
+    return peg && { id, ...(pegPositions[id] ?? peg) };
+  }
+
   /**
    * Pointer listeners live on the peg's own meshes, which are discarded when the
    * level is torn down, so they need no explicit unsubscribe.
@@ -175,8 +182,8 @@ export class ThreadSystem extends createSystem({
   /** Player (or test/hint) thread: validated against the level's rules. */
   private tryAddThread(fromId: string, toId: string): void {
     const state = puzzleStore.get();
-    const from = this.pegPoints.find((p) => p.id === fromId);
-    const to = this.pegPoints.find((p) => p.id === toId);
+    const from = this.pegPoint(fromId);
+    const to = this.pegPoint(toId);
     if (!from || !to) return;
     const spool = state.level?.spool;
     const check = checkNewThread(
@@ -197,8 +204,8 @@ export class ThreadSystem extends createSystem({
 
   private createPresetThreads(): void {
     for (const link of puzzleStore.get().level?.presetThreads ?? []) {
-      const from = this.pegPoints.find((p) => p.id === link.from);
-      const to = this.pegPoints.find((p) => p.id === link.to);
+      const from = this.pegPoint(link.from);
+      const to = this.pegPoint(link.to);
       if (from && to) this.createThread(from, to, { preset: true, pluck: false });
     }
   }

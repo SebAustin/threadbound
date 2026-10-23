@@ -1,23 +1,31 @@
 import { describe, expect, test } from 'vitest';
-import { intersectRayWithPlaneZ } from '../../src/lib/rayPlane';
+import { intersectRayWithPlaneZInto } from '../../src/lib/rayPlane';
 
-describe('intersectRayWithPlaneZ', () => {
-  test('hits the plane in front of the ray', () => {
-    const p = intersectRayWithPlaneZ([0.1, 0.2, 1], [0, 0, -1], 0);
-    expect(p).toEqual([0.1, 0.2, 0]);
+const MISS = { x: 7, y: 8 };
+
+describe('intersectRayWithPlaneZInto', () => {
+  test('hits the plane straight in front of the ray', () => {
+    const out = { x: 0, y: 0 };
+    expect(intersectRayWithPlaneZInto(0.1, 0.2, 1, 0, 0, -1, 0, out)).toBe(true);
+    expect(out).toEqual({ x: 0.1, y: 0.2 });
   });
 
-  test('handles an oblique ray', () => {
-    const p = intersectRayWithPlaneZ([0, 0, 1], [0.5, 0, -1], 0)!;
-    expect(p[0]).toBeCloseTo(0.5);
-    expect(p[2]).toBeCloseTo(0);
+  test('handles an angled ray and a plane off z = 0', () => {
+    const out = { x: 0, y: 0 };
+    expect(intersectRayWithPlaneZInto(0, 0, 1, 0.5, -0.25, -1, 0.2, out)).toBe(true);
+    expect(out.x).toBeCloseTo(0.4);
+    expect(out.y).toBeCloseTo(-0.2);
   });
 
-  test('returns null when the ray is parallel to the plane', () => {
-    expect(intersectRayWithPlaneZ([0, 0, 1], [1, 0, 0], 0)).toBeNull();
+  test('misses a ray parallel to the plane and leaves out untouched', () => {
+    const out = { ...MISS };
+    expect(intersectRayWithPlaneZInto(0, 0, 1, 1, 0, 0, 0, out)).toBe(false);
+    expect(out).toEqual(MISS);
   });
 
-  test('returns null when the plane is behind the ray', () => {
-    expect(intersectRayWithPlaneZ([0, 0, 1], [0, 0, 1], 0)).toBeNull();
+  test('misses a plane behind the origin and leaves out untouched', () => {
+    const out = { ...MISS };
+    expect(intersectRayWithPlaneZInto(0, 0, 1, 0, 0, 1, 0, out)).toBe(false);
+    expect(out).toEqual(MISS);
   });
 });

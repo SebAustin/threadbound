@@ -19,7 +19,7 @@ import {
   type Object3D,
   type World,
 } from '@iwsdk/core';
-import { CONTROLS, DIORAMA, GLYPH, GOAL, PEG, SLIDER } from '../../config/constants';
+import { AIM_PLANE_Z, CHUTE, CONTROLS, DIORAMA, FRICTION, GLYPH, GOAL, PEG, SLIDER } from '../../config/constants';
 import type { SortingColor } from '../../lib/marbleColors';
 import type { Chute as ChuteSpec, Level } from '../../lib/levelSchema';
 import { handleOffset, type Rail } from '../../lib/rail';
@@ -73,7 +73,7 @@ function staticBox(
   entity.addComponent(PhysicsShape, {
     shape: PhysicsShapeType.Box,
     dimensions: [size[0], size[1], size[2]],
-    friction: 0.4,
+    friction: FRICTION.walls,
   });
   entity.addComponent(PhysicsBody, { state: PhysicsState.Static });
   return entity;
@@ -128,7 +128,7 @@ function buildPeg(world: World, frame: DioramaFrame, peg: Level['pegs'][number])
   entity.addComponent(PhysicsShape, {
     shape: PhysicsShapeType.Cylinder,
     dimensions: [PEG.radius, depth, 0],
-    friction: 0.3,
+    friction: FRICTION.pegs,
   });
   entity.addComponent(PhysicsBody, { state: PhysicsState.Static });
   return entity;
@@ -147,9 +147,9 @@ function buildGoal(
   const right = staticBox(world, frame, [wall, GOAL.wallHeight, depth], [goal.x + half + wall / 2, wallY, 0], MATERIALS.walnut);
 
   // Glowing floor inset: purely visual, the base slab is the collider.
-  const floor = new Mesh(new BoxGeometry(goal.width, 0.002, depth), goalMaterial(goal.color, false));
+  const floor = new Mesh(new BoxGeometry(goal.width, GOAL.insetThickness, depth), goalMaterial(goal.color, false));
   floor.name = 'goal-floor';
-  const floorEntity = place(world, frame, floor, [goal.x, 0.001, 0]);
+  const floorEntity = place(world, frame, floor, [goal.x, GOAL.insetThickness / 2, 0]);
   // Shape marker on the front ledge, under the cup: visible even when the cup is full.
   const marker = goal.color ? glyphMesh(goal.color) : null;
   const markerEntities = marker
@@ -163,20 +163,21 @@ function buildGoal(
 }
 
 function buildChute(world: World, frame: DioramaFrame, chute: ChuteSpec, index: number): Entity {
-  const funnel = new Mesh(new CylinderGeometry(0.03, 0.014, 0.035, 16, 1, true), MATERIALS.brass);
+  const funnelGeometry = new CylinderGeometry(CHUTE.topRadius, CHUTE.bottomRadius, CHUTE.height, CHUTE.segments, 1, true);
+  const funnel = new Mesh(funnelGeometry, MATERIALS.brass);
   funnel.name = index === 0 ? 'chute' : `chute-${index}`;
   // A rim in the marble color tells the player what this chute releases.
-  const rim = new Mesh(new TorusGeometry(0.03, 0.004, 6, 24), marbleMaterial(chute.color));
+  const rim = new Mesh(new TorusGeometry(CHUTE.topRadius, CHUTE.rimTube, 6, 24), marbleMaterial(chute.color));
   rim.rotation.x = Math.PI / 2;
-  rim.position.y = 0.0175;
+  rim.position.y = CHUTE.height / 2;
   funnel.add(rim);
   const glyph = glyphMesh(chute.color);
   if (glyph) {
     // In front of the funnel, facing the player, so the chute's color is also a shape.
-    glyph.position.set(0, 0, 0.03 + GLYPH.standoff);
+    glyph.position.set(0, 0, CHUTE.topRadius + GLYPH.standoff);
     funnel.add(glyph);
   }
-  const entity = place(world, frame, funnel, [chute.x, chute.y + 0.02, 0]);
+  const entity = place(world, frame, funnel, [chute.x, chute.y + CHUTE.lift, 0]);
   entity.addComponent(Chute);
   entity.addComponent(RayInteractable);
   return entity;
@@ -296,7 +297,8 @@ function buildRail(world: World, frame: DioramaFrame, peg: Level['pegs'][number]
   const [gw, gh, gd] = SLIDER.gripScale;
   const grip = new Mesh(new BoxGeometry(w * gw, h * gh, d * gd), MATERIALS.walnut);
   tab.add(body, grip);
-  const handleZ = DIORAMA.channelHalfDepth + PEG.radius;
+  // The tab sits on the knobs' plane, the surface players aim at.
+  const handleZ = AIM_PLANE_Z;
   const handle = place(world, frame, tab, [peg.x + ox, peg.y + oy, handleZ]);
   handle.addComponent(SliderHandle, { pegId: peg.id });
   handle.addComponent(RayInteractable);

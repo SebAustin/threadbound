@@ -24,6 +24,7 @@ import { puzzleStore } from '../puzzle/puzzleStore';
 import { SimulationClockSystem } from '../simulation/SimulationClockSystem';
 import { MELODY_NOTES_MAX } from '../../lib/progress';
 import { CUES } from '../../lib/soundCues';
+import { DEFAULT_PITCH_HZ } from '../../lib/threadTuning';
 
 /** Contact band around a thread that counts as a "pluck". */
 const CONTACT_DIST = MARBLE.radius + THREAD_TUNING.radius + 0.004;
@@ -37,7 +38,7 @@ const CUP_TOP = GOAL.wallHeight + MARBLE.radius;
 const SETTLED_SPEED = 0.35;
 /** A visible wobble even for a gentle touch. */
 const MIN_PLUCK_ENERGY = 0.3;
-/** C5 "ding" when a puzzle is solved without touching any thread. */
+/** Damps spin so marbles roll along threads instead of spinning in place. */
 const MARBLE_ANGULAR_DAMPING = 0.2;
 /** Sideways speed (m/s) that tips a marble off an unstable perch, like a real wobble. */
 const NUDGE_SPEED = 0.12;
@@ -237,7 +238,7 @@ export class MarbleSystem extends createSystem({
       const wasInContact = touching.has(thread.index);
       if (inContact && !wasInContact) {
         touching.add(thread.index);
-        const pitch = thread.getValue(Thread, 'pitch') ?? 440;
+        const pitch = thread.getValue(Thread, 'pitch') ?? DEFAULT_PITCH_HZ;
         const strength = this.speedOf(marble) / FULL_VOLUME_SPEED;
         stringSynth.play('bounce', pitch, strength);
         thread.setValue(Thread, 'energy', Math.min(1, Math.max(MIN_PLUCK_ENERGY, strength)));

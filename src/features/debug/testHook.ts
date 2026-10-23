@@ -1,5 +1,5 @@
 import { Object3D, Vector3, type UIKitMLAsset, type World } from '@iwsdk/core';
-import { AIM_PLANE_Z, PERF_BUDGET } from '../../config/constants';
+import { AIM_PLANE_Z, CHUTE, PERF_BUDGET } from '../../config/constants';
 import { LEVELS } from '../../levels';
 import { budgetBreaches, type FrameStats } from '../../lib/perfBudget';
 import { handleOffset } from '../../lib/rail';
@@ -29,7 +29,8 @@ export interface ThreadboundTestHook {
   /** Canvas-relative CSS pixel position of a diorama-local point. */
   project(x: number, y: number, z?: number): ScreenPoint;
   pegs(): Array<{ id: string } & ScreenPoint>;
-  chute(): ScreenPoint | null;
+  /** A chute's funnel mouth (the first chute by default), where pinches aim; null if absent. */
+  chute(index?: number): Located | null;
   state(): ReturnType<typeof puzzleStore.get>;
   levels(): Array<{ id: string; name: string }>;
   dispatch(command: PuzzleCommand): void;
@@ -45,7 +46,7 @@ export interface ThreadboundTestHook {
   solve(): void;
   /** Current diorama frame: origin (bottom-left, world) and yaw. */
   frame(): { origin: number[]; yaw: number } | null;
-  marbles(): Array<WorldPoint & { scored: boolean; color: string }>;
+  marbles(): Array<WorldPoint & { color: string }>;
   /** World-space position of a diorama-local point (for aiming emulated hands). */
   worldOf(x: number, y: number, z?: number): WorldPoint;
   room(): { visible: boolean; background: boolean; blendMode: string | null };
@@ -114,9 +115,12 @@ function levelProbes(
     project: (x, y, z) => probe.project(x, y, z),
     // Project the knob faces: the surface players aim at (see AIM_PLANE_Z).
     pegs: () => puzzleStore.get().level?.pegs.map((p) => ({ id: p.id, ...probe.project(p.x, p.y, AIM_PLANE_Z) })) ?? [],
-    chute: () => {
-      const chute = puzzleStore.get().level?.chutes[0];
-      return chute ? probe.project(chute.x, chute.y + 0.02) : null;
+    chute: (index = 0) => {
+      const chute = puzzleStore.get().level?.chutes[index];
+      const frame = puzzleStore.frame;
+      if (!chute || !frame) return null;
+      const y = chute.y + CHUTE.lift;
+      return { ...probe.project(chute.x, y), world: plain(frame.localToWorld(chute.x, y, 0, new Vector3())) };
     },
     state: () => puzzleStore.get(),
     levels: () => LEVELS.map((l) => ({ id: l.id, name: l.name })),
@@ -161,7 +165,7 @@ function sceneProbes(world: World, probe: Probe): Hook<'button' | 'handle' | 'ha
     },
     marbles: () => {
       const frame = puzzleStore.frame;
-      const found: Array<WorldPoint & { scored: boolean; color: string }> = [];
+      const found: Array<WorldPoint & { color: string }> = [];
       if (!frame) return found;
       const worldPos = new Vector3();
       const local = new Vector3();
@@ -169,7 +173,7 @@ function sceneProbes(world: World, probe: Probe): Hook<'button' | 'handle' | 'ha
         if (o.name !== 'marble') return;
         frame.worldToLocal(o.getWorldPosition(worldPos), local);
         const color = String(o.userData.color ?? 'teal');
-        found.push({ x: round3(local.x), y: round3(local.y), z: round3(local.z), scored: false, color });
+        found.push({ x: round3(local.x), y: round3(local.y), z: round3(local.z), color });
       });
       return found;
     },

@@ -1,4 +1,4 @@
-import { add, clamp, dot, length, scale, sub, type Quat, type Vec3 } from './vec';
+import { add, length, scale, sub, type Quat, type Vec3 } from './vec';
 
 export interface SegmentTransform {
   readonly midpoint: Vec3;
@@ -32,19 +32,4 @@ function quatFromUnitY(dir: Vec3): Quat {
   const w = 1 + cos;
   const n = Math.sqrt(x * x + z * z + w * w);
   return [x / n, 0, z / n, w / n];
-}
-
-export interface ClosestPoint {
-  readonly point: Vec3;
-  /** Parametric position along the segment, 0 at `a`, 1 at `b`. */
-  readonly t: number;
-  readonly distance: number;
-}
-
-export function closestPointOnSegment(p: Vec3, a: Vec3, b: Vec3): ClosestPoint {
-  const ab = sub(b, a);
-  const denom = dot(ab, ab);
-  const t = denom < EPSILON ? 0 : clamp(dot(sub(p, a), ab) / denom, 0, 1);
-  const point = add(a, scale(ab, t));
-  return { point, t, distance: length(sub(p, point)) };
 }

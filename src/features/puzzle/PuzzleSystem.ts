@@ -120,7 +120,8 @@ export class PuzzleSystem extends createSystem({
     const frame = new DioramaFrame(new Vector3(...offsetOrigin(pose.origin, pose.yaw, offset)), pose.yaw);
     puzzleStore.frame = frame;
     puzzleStore.diorama = buildDiorama(this.world, frame, level);
-    puzzleStore.diorama.nextButton.object3D!.visible = false;
+    const next = puzzleStore.diorama.nextButton.object3D;
+    if (next) next.visible = false;
     const pegPositions = Object.fromEntries(level.pegs.map((p) => [p.id, { x: p.x, y: p.y }]));
     puzzleStore.update({
       level,

@@ -144,47 +144,47 @@ describe('offsetOrigin: the player nudges the diorama up/down and toward/away', 
   });
 });
 
+/** A 0.9 x 0.6 table turned `yawDeg` about Y, its near edge about 0.35 m from the head. */
+const turned = (yawDeg: number): PlaneCandidate => {
+  const yaw = (yawDeg * Math.PI) / 180;
+  const origin = [0.05, 0.75, -0.7] as const;
+  // World AABB of the turned rectangle (what the plane mesh's box would report).
+  const corners = [[-0.45, -0.3], [0.45, -0.3], [0.45, 0.3], [-0.45, 0.3]].map(([x, z]) => [
+    origin[0] + x * Math.cos(yaw) + z * Math.sin(yaw),
+    origin[2] - x * Math.sin(yaw) + z * Math.cos(yaw),
+  ]);
+  const xs = corners.map((c) => c[0]);
+  const zs = corners.map((c) => c[1]);
+  return {
+    orientation: 'horizontal',
+    label: 'table',
+    min: [Math.min(...xs), 0.74, Math.min(...zs)],
+    max: [Math.max(...xs), 0.75, Math.max(...zs)],
+    pose: { origin, yaw, min: [-0.45, -0.3], max: [0.45, 0.3] },
+  };
+};
+
+/** The diorama base's corners (world XZ) for a placement: width x FOOTPRINT depth, facing yaw. */
+const footprint = (p: { center: readonly number[]; yaw: number }, width: number) => {
+  const hw = width / 2;
+  const hd = FOOTPRINT_HALF_DEPTH;
+  return [[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]].map(([x, z]) => [
+    p.center[0] + x * Math.cos(p.yaw) + z * Math.sin(p.yaw),
+    p.center[2] - x * Math.sin(p.yaw) + z * Math.cos(p.yaw),
+  ]);
+};
+
+/** Whether a world XZ point lies on the turned table (in its local frame). */
+const onTable = (t: PlaneCandidate, [x, z]: number[]) => {
+  const { origin, yaw, min, max } = t.pose!;
+  const dx = x - origin[0];
+  const dz = z - origin[2];
+  const lx = dx * Math.cos(yaw) - dz * Math.sin(yaw);
+  const lz = dx * Math.sin(yaw) + dz * Math.cos(yaw);
+  return lx >= min[0] - 1e-6 && lx <= max[0] + 1e-6 && lz >= min[1] - 1e-6 && lz <= max[1] + 1e-6;
+};
+
 describe('choosePlacement on rotated tables (plane pose + local polygon)', () => {
-  /** A 0.9 x 0.6 table turned `yawDeg` about Y, its near edge about 0.35 m from the head. */
-  const turned = (yawDeg: number): PlaneCandidate => {
-    const yaw = (yawDeg * Math.PI) / 180;
-    const origin = [0.05, 0.75, -0.7] as const;
-    // World AABB of the turned rectangle (what the plane mesh's box would report).
-    const corners = [[-0.45, -0.3], [0.45, -0.3], [0.45, 0.3], [-0.45, 0.3]].map(([x, z]) => [
-      origin[0] + x * Math.cos(yaw) + z * Math.sin(yaw),
-      origin[2] - x * Math.sin(yaw) + z * Math.cos(yaw),
-    ]);
-    const xs = corners.map((c) => c[0]);
-    const zs = corners.map((c) => c[1]);
-    return {
-      orientation: 'horizontal',
-      label: 'table',
-      min: [Math.min(...xs), 0.74, Math.min(...zs)],
-      max: [Math.max(...xs), 0.75, Math.max(...zs)],
-      pose: { origin, yaw, min: [-0.45, -0.3], max: [0.45, 0.3] },
-    };
-  };
-
-  /** The diorama base's corners (world XZ) for a placement: width x FOOTPRINT depth, facing yaw. */
-  const footprint = (p: { center: readonly number[]; yaw: number }, width: number) => {
-    const hw = width / 2;
-    const hd = FOOTPRINT_HALF_DEPTH;
-    return [[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]].map(([x, z]) => [
-      p.center[0] + x * Math.cos(p.yaw) + z * Math.sin(p.yaw),
-      p.center[2] - x * Math.sin(p.yaw) + z * Math.cos(p.yaw),
-    ]);
-  };
-
-  /** Whether a world XZ point lies on the turned table (in its local frame). */
-  const onTable = (t: PlaneCandidate, [x, z]: number[]) => {
-    const { origin, yaw, min, max } = t.pose!;
-    const dx = x - origin[0];
-    const dz = z - origin[2];
-    const lx = dx * Math.cos(yaw) - dz * Math.sin(yaw);
-    const lz = dx * Math.sin(yaw) + dz * Math.cos(yaw);
-    return lx >= min[0] - 1e-6 && lx <= max[0] + 1e-6 && lz >= min[1] - 1e-6 && lz <= max[1] + 1e-6;
-  };
-
   test.each([0, 25, 40])('on a table turned %i degrees the whole base rests on the table', (deg) => {
     const t = turned(deg);
     const p = choosePlacement([t], head, 0.5, forward)!;

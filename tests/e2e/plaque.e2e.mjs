@@ -7,6 +7,16 @@ export default async function run({ page, frame }) {
   const app = frame ?? page.mainFrame();
   const { results, check } = checks();
 
+  await plaqueNamesLevel(app, check);
+  await budgetCountsThreads(app, check);
+  await solveLightsPlaque(app, check);
+  await plaqueFollowsTable(app, check);
+  await finalesReadNofN(app, check);
+  return results;
+}
+
+/** The plaque names the level and its world, centred above the diorama. */
+async function plaqueNamesLevel(app, check) {
   await loadLevel(app, 'w2-02');
   const start = await app.evaluate(hud);
   check('plaque names the level and its place in the world',
@@ -14,14 +24,20 @@ export default async function run({ page, frame }) {
   const size = await app.evaluate(() => window.__threadbound.state().level.size);
   check('plaque stands centred above the diorama',
     Math.abs(start.local.x - size[0] / 2) < 0.005 && start.local.y > size[1] && start.local.y < size[1] + 0.12, JSON.stringify(start.local));
+}
 
+/** The thread budget counts the player's threads (on w2-02, still loaded). */
+async function budgetCountsThreads(app, check) {
   await app.evaluate(() => {
     const [first] = window.__threadbound.state().level.solution;
     window.__threadbound.dispatch({ type: 'addThread', from: first.from, to: first.to });
   });
   const afterThread = await app.evaluate(hud);
   check('thread budget counts player threads', afterThread.model.threadsLabel.startsWith('Threads 1/'), afterThread.model.threadsLabel);
+}
 
+/** A solve lights the header and every earned star. */
+async function solveLightsPlaque(app, check) {
   await loadLevel(app, 'w1-01');
   await app.evaluate(() => {
     window.__threadbound.solve();
@@ -32,7 +48,10 @@ export default async function run({ page, frame }) {
   const solved = await app.evaluate(hud);
   check('solving lights the header and the earned stars',
     solved.model.status === 'solved' && solved.model.stars.every(Boolean), JSON.stringify(solved.model));
-  // Mixed reality: the diorama moves to the player's table; the plaque must follow.
+}
+
+/** Mixed reality: the diorama moves to the player's table; the plaque must follow. */
+async function plaqueFollowsTable(app, check) {
   const placed = { origin: [0.2, 0.7, -0.5], yaw: 0.6 };
   await app.evaluate((p) => window.__threadbound.dispatch({ type: 'place', ...p }), placed);
   await waitFor(app, (yaw) => Math.abs((window.__threadbound.frame()?.yaw ?? 0) - yaw) < 1e-3, 3000, placed.yaw);
@@ -41,7 +60,10 @@ export default async function run({ page, frame }) {
   check('plaque follows the diorama onto the table',
     Math.abs(onTable.local.x - tableSize[0] / 2) < 0.005 && onTable.local.y > tableSize[1] && Math.abs(onTable.local.z) < 0.05, JSON.stringify(onTable.local));
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'resetPlacement' }));
-  // Each world's finale reads N/N: the count covers the whole world, campaign levels only.
+}
+
+/** Each world's finale reads N/N: the count covers the whole world, campaign levels only. */
+async function finalesReadNofN(app, check) {
   for (const [id, label] of [
     ['w1-06', 'World 1 - 6/6'],
     ['w2-06', 'World 2 - 6/6'],
@@ -52,5 +74,4 @@ export default async function run({ page, frame }) {
     const shown = await waitFor(app, (want) => window.__threadbound.hud()?.model?.worldLabel === want, 2000, label);
     check(`${id} is the last of its world on the plaque`, shown, await app.evaluate(() => window.__threadbound.hud()?.model?.worldLabel));
   }
-  return results;
 }

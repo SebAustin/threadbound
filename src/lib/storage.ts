@@ -14,7 +14,9 @@ export function loadJson<T>(storage: StorageLike, key: string, schema: z.ZodType
     const raw = storage.getItem(key);
     if (!raw) return fallback;
     const parsed = schema.safeParse(JSON.parse(raw));
-    return parsed.success ? parsed.data : fallback;
+    if (parsed.success) return parsed.data;
+    console.warn(`[Threadbound] saved ${what} did not match the current format; starting fresh`, parsed.error.issues);
+    return fallback;
   } catch (error) {
     console.warn(`[Threadbound] could not read saved ${what}`, error);
     return fallback;

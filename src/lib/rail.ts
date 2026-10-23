@@ -1,5 +1,5 @@
 import { SLIDER } from '../config/constants';
-import type { Vec2, Point2 } from './vec';
+import type { Point2 } from './vec';
 
 export interface Rail {
   readonly axis: 'x' | 'y';
@@ -9,16 +9,10 @@ export interface Rail {
 
 const clampTo = (rail: Rail, v: number) => Math.min(rail.max, Math.max(rail.min, v));
 
-/** Slides a peg along its rail toward `target`, never leaving the rail. */
-export function clampToRail(
-  peg: Point2,
-  rail: Rail,
-  target: Vec2,
-): { x: number; y: number } {
-  return clampToRailInto(peg.x, peg.y, rail, target[0], target[1], { x: 0, y: 0 });
-}
-
-/** Allocation-free clampToRail for per-move drag handling: writes into `out`. */
+/**
+ * Slides a peg along its rail toward the target, never leaving the rail. Writes
+ * into `out` so per-move drag handling allocates nothing.
+ */
 export function clampToRailInto(
   pegX: number,
   pegY: number,

@@ -128,6 +128,26 @@ export const ONBOARDING = {
 export const GOAL = {
   wallHeight: 0.035,
   floorThickness: 0.008,
+  /** The glowing inset is a thin visual layer resting on the base (the base is the collider). */
+  insetThickness: 0.002,
+} as const;
+
+/** The brass funnel marbles drop from. */
+export const CHUTE = {
+  /** The funnel sits this far above the level's chute point (its mouth is where pinches aim). */
+  lift: 0.02,
+  topRadius: 0.03,
+  bottomRadius: 0.014,
+  height: 0.035,
+  segments: 16,
+  /** Colored rim around the funnel's top: the color of marbles it releases. */
+  rimTube: 0.004,
+} as const;
+
+/** Contact friction of static parts: the case walls and the pegs. */
+export const FRICTION = {
+  walls: 0.4,
+  pegs: 0.3,
 } as const;
 
 /** VR-fallback "cozy study" (world-space meters). Hidden over passthrough. */

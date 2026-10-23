@@ -20,8 +20,18 @@ const AMBIENCE_WAIT_MS = 8000;
 export default async function run({ page, frame }) {
   const app = frame ?? page.mainFrame();
   const { results, check } = checks();
-  const at = await canvasMapper(app);
+  const ctx = { page, app, check, at: await canvasMapper(app) };
 
+  await cupsChimeOrThud(ctx);
+  await ledgeButtonClicks(ctx);
+  await pegCues(ctx);
+  await slidSettles(ctx);
+  await ambienceStopsWhenPaused(ctx);
+  return results;
+}
+
+/** A solve chimes once per scored marble; a mis-sorted marble thuds. */
+async function cupsChimeOrThud({ app, check }) {
   await loadLevel(app, 'w1-01');
   await app.evaluate(drain);
   await app.evaluate(() => {
@@ -41,11 +51,17 @@ export default async function run({ page, frame }) {
   });
   await waitFor(app, () => window.__threadbound.state().status === 'idle', 15000);
   check('a marble in the wrong cup thuds instead', (await app.evaluate(drain)).includes('cupWrong'));
+}
 
+/** A real click on Restart (the w2-03 thread is still hung) plays the button cue. */
+async function ledgeButtonClicks({ page, app, at, check }) {
   await click(page, at(await app.evaluate(() => window.__threadbound.button('restart'))));
   await waitFor(app, () => window.__threadbound.state().threads.length === 0, 2000);
   check('pressing a ledge button clicks', (await app.evaluate(drain)).includes('button'));
+}
 
+/** Grabbing a peg, a refused thread and a snip each have their own cue. */
+async function pegCues({ page, app, at, check }) {
   await loadLevel(app, 'w1-01');
   await app.evaluate(drain);
   const pegs = await app.evaluate(() => window.__threadbound.pegs());
@@ -58,12 +74,18 @@ export default async function run({ page, frame }) {
 
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'snip', from: 'a', to: 'b' }));
   check('a snip is heard', (await app.evaluate(drain)).includes('snip'));
+}
 
+/** A peg slid along its rail settles audibly. */
+async function slidSettles({ app, check }) {
   await loadLevel(app, 'w3-01');
   await app.evaluate(drain);
   await app.evaluate(() => window.__threadbound.slide('a', 0.05));
   check('a slid peg settles audibly', (await app.evaluate(drain)).includes('settle'));
+}
 
+/** The study hums now and then, and falls silent while the game is paused. */
+async function ambienceStopsWhenPaused({ app, check }) {
   await app.evaluate(() => {
     window.__heard = [];
   });
@@ -76,5 +98,4 @@ export default async function run({ page, frame }) {
   });
   check('a paused game is silent', !(await waitFor(app, heardAmbience, AMBIENCE_WAIT_MS)));
   await app.evaluate(setHidden, false);
-  return results;
 }

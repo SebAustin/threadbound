@@ -1,6 +1,6 @@
 import { Vector3 } from '@iwsdk/core';
 import { AIM_PLANE_Z } from '../../config/constants';
-import { intersectRayWithPlaneZ } from '../../lib/rayPlane';
+import { intersectRayWithPlaneZInto } from '../../lib/rayPlane';
 import type { DioramaFrame } from '../diorama/dioramaFrame';
 import type { SpatialPointerEvent } from './pointerEvents';
 
@@ -21,14 +21,8 @@ export function pointerToDiorama(
   frame.worldToLocal(e.pointerPosition, origin);
   direction.subVectors(e.point, e.pointerPosition);
   frame.directionToLocal(direction, direction);
-  const hit = intersectRayWithPlaneZ(
-    [origin.x, origin.y, origin.z],
-    [direction.x, direction.y, direction.z],
-    AIM_PLANE_Z,
-  );
-  if (hit) {
-    out.x = hit[0];
-    out.y = hit[1];
+  // Allocation-free: this runs on every pointer move of a drag.
+  if (intersectRayWithPlaneZInto(origin.x, origin.y, origin.z, direction.x, direction.y, direction.z, AIM_PLANE_Z, out)) {
     return out;
   }
   frame.worldToLocal(e.point, origin);

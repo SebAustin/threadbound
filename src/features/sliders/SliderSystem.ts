@@ -20,6 +20,10 @@ interface SlideDrag {
   readonly pegId: string;
   readonly pointerId: number;
   readonly captureTarget: Object3D;
+  /** Cached at grab time: the move handler runs every pointer move and must not allocate. */
+  readonly rail: Rail;
+  readonly tabX: number;
+  readonly tabY: number;
   x: number;
   y: number;
 }
@@ -35,6 +39,7 @@ export class SliderSystem extends createSystem({
   pegs: { required: [Peg] },
 }) {
   private drag: SlideDrag | null = null;
+  private previewCommand = { type: 'pegPreview' as const, pegId: '', x: 0, y: 0 };
   /** Scratch values reused on every pointer move (the drag path must not allocate). */
   private point = { x: 0, y: 0 };
   private clamped = { x: 0, y: 0 };
@@ -73,27 +78,31 @@ export class SliderSystem extends createSystem({
 
   private start(pegId: string, target: Object3D, e: SpatialPointerEvent): void {
     const pos = this.positionOf(pegId);
-    if (this.drag || !pos) return;
+    const rail = this.railOf(pegId);
+    if (this.drag || !pos || !rail) return;
     e.stopPropagation();
     stringSynth.unlock();
     stringSynth.play('pegGrab');
-    this.drag = { pegId, pointerId: e.pointerId, captureTarget: target, x: pos.x, y: pos.y };
+    const [tabX, tabY] = handleOffset(rail.axis);
+    this.drag = { pegId, pointerId: e.pointerId, captureTarget: target, rail, tabX, tabY, x: pos.x, y: pos.y };
     capturePointer(target, e.pointerId);
   }
 
   private move(e: SpatialPointerEvent): void {
     const drag = this.drag;
     const frame = puzzleStore.frame;
-    const rail = drag && this.railOf(drag.pegId);
-    if (!drag || !frame || !rail || e.pointerId !== drag.pointerId) return;
+    if (!drag || !frame || e.pointerId !== drag.pointerId) return;
     pointerToDiorama(e, frame, this.point);
     // The pointer holds the tab, not the peg: remove the tab's offset first.
-    const [ox, oy] = handleOffset(rail.axis);
-    clampToRailInto(drag.x, drag.y, rail, this.point.x - ox, this.point.y - oy, this.clamped);
+    clampToRailInto(drag.x, drag.y, drag.rail, this.point.x - drag.tabX, this.point.y - drag.tabY, this.clamped);
     drag.x = this.clamped.x;
     drag.y = this.clamped.y;
     this.placeVisuals(drag.pegId, drag.x, drag.y);
-    puzzleStore.dispatch({ type: 'pegPreview', pegId: drag.pegId, x: drag.x, y: drag.y });
+    // One reused preview command: listeners read it synchronously and never keep it.
+    this.previewCommand.pegId = drag.pegId;
+    this.previewCommand.x = drag.x;
+    this.previewCommand.y = drag.y;
+    puzzleStore.dispatch(this.previewCommand);
   }
 
   private end(e: SpatialPointerEvent): void {

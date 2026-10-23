@@ -16,7 +16,7 @@ const measure = (head) => {
   const s = hook.state();
   const points = [
     ...s.level.pegs.map((p) => [`peg ${p.id}`, hook.worldOf(p.x, p.y, 0.029)]),
-    ...s.level.chutes.map((c, i) => [`chute ${i}`, hook.worldOf(c.x, c.y + 0.02, 0)]),
+    ...s.level.chutes.map((_, i) => [`chute ${i}`, hook.chute(i).world]),
     ...['restart', 'settings', 'daily', 'next'].map((b) => [`button ${b}`, hook.button(b)?.world]),
     ['stars', hook.plaqueElement('hud-stars')?.world],
   ].filter(([, p]) => p);

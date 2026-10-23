@@ -1,8 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import {
-  closestPointOnSegment,
-  segmentTransform,
-} from '../../src/lib/threadGeometry';
+import { segmentTransform } from '../../src/lib/threadGeometry';
 
 function rotateY(q: readonly number[]): [number, number, number] {
   // Rotate the unit +Y axis by quaternion q = [x, y, z, w].
@@ -38,25 +35,5 @@ describe('segmentTransform', () => {
 
   test('returns null for a degenerate zero-length segment', () => {
     expect(segmentTransform([1, 1, 1], [1, 1, 1])).toBeNull();
-  });
-});
-
-describe('closestPointOnSegment', () => {
-  test('projects onto the segment interior', () => {
-    const r = closestPointOnSegment([0.5, 1, 0], [0, 0, 0], [1, 0, 0]);
-    expect(r.point).toEqual([0.5, 0, 0]);
-    expect(r.distance).toBeCloseTo(1);
-    expect(r.t).toBeCloseTo(0.5);
-  });
-
-  test('clamps to the endpoints', () => {
-    const r = closestPointOnSegment([-2, 0, 0], [0, 0, 0], [1, 0, 0]);
-    expect(r.point).toEqual([0, 0, 0]);
-    expect(r.t).toBe(0);
-  });
-
-  test('works for a degenerate segment', () => {
-    const r = closestPointOnSegment([0, 3, 4], [0, 0, 0], [0, 0, 0]);
-    expect(r.distance).toBeCloseTo(5);
   });
 });

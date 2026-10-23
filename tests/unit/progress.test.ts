@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import {
   dailyStarsOn,
   INITIAL_PROGRESS,
@@ -85,9 +85,13 @@ describe('load/save', () => {
   });
 
   test('falls back on schema-invalid data', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const storage = memoryStorage();
     storage.setItem('threadbound.progress.v1', JSON.stringify({ unlocked: -4, best: 'x' }));
     expect(loadProgress(storage)).toEqual(INITIAL_PROGRESS);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][0]).toContain('saved progress');
+    warn.mockRestore();
   });
 
   test('survives storage that throws (private mode, blocked site data)', () => {

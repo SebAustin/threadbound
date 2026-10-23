@@ -35,9 +35,28 @@ export async function loadLevel(app, id) {
   return index;
 }
 
+/** Frames the ECS needs after a build to create physics bodies and wire pointer listeners. */
+const SETTLE_FRAMES = 4;
+
 export async function loadIndex(app, index) {
   await app.evaluate((i) => window.__threadbound.dispatch({ type: 'load', index: i }), index);
-  await sleep(250);
+  if (!(await waitFor(app, (i) => window.__threadbound.state().levelIndex === i, 5000, index))) {
+    throw new Error(`level ${index} did not load`);
+  }
+  await frames(app, SETTLE_FRAMES);
+}
+
+/** Resolves after `n` rendered frames (bounded, so a hidden page can't hang a test). */
+export async function frames(app, n) {
+  await app.evaluate(
+    (count) =>
+      new Promise((resolve) => {
+        const timeout = setTimeout(resolve, 1000);
+        const step = (left) => (left === 0 ? (clearTimeout(timeout), resolve()) : requestAnimationFrame(() => step(left - 1)));
+        step(count);
+      }),
+    n,
+  );
 }
 
 /** Page-coordinate converter for canvas-relative points from the test hook. */

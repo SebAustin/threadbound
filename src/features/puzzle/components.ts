@@ -1,5 +1,6 @@
 import { createComponent, Types, type Entity } from '@iwsdk/core';
 import { MARBLE_COLORS, type MarbleColor } from '../../lib/marbleColors';
+import { DEFAULT_PITCH_HZ } from '../../lib/threadTuning';
 
 // System-free declarations: the editor imports this module via src/components.ts.
 
@@ -18,7 +19,7 @@ export const Thread = createComponent('Thread', {
   ay: { type: Types.Float32, default: 0 },
   bx: { type: Types.Float32, default: 0 },
   by: { type: Types.Float32, default: 0 },
-  pitch: { type: Types.Float32, default: 440 },
+  pitch: { type: Types.Float32, default: DEFAULT_PITCH_HZ },
   /** Authored by the level; does not count toward the player's thread limit. */
   preset: { type: Types.Boolean, default: false },
   /** Vibration energy from the last pluck (0..1), decays over time. */
