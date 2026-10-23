@@ -40,19 +40,19 @@
 
 **Blocked by:** none
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Gap 37: `npm ci` succeeds from the committed lockfile, and package-lock.json is unchanged. `npm run reference:status` reports the reference warm. After `dev up --headless --allow-browser-automation`, `npx @iwsdk/cli dev status` reports `browserCommandReady: true`.
-- [ ] Unit: `npm run typecheck` and `npm test` are green on the branch.
-- [ ] Unit: tests/unit/rayPlane.test.ts covers `intersectRayWithPlaneZInto`: a straight hit, an angled hit, a parallel ray, and a plane behind the origin. On a miss, `out` is left untouched. Nothing imports the array form any more.
-- [ ] Unit: tests/unit/progress.test.ts:87 ("falls back on schema-invalid data") also asserts, via `vi.spyOn`, one `console.warn` that names the saved progress.
-- [ ] E2E: the full `npm run test:e2e` chain (24 scripts) passes. It includes slider, first-thread and jump-drag (the drag paths), raise-lower (now split) and reach (now on `hook.chute(i).world`).
-- [ ] E2E: `npm run test:e2e:levels`, `test:e2e:levels:slow` and `test:e2e:dailies` pass on all 24 levels and 7 dailies, so the `CHUTE` and `FRICTION` constants changed no outcome.
-- [ ] XR: `npm run test:e2e:hands` passes (hand-pinch, xr-full-level, xr-controls, gaze-pinch). Between them they use all four probe modes. xr-full-level's chute pinch now aims at xr-probe's `hook.chute().world`.
-- [ ] No function in tests/ is over 50 lines. sound-cues, levels and plaque are split into named steps. xr-probe's `run()` is under 15 lines and holds no mode or field logic.
-- [ ] E2E: on the branch, before and after the xr-probe split, `probe load0` (tests/e2e/xr-lib.sh:35) on a fresh level 1 returns the same 15 keys and the same knob, chute and button points. `SETUP=nope` fails and names `nope`.
-- [ ] Gap 42: every command above and its output, plus the merged commit hash, are archived in `.scratch/week7/regression.log`.
-- [ ] Main is fast-forwarded locally, the branch is deleted and nothing is pushed. Week 7 ticket 08 reads `Status: done` and has a Comments entry.
+- [x] Gap 37: `npm ci` succeeds from the committed lockfile, and package-lock.json is unchanged. `npm run reference:status` reports the reference warm. After `dev up --headless --allow-browser-automation`, `npx @iwsdk/cli dev status` reports `browserCommandReady: true`.
+- [x] Unit: `npm run typecheck` and `npm test` are green on the branch.
+- [x] Unit: tests/unit/rayPlane.test.ts covers `intersectRayWithPlaneZInto`: a straight hit, an angled hit, a parallel ray, and a plane behind the origin. On a miss, `out` is left untouched. Nothing imports the array form any more.
+- [x] Unit: tests/unit/progress.test.ts:87 ("falls back on schema-invalid data") also asserts, via `vi.spyOn`, one `console.warn` that names the saved progress.
+- [x] E2E: the full `npm run test:e2e` chain (24 scripts) passes. It includes slider, first-thread and jump-drag (the drag paths), raise-lower (now split) and reach (now on `hook.chute(i).world`).
+- [x] E2E: `npm run test:e2e:levels`, `test:e2e:levels:slow` and `test:e2e:dailies` pass on all 24 levels and 7 dailies, so the `CHUTE` and `FRICTION` constants changed no outcome.
+- [x] XR: `npm run test:e2e:hands` passes (hand-pinch, xr-full-level, xr-controls, gaze-pinch). Between them they use all four probe modes. xr-full-level's chute pinch now aims at xr-probe's `hook.chute().world`.
+- [x] No function in tests/ is over 50 lines. sound-cues, levels and plaque are split into named steps. xr-probe's `run()` is under 15 lines and holds no mode or field logic.
+- [x] E2E: on the branch, before and after the xr-probe split, `probe load0` (tests/e2e/xr-lib.sh:35) on a fresh level 1 returns the same 15 keys and the same knob, chute and button points. `SETUP=nope` fails and names `nope`.
+- [x] Gap 42: every command above and its output, plus the merged commit hash, are archived in `.scratch/week7/regression.log`.
+- [x] Main is fast-forwarded locally, the branch is deleted and nothing is pushed. Week 7 ticket 08 reads `Status: done` and has a Comments entry.
 
 **Effort:** S (~1 day)
 
@@ -64,3 +64,33 @@
 - The reused `pegPreview` command object is only safe while every `onCommand` listener reads it synchronously and never keeps it. Today that holds for all six listeners.
 
 ## Comments
+
+- **Oct 23, agent: landed. Main fast-forwarded 189b9a7..f9b7c5e locally, branch `wip/ticket-08-standards` deleted, nothing pushed (origin/main still 83977c8).** Scope widened by the user on Oct 23 (Q45): besides ticket 08 itself, fix the three E2E scripts that also fail on main, fix the first review's findings, and compare xr-controls on main and the branch. So the work lands as ten commits instead of one: the ticket 08 refactor stays one commit, and each new fix is its own small commit.
+  - `72b2c91 refactor: standards fixes from the bug bash (week 7 ticket 08)`: 91e558c rebased onto 189b9a7 (docs only since its base), unchanged.
+  - `b3e5b07 test: spool E2E checks the refusal clears, not that the hint goes blank`. Week 7 ticket 07 gave w4-01 a level hint ("Threads use up the spool below"), which is what the line shows once a refusal clears. "success clears the refusal" now waits for `state().refusal === null` and the hint equal to the level's own hint (tests/e2e/spool.e2e.mjs:9-13, :30).
+  - `ff0ff43 test: settings E2E checks the whole settings face is in the flat view` (written first, RED), then `f2084a5 fix: frame the flat view so the whole settings face is on screen` (GREEN):
+    - Cause: 83977c8 added the Prev / Level / Next row (public/ui/hud.uikitml:177-181), so the settings face grew 4.4 cm to about 22 cm. On the 756 x 469 canvas its top edge sat at y -54 px and its top row (Slow-mo, Reset progress) at y -4 px, so settings.e2e and guarded-reset.e2e failed on main too.
+    - Fix: one change in `iwsdk.config.json`. The flat-view camera (`render.camera.position`) moves from (0, 0.98, 0.32) to (0, 1.07, 0.40), 9 cm up and 8 cm back. Raising it alone would have pushed the ledge buttons off the bottom: at (0, 1.08, 0.32) their lowest edge is 3 px from it. The plaque, its layout and its ids are untouched (ticket 12 owns them). This pose only drives the non-XR view: in XR the headset pose replaces it, and IWSDK restores it when a session ends.
+    - Now: face top y 28 px, top row y 73 px, ledge buttons y 425 px. The top row is below IWER's Enter XR pill (y 13-41), which now covers only the face's "Settings" title.
+    - Proof: settings.e2e gains three checks (tests/e2e/settings.e2e.mjs:27-49, :74-77). The face's top edge is on screen. It is taken as twice the plaque centre's height above its bottom edge, because the plaque grows up from the panel origin. Both top-row controls and all four ledge buttons are inside the canvas. Before the fix: 2 of the 3 new checks and 3 old ones FAIL. After: settings.e2e 9/9 and guarded-reset.e2e 5/5, both with real mouse clicks (`clickCanvas`).
+  - First review's findings, one commit each:
+    - `53e19c0`: `frames()` resolves `{ complete, rendered }`, and `loadIndex` throws "level N: frames stalled (rendered k of 4 in 1 s)" (tests/e2e/lib.mjs:41-76).
+    - `6e0eb96`: the unused `SLIDER` import is gone from SliderSystem.
+    - `38a7a26`: `start()` resolves the peg and tab Object3Ds into the drag (src/features/sliders/SliderSystem.ts:26-28, :89-92). `move()` calls the lookup-free `placeVisualsAt` (:104, :176-192). `placeVisuals` keeps the by-id lookups for release, cancel and refusal, which run once per slide.
+    - `3f04949`: raise-lower's `replayDrop` is renamed `restartWithThread`, at both call sites.
+    - `aba7a24`: the load/save block in tests/unit/progress.test.ts restores mocks in `afterEach` (:75-77), so a failed assertion no longer leaves `console.warn` mocked.
+  - `f9b7c5e test: xr-controls prints where the chute is when a chute pinch misses`:
+    - xr-controls.sh, 5 runs on main 189b9a7: 5/5 exit 0, 9/9 checks each. 5 runs on the branch: also 5/5, 9/9 each. The branch is not flakier.
+    - The aim point is the same on both: main's `worldOf(x, y + 0.02)` and the branch's `hook.chute().world` (`CHUTE.lift` 0.02) both give (-0.15, 1.17, -0.42), and the before/after probe below matches.
+    - The one failure on 91e558c read `idle`, i.e. no drop was running when the probe read the status.
+    - If it recurs, the failure line is now followed by the aimed point, then a fresh `hook.chute().world`, `hook.frame()` and the status (tests/e2e/chute-where.e2e.mjs). That separates a moved diorama from a drop that ended before the probe read it.
+- **Regression on f9b7c5e (archived in `.scratch/week7/regression.log`, section "week 8 ticket 01 final regression", Oct 23 09:25; gitignored):**
+  - Gap 37: proven in the same log's 07:07 section. `npm ci` exit 0 with package-lock.json's shasum identical before and after. `npm run reference:status` warm (`warmupRequired: false`). `dev up --headless --allow-browser-automation` then `dev status` reports `browserCommandReady: true`. package.json and package-lock.json are unchanged since (a7bca6d..f9b7c5e). `dev status` reports `browserCommandReady: true` again before this run.
+  - Unit: `npm run typecheck` exit 0. `npm test`: 31 files, 237 tests passed. tests/unit/rayPlane.test.ts covers the 4 cases and checks `out` is left untouched on both misses; nothing in src/ or tests/ references the array form.
+  - E2E: `npm run test:e2e` exit 0. All 24 scripts ran, 137 checks PASS, 0 FAIL, including slider, first-thread, jump-drag, raise-lower, reach, settings, spool and guarded-reset.
+  - Levels: `test:e2e:levels` 24/24 and `test:e2e:levels:slow` 24/24, no draw-call breach. `test:e2e:dailies` 7/7. So `CHUTE` and `FRICTION` changed no outcome.
+  - XR: `npm run test:e2e:hands` exit 0. 4/4 scripts, 20 checks: hand-pinch 4, xr-full-level 4, xr-controls 9, gaze-pinch 3. The XR busiest frame is 110 calls over 2 views, with no breach. All four probe modes ran: load0, thread, busiest and solve. xr-full-level's chute pinch aims at the probe's `chute`, which is `hook.chute().world`. gaze-pinch left `iwsdk.config.json` unchanged.
+  - Function length: a TypeScript AST scan of every function in tests/**/*.{mjs,ts} finds none over 50 lines (longest 46, tests/e2e/daily.e2e.mjs:15). xr-probe's `run()` is 12 lines.
+  - Probe: on the merged tree, `fresh_page` then `SETUP=load0` was run with main's pre-split xr-probe and then with the table-driven one. Both return the same 15 keys in the same order, with identical knobs, chute and buttons. `SETUP=nope` fails with "xr-probe: unknown SETUP mode 'nope'".
+- **Accepted allocations** (not per move): `pegPoint` (src/features/threads/ThreadSystem.ts:100) still spreads one object per lookup, on addThread and preset creation. `pegPoints` (:94) still maps the peg list once per thread release (:165) and once per rail settle (:270). The slider and thread move paths allocate nothing.
+- Node is v26.7.0 locally; .nvmrc and CI use 22.12.0. The dev server is left running headless with browser automation.
