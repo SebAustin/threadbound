@@ -31,7 +31,7 @@ _Avoid_: string, line, rope
 A thread authored by the level; it does not count toward the player's thread limit and may need snipping.
 
 **Snip**:
-Removing a thread by poking or pinching it.
+Removing a thread by pinching it.
 
 **Chute**:
 Where a level's marbles enter; pinching it starts a drop. A chute releases marbles of one color.
@@ -54,35 +54,57 @@ Every marble of a drop settled in a cup that accepts it.
 _Avoid_: win, clear
 
 **Par**:
-The thread count a level can be solved with; at or under par earns three **stars**.
+The thread count a level can be solved with.
+
+**Star**:
+One of up to three a solve earns: one for the solve itself, one for using **par** threads or fewer, one for solving with the first drop since the level loaded or restarted.
+
+**Thread limit**:
+The most threads the player may place on a level; preset threads don't count. One above **par**, so a spare thread can still solve, at the cost of a star.
+_Avoid_: budget, cap
 
 **Plaque**:
-The panel standing on the diorama's top edge: level title, place in the world, best stars, thread budget, onboarding hint.
+The panel standing on the diorama's top edge: level title, place in the world, best stars.
 _Avoid_: HUD (in prose), menu
+
+**Ledge**:
+The diorama's front lip, within reach: its buttons, the hint line, and the threads placed against the **thread limit**.
 
 **Ghost hand**:
 The translucent fingertips that demonstrate pinch-pull and the chute pinch on a first-time player's first level.
 
 **Melody**:
-The notes played by bounces during a drop, replayed on a solve.
+The notes a drop plays: each bounce on a thread sounds that thread's next note, climbing from its **root**, and a solve closes on the **cadence**. A drop's marbles share each thread's climb, which turns back down at the top of the scale; the next drop starts again from the roots. A drop without a solve ends without the cadence. Replayed on a solve with its original timing.
+
+**Root**:
+A thread's first note, set by its length: shorter rings higher.
+
+**Cadence**:
+The chord the cups ring when a drop solves, closing its melody.
 
 **Spool**:
 World 4's total length of thread for a level. A thread, or a slide that stretches threads, that would overspend it is refused. Preset threads are free.
-_Avoid_: budget (that's the thread count), ink
+_Avoid_: budget, ink
 
 **Refusal**:
-A thread or slide the rules turn down: a dull thunk, plus a plaque hint saying why, until the player's next success.
+A thread or slide the rules turn down: a dull thunk, plus a hint on the ledge saying why, until the player's next success.
 
 **Daily**:
-One campaign board per local calendar day, on a tight **spool**. It never unlocks campaign levels, and its stars belong to its day. The sun button opens it and returns to the campaign.
+One campaign board per local calendar day, on a tight **spool**. It never unlocks campaign levels, and its stars belong to its day. The sun button opens it and returns to the campaign. A finished campaign reopens on it. It has its own name and only uses mechanics the player has already reached.
 _Avoid_: challenge (in names)
+
+**Skip**:
+Moving on from a level after three drops that ended without a solve, offered on the settings face. The skipped level earns no stars and stays unsolved: the player can come back to it, and it doesn't count toward finishing the campaign.
+
+**Guest play**:
+Playing from the first level without reading or changing the saved progress; nothing from it is kept. For judges on a shared headset.
 
 **Streak**:
 Consecutive local days with a daily solve, credited to the day the daily was opened.
 
 **Settings face**:
-The plaque's other side, flipped by the gear button: slow motion, the diorama offset, and the guarded progress reset.
-_Avoid_: settings menu
+The plaque's other side, flipped by the settings button: slow motion, high contrast, the diorama offset, the star total, the **skip** when offered, and the guarded progress reset.
+_Avoid_: settings menu, gear
 
 **Slow motion**:
 Time dilation of the simulation (physics, releases and rest timers all run at 2/3 speed), so every solution plays out identically, only slower.
@@ -91,7 +113,7 @@ Time dilation of the simulation (physics, releases and rest timers all run at 2/
 The player's height and distance adjustment of the diorama, in whole steps. Changing it **relocates** the diorama: a rebuild at the new pose that keeps threads, slides and a solve, and waits for a drop in progress to end.
 
 **Melody book**:
-The tune each campaign level's best solve played, kept with progress. Poking or pinching the plaque's stars replays it.
+The tune each campaign level's best solve played, kept with progress. Pinching the plaque's stars replays it; the settings face plays the whole book.
 
 **Cue**:
 The one sound a game event makes (a cup chime, a button click, a refusal thunk...), defined in a single table. Musical cues stay in the pentatonic scale; failure cues sit below it.
@@ -103,7 +125,8 @@ The one sound a game event makes (a cup chime, a button click, a refusal thunk..
 
 - A **level** has one **diorama**, one or more **chutes**, two or more **pegs** and one or more **cups**
 - A **thread** joins exactly two **pegs**; a **rail peg** carries its threads with it when it slides
-- A **solve** awards 1–3 **stars** from threads used versus **par**
+- A **solve** awards 1–3 **stars**: the solve, **par** or fewer threads, and the first drop
+- A level's **thread limit** is its **par** + 1
 - A **daily** is a variant of a campaign **level**: same board, tighter **spool**
 
 ## Flagged ambiguities

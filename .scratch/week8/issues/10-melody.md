@@ -1,0 +1,62 @@
+# 10: Melodies that climb: roots, a shared climb, the cadence, timed replay (P1)
+
+**What to build:** (line numbers are main at 83977c8; after ticket 01, find them again by symbol.) A presentation change only (ADR 0004): physics, restitution, level files and solutions stay as they are.
+- **Pure note logic, new `src/lib/melody.ts`:**
+  - `rootIndex(len)` is split out of `pitchForLength` (src/lib/threadTuning.ts:21-25), which keeps returning the same note, so a thread's **root** and "shorter rings higher" don't change.
+  - `climbIndex(root, k)` gives the scale index of the k-th bounce on a thread in a drop. It climbs one step per bounce from the root up to A5, then goes down from just below the root to C4, so all ten notes play before one repeats; then it starts again at the root. A C4 root has nothing below it, so it climbs and restarts. Why not a plain mirror: w1-03's root is G5 (index 8), and a mirror (G5 A5 G5) gives two notes when each of its 3 marbles bounces once.
+  - `MelodyClimb` keeps per-thread bounce counts in one reused `Map<number, number>`, keyed by thread entity index and shared by all marbles. `next(key, root)` and `reset()` don't allocate.
+  - `threadRoots(level)` gives the root of every preset and solution thread, with slides applied (same approach as `solutionLength`, src/lib/levelSchema.ts:154). The tests use it.
+  - `CADENCE_HZ` is C5 E5 G5, taken from `PENTATONIC_HZ` so it is already rendered and in tune. `replaySchedule(melody, endOnCadence)` returns `{ hz, at, cue: 'melody' | 'cadence', note }[]`, where `note` is the saved-note index (-1 for the cadence), so a replay knows which cue to sound and which note it is: real offsets when `times` exist, the old fixed 0.22 s step when they don't, then, if `endOnCadence`, the cadence one beat after the last note.
+- **MarbleSystem** (src/features/marbles/MarbleSystem.ts):
+  - `Thread` gains a `root` field (src/features/puzzle/components.ts:14-26), set in `createThread` (src/features/threads/ThreadSystem.ts:287). The thread-strung pluck (:312) still plays the root. Preset threads (:199-202) climb like any other.
+  - `drop()` (:105-119) resets the climb and a drop clock. The clock runs on `simDelta`, so a slow-motion solve saves the same tune.
+  - `detectPlucks` (:238-245) plays `PENTATONIC_HZ[climb.next(...)]`. It stores the note and its drop time, up to `MELODY_NOTES_MAX`.
+  - On a solve (:281-284): publish `{ notes, times }` in the same update as `status`, as today. After that update returns (where :284 calls `playMelody` today), strum the cadence as three `cadence` cues about 50 ms apart while the lit cups pulse, set every thread's `energy` to 1 (ThreadVibrationSystem.ts:12-25 does the rest), then start the solve's replay. The order matters: a move deferred during the drop rebuilds the diorama inside that update, and its `levelBuilt` (:94-99) clears anything armed before it.
+  - `playMelody`/`replayDue` (:315-328) walk `replaySchedule`. The solve's replay stops on its last note (`endOnCadence` false), since the live strum has just played the cadence. A melody-book replay (pinching the plaque's stars, :305-312) ends on the cadence, as `cadence` cues with no cup position (so ticket 16 checks the cadence's source on the live strum only), and its `melody` cue count still equals the saved notes. A solve with no bounces plays only the live cadence (no more C5 ding at :316). A drop without a solve plays no cadence.
+- **Relocation keeps the tune:** `relocate` (src/features/puzzle/PuzzleSystem.ts:176-183) carries `melody` (notes and times) with `status`, `scored` and `stars`, in the one update at :182. Today `build` empties it (:135), so a solve whose move waited for the drop (:141-146) is recorded at :157-163 with no tune: no book entry, so no first-solve line from 14. Tickets 13 and 14 add their fields (`drops`, `missedDrops`, `firstSolve`) to the same update. Whichever of 10 and 13 lands second makes 13's fresh-save first-drop.e2e check the book entry after the raise.
+- **Docs (the user approves the wording):** CONTEXT.md **Melody** (:77) and ADR 0004 (:3) say the climb "turns back down at the top", which reads as a mirror. Restate both as the rule above: up from the root to the top of the scale, down from just below the root to the bottom, then from the root again, so a thread plays all ten notes before one repeats. ADR 0004's Considered Options gains the plain mirror and why it lost (w1-03). .scratch/week8/spec.md:26 stays as the session's record.
+- **Melody book timing:** each `melodies` entry (src/lib/progress.ts:26-29) is either a bare array (old saves) or `{ notes, times }`, and is normalized when it loads. `Solve.melody` (:51) and `PuzzleState.melody` (src/features/puzzle/puzzleStore.ts:41-42) become `{ notes, times }`. `recordCompletion` (:54-67) keeps at most 16 notes, and the same 16 times. Times of the wrong length, or times that go backwards, are dropped and the entry keeps its notes; they never fail the schema.
+  - Ticket 02's `tests/e2e/prod-xr.mjs` reads this entry from the raw save and must accept both forms; if it checks only an array's length, fix it here.
+- **Cues** (src/lib/soundCues.ts): add `cadence` to `CueName` (:7-29). Move `cupCorrect` (:41) from A5 880 to C6 1046.50, above the thread range, so a scored marble no longer sounds like a bounce (gap 52, the overlap part). The integer-period tuning drift (src/features/audio/stringSynth.ts:88) stays a week 9 stretch.
+- **Stars fill one by one:** a pure `starsShown(best, sinceSolve)` in src/lib/hud.ts. After a fresh solve the plaque's stars refill from empty, one every `STAR_STAGGER_SECONDS` (about 0.25 s), up to the best. HudSystem animates this in a new allocation-free `update`, replacing the all-at-once fill at src/features/hud/HudSystem.ts:133-135.
+- **No fade here:** ticket 07 owns the game's only fade, its `RevealSystem` on every `levelBuilt` (Next, Restart, level select, a Near or Raise step and placement). This ticket writes no fade code and no fade check.
+- **Dev-only test hook:**
+  - `cueTrace()` drains `{ name, hz, at }` from src/features/audio/cueLog.ts; `cues()` still returns names only. Both drain one shared log, so draining either empties both.
+  - `celebration()` returns `{ starsShown, replaying }`.
+  - xr-probe's `solve` entry in `SETUP_MODES` (ticket 01's table) waits for `replaying` to go false. Today it waits for one second without a note (tests/e2e/xr-probe.e2e.mjs:27-29 before 01's split).
+  - xr-probe also gains a `CUE_FIELDS` entry `cadenceDrained` (the `cadence` count, derived from 01's `{ name }` records, so it survives 16's switch to `cueTrace()`) and `PROBE_FIELDS` entries `melodyNotes` (`state().melody.notes`) and `cups` (each cup's centre at half wall height, as world points). `run()` stays as it is.
+
+**Blocked by:** 01; 02 (merge after its step-4 log push)
+
+**Status:** ready-for-agent
+
+- [ ] Unit: new tests/unit/melody.test.ts, `climbIndex`: bounce 0 plays the root and each bounce climbs one step to the top. After the top comes root - 1, down to C4; for root 0 the cycle restarts. For every root, the first 10 bounces play 10 distinct notes, and then the cycle repeats.
+- [ ] Unit: `MelodyClimb`: bounces from different marbles on one thread continue a single climb, and two threads climb independently. After `reset()`, the same bounce sequence plays the same notes.
+- [ ] Unit: `threadRoots` matches `pitchForLength` for every thread of all 24 levels, presets included. A preset thread in w1-05 climbs like a player's thread.
+- [ ] Unit: with the stored solutions and one bounce per marble, w1-01 plays at least 3 distinct notes (A4 C5 D5), and so does w1-03 (G5 A5 E5). The cadence is not counted.
+- [ ] Unit: `replaySchedule` keeps real offsets in order. With `endOnCadence` it ends on the cadence one beat after the last note; without it, on the last note. An entry without times uses 0.22 s steps. An empty tune gives the cadence alone, or nothing. Each saved note comes back as `cue: 'melody'` with its index in `note`, and each cadence note as `cue: 'cadence'` with `note` -1, even where a cadence pitch equals a melody pitch.
+- [ ] Unit: tests/unit/progress.test.ts (melody book, :44-72): `{ notes, times }` round-trips. A bare-array entry loads and replays at the fixed step. Bad times are dropped while the rest of the save stays. The 16-note limit also trims times.
+- [ ] Unit: tests/unit/soundCues.test.ts: `cadence` is in `ALL` (:5), and its notes are in `PENTATONIC_HZ`. `cupCorrect` is above A5 and still pitch class C. The pentatonic test (:17) checks pitch class instead of membership.
+- [ ] Unit: `starsShown` starts empty, adds one star per stagger step, never shows more than the best, and shows the best at once when there is no fresh solve. tests/unit/threadTuning.test.ts stays green.
+- [ ] E2E: tests/e2e/first-melody.e2e.mjs: the real-input first solve of w1-01 plays at least 3 distinct notes (`state().melody.notes`).
+- [ ] E2E: new `melody-climb.e2e.mjs`, added to the chain: w1-01 and w1-03 are solved and dropped twice by real chute clicks. Both drops play identical notes, with at least 3 distinct. A solve logs exactly 3 `cadence` cues, counted until its replay ends. tests/e2e/missed-drop.e2e.mjs asserts that a missed drop logs none.
+- [ ] E2E: tests/e2e/melody-book.e2e.mjs: the gaps between replayed notes match the saved times within 40 ms (`cueTrace`). The stars replay (:43-45) still counts one `melody` cue per saved note, then 3 `cadence` cues after the last one. A seeded old-format entry replays at 0.22 s ± 40 ms. `REPLAY_MS` (:20) comes from the saved times.
+- [ ] E2E: tests/e2e/raise-lower.e2e.mjs (:46-57): after the move that waited for the drop, `state().melody.notes` is non-empty with `times` of the same length, and the replay plays every note (`cueTrace`). Assert on `state().melody`, not the book: w1-01 already has an entry from the solve at :33-35, and a silent solve leaves it in place (progress.ts:58).
+- [ ] E2E: if ticket 13 has landed, its fresh-save tests/e2e/first-drop.e2e.mjs also asserts that the save's `melodies['w1-01']` is non-empty after the raise (whichever of 10 and 13 lands second adds this assertion).
+- [ ] E2E: tests/e2e/controls.e2e.mjs: on the solve, every thread has `energy` > 0, and `starsShown` rises one star at a time. (Ticket 07 adds the fade checks after Next and Restart to the same script.)
+- [ ] E2E: `test:e2e:levels`, `test:e2e:levels:slow` and `test:e2e:dailies` pass on all 24 levels and 7 dailies, with outcomes unchanged. tests/e2e/levels.e2e.mjs (:38-53) reports the distinct bounce notes per level; record how many levels still play one note (17 today) in Comments. The full `npm run test:e2e` chain passes.
+- [ ] XR: tests/e2e/xr-full-level.sh: the hand-played level 1 solve logs the cadence (`cadenceDrained` summed over its polls, plus one probe after `complete`, is 3) and at least 3 distinct `melodyNotes`. At the script's seated pose, the `cups` and the solution thread (`threadMid`) are within 30 degrees of the gaze; the plaque need not be. A mid-celebration runtime screenshot goes into .scratch/week8/. `npm run test:e2e:hands` passes.
+- [ ] CONTEXT.md **Melody** and ADR 0004 describe the climb exactly as `climbIndex` plays it, and the user has approved the new wording.
+- [ ] The diff touches no level JSON, no `THREAD_TUNING` or `MARBLE` constant (src/config/constants.ts:43-70), and not `restitutionForLength`.
+
+**Effort:** M (~2 days)
+
+**Gaps closed:** #5, #12 (the celebration; the per-build fade half is ticket 07's), #52 (the cue-pitch overlap only; the tuning drift stays in the week 9 stretch)
+
+**Risks:**
+- `loadJson` returns the initial progress on any schema failure (src/lib/storage.ts:16-17). A strict `times` rule would wipe a returning player's stars, streak and book, so clean bad times out instead of rejecting them.
+- Real timing breaks the silence-based waits. Gaps between notes can exceed the one-second quiet window in xr-probe and the fixed 6 s `REPLAY_MS`, so both move to `replaying` and the saved times.
+- Notes are captured once per rendered frame (ADR 0004). "The same notes every drop" holds at one frame rate; slow-motion notes are recorded, not asserted equal.
+- Ticket 07 (ADR 0006) hides the diorama until placed and owns the one fade on every build, with its shared-material and shader warm-up risks. The celebration here must not touch material `opacity` or `transparent`, which that fade restores.
+
+## Comments
