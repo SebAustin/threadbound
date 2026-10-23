@@ -3,6 +3,8 @@ name: Test and deploy to GitHub Pages
 on:
   push:
     branches: [main]
+    # Docs, Markdown and the .scratch/ planning notes never change the game, so they don't redeploy it.
+    paths-ignore: ['docs/**', '**/*.md', '.scratch/**']
   workflow_dispatch:
 
 permissions:
@@ -29,6 +31,17 @@ jobs:
       - run: npm run build
         env:
           NODE_ENV: production
+      # The production smoke runs here, in the build job, so dist/ needs no hand-off
+      # and a failing smoke never reaches the Pages upload.
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:smoke
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: prod-smoke
+          path: .tmp/prod-smoke/
+          include-hidden-files: true
+          if-no-files-found: ignore
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
