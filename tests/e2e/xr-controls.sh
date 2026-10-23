@@ -8,12 +8,15 @@ R=$(iw browser run tests/e2e/xr-room.e2e.mjs 2>/dev/null | python3 -c "import sy
 case "$R" in False\ alpha-blend) pass "passthrough hides the virtual study ($R)";; *) fail "passthrough hides the virtual study ($R)";; esac
 P=$(probe load0)
 AIM=$(field "$P" "['chute']")
+M0=$(field "$P" "['marbleCount']")
 pinch_at "$AIM"
-S=$(field "$(probe)" "['status']")
-if [ "$S" != "idle" ]; then
-  pass "pinching the chute starts a drop ($S)"
+Q=$(probe); S=$(field "$Q" "['status']"); M=$(field "$Q" "['marbleCount']")
+# A drop with no thread can end (status back to 'idle') before this probe reads it, but its marbles
+# stay until the next drop or build: marbles where there were none prove the pinch started a drop.
+if [ "$M0" = "0" ] && { [ "$S" != "idle" ] || [ "$M" -gt 0 ]; }; then
+  pass "pinching the chute starts a drop ($S, $M marbles)"
 else
-  fail "pinching the chute starts a drop ($S)"
+  fail "pinching the chute starts a drop ($S, $M marbles, $M0 before)"
   # Did the diorama move between the probe and the pinch? Aim point vs where the chute is now.
   echo "  aimed at $AIM; now $(iw browser run tests/e2e/chute-where.e2e.mjs 2>/dev/null | python3 -c "import sys,json;print(json.dumps(json.load(sys.stdin)['data']['result']))")"
 fi

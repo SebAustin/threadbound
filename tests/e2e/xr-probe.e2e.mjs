@@ -64,6 +64,9 @@ const PROBE_FIELDS = [
   }],
   ['threads', () => window.__threadbound.state().threads],
   ['status', () => window.__threadbound.state().status],
+  // Marbles in the scene. An unsolved drop leaves its marbles until the next drop or level build, so
+  // this still shows a drop happened after its status has gone back to 'idle'.
+  ['marbleCount', () => window.__threadbound.marbles().length],
   ['levelId', () => window.__threadbound.state().level.id],
   ['face', () => window.__threadbound.plaque()?.face],
   ['slowToggle', () => window.__threadbound.plaqueElement('set-slow')?.world],
