@@ -1,10 +1,12 @@
 // Helper for xr-hosts.sh: records every cross-origin URL the app frame requests.
 // HOSTS=observe installs a resource PerformanceObserver (call it before `xr enter`).
-// HOSTS=list waits until the hand models have loaded, then returns what it recorded.
+// HOSTS=list waits until both generic-hand models have loaded, then returns what it recorded.
 // An observer, not performance.getEntriesByType afterwards: in dev, Vite's modules fill
 // the 250-entry resource-timing buffer before XR entry, and later entries never reach it.
 // list also reports what the buffer alone holds, to show that gap on every run.
-const HAND_MODEL = /^https:\/\/cdn\.jsdelivr\.net\/npm\/@webxr-input-profiles\/.*\.glb$/;
+// Only the generic-hand models: IWER connects Touch Plus controllers before `set-input-mode hand`,
+// and their .glb files under the same jsDelivr path must not stand in for the hands.
+const HAND_MODEL = /\/profiles\/generic-hand\/(left|right)\.glb$/;
 const HANDS = 2;
 const TIMEOUT_MS = 15000;
 const POLL_MS = 100;

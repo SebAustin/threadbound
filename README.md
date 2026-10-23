@@ -65,7 +65,7 @@ There's no headset in the loop, so the emulator (IWER) and automated tests carry
   - a full level played with hand pinches only;
   - pinching the chute, a thread, Restart, the settings button, Slow-mo, the sun and the stars;
   - gaze plus pinch on an eye-tracked headset;
-  - table placement on a detected plane, with everything touchable within 2 ft of the head;
+  - level 1 placed on the emulator's detected table, with everything touchable within 2 ft of the head (0.569 m);
   - every outside host a session with hands contacts: only jsDelivr, for the hand and controller models (the emulator's own room aside).
 - **Budget:** a draw-call budget is checked on every level. The busiest frame in an XR session is 55 draw calls and about 16k triangles per view, tracked hands included (budget: 80 calls, 100k triangles). Frame rate on a Quest is not measured.
 

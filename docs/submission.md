@@ -62,8 +62,8 @@ day.
 
 ### What's next
 
-- More worlds and mechanics (springs, gates, moving pegs) and a level editor
-  for building and sharing levels on your own table.
+- More worlds and mechanics (springs, gates, pegs that move on their own) and a
+  level editor for building and sharing levels on your own table.
 - Shared dailies and a melody gallery, so players can hear each other's
   solutions.
 - Spatial anchors, so the diorama remembers its spot on your table between sessions.
@@ -112,7 +112,7 @@ Sebastien Henry, solo developer (design, code, audio)
 | **Polish & Presentation** | A cohesive walnut-and-brass art direction, a sound for every event, and a plaque that explains refusals. The video shows real emulator gameplay only. |
 
 **Special awards targeted:**
-- **Best First Five Minutes** (the headline): a ghost hand demonstrates the gesture on the diorama, with one short hint line. From a cold start, the first melody plays about two seconds after the chute pinch (tested).
+- **Best First Five Minutes** (the headline): a ghost hand demonstrates the gesture on the diorama, with one short hint line. From a cold start, the first melody plays within seconds of the chute pinch (tested; 2.0 s in the test run).
 - **[if shipped] Best Reason to Come Back.** Author note: name this award only
   once ADR 0005's stars (ticket 13), the return-visit hints and the melody
   book's play-all (ticket 14) ship. Draft for then: stars for thrift and for a

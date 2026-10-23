@@ -1,15 +1,18 @@
 #!/bin/zsh
 # Evidence for the privacy note (docs/submission.md, "Content and privacy"): on a fresh
 # page, a resource observer goes in, then an emulated Quest 3 session starts with hands,
-# and every cross-origin URL the app frame requested is listed. Pass if the hand models
-# loaded from jsDelivr were seen, and if, beyond IWER's own named dev assets, the only
-# outside host is cdn.jsdelivr.net under /npm/@webxr-input-profiles/. Exit 1 on any failure.
+# and every cross-origin URL the app frame requested is listed. Pass if the observer's record
+# comes back, the generic-hand models (left and right, not the controller models) loaded from
+# jsDelivr, and, beyond IWER's own named dev assets, the only outside host is cdn.jsdelivr.net
+# under /npm/@webxr-input-profiles/. Exit 1 on any failure.
 # The observer goes in before `xr enter` (see xr-hosts.e2e.mjs for why).
 cd "$(dirname "$0")/../.."
 source tests/e2e/xr-lib.sh
 # IWER's own named dev assets: the dev server's emulator loads these, the production build never does.
 # - www.unpkg.com/@iwer/sem@<version>/captures/<room>.json: the synthetic room (iwsdk.config.json dev.emulator.environment).
 IWER_ASSETS='https://www.unpkg.com/@iwer/sem@'
+# The allow-list: every input-profile file on jsDelivr (hand and controller models alike).
+# xr-hosts.e2e.mjs counts only the generic-hand models as proof that the hands loaded.
 HAND_MODELS='https://cdn.jsdelivr.net/npm/@webxr-input-profiles/'
 
 # hosts <observe|list>: run the page helper and print its result as JSON.
@@ -34,9 +37,11 @@ iw xr set-input-mode --input-json '{"mode":"hand"}' >/dev/null 2>&1
 settle session || fail "an XR session with hands starts"
 L=$(hosts list)
 xr_stop
+# Without the observer's record (no result, or `observing: false`), the host rule below would pass on an empty list.
+[ "$(field "$L" "['observing']" 2>/dev/null)" = "true" ] || { fail "the observer's record is read back after XR entry ($L)"; exit 1; }
 
 N=$(field "$L" "['handModels']")
-[ "${N:-0}" -ge 2 ] 2>/dev/null && pass "the hand models load from jsDelivr ($N .glb in $(field "$L" "['waitedMs']") ms)" ||
+[ "${N:-0}" -ge 2 ] 2>/dev/null && pass "the hand models load from jsDelivr ($N generic-hand .glb in $(field "$L" "['waitedMs']") ms)" ||
   fail "the hand models load from jsDelivr ($L)"
 echo "NOTE the resource-timing buffer alone holds $(field "$L" "['bufferSize']") entries and $(field "$L" "['bufferHandModels']") hand models"
 echo "Cross-origin URLs requested:"

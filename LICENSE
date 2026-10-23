@@ -29,4 +29,5 @@ affiliates, and are licensed under the same MIT terms above. Their headers are
 kept unchanged.
 
 Third-party software and assets the build ships or loads are listed, with their
-licenses, in THIRD_PARTY_NOTICES.md.
+licenses, in THIRD_PARTY_NOTICES.md (served beside the deployed page as
+THIRD_PARTY_NOTICES.txt, with this file as LICENSE.txt).

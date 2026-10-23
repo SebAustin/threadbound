@@ -1,7 +1,9 @@
 // CI smoke for the production build (week 8 ticket 03). Runs after `NODE_ENV=production npm run build`
 // in the deploy workflow, before the Pages upload, and locally as `npm run test:smoke`.
 //
-// It composes tests/smoke/harness.mjs and adds two checks of its own:
+// It composes tests/smoke/harness.mjs and adds three checks of its own:
+//   notices  LICENSE.txt and THIRD_PARTY_NOTICES.txt (public/ copies of the root files) are served
+//         beside the page, so the deployed build carries its license and third-party notices;
 //   flat  from load to network idle, the canvas isn't blank;
 //   XR    `offer: "always"` (iwsdk.config.json) makes IWSDK call navigator.xr.offerSession at startup.
 //         The script grants that offer, switches IWER to hands, and asserts an alpha-blend
@@ -23,6 +25,11 @@ const SESSION_START_TIMEOUT_MS = 5_000;
 /** The session must survive this long after it starts. */
 const SESSION_HOLD_MS = 5_000;
 const POLL_MS = 100;
+/** The license files public/ copies into dist/, each with the line it opens with. */
+const NOTICES = [
+  { file: 'LICENSE.txt', opening: 'MIT License' },
+  { file: 'THIRD_PARTY_NOTICES.txt', opening: '# Third-party notices' },
+];
 /** Every 97th pixel (a prime stride, so rows don't alias) is plenty to tell a blank canvas apart. */
 const PIXEL_STRIDE = 97;
 
@@ -84,6 +91,30 @@ async function loadCheck(page, url) {
   } catch (err) {
     return { check: { name: 'page loads', pass: false, detail: `${url}: ${firstLine(err)}` }, loaded: false };
   }
+}
+
+/**
+ * One notice file served beside the page as plain text with its opening line. The content type and
+ * the opening matter: a preview server answers a missing file with index.html and status 200.
+ */
+async function noticeServed(url, { file, opening }) {
+  try {
+    const res = await fetch(new URL(file, url));
+    const type = res.headers.get('content-type') ?? '';
+    const ok = res.status === 200 && type.startsWith('text/plain') && (await res.text()).startsWith(opening);
+    return { ok, detail: `${file} → ${res.status} ${type || 'no content type'}` };
+  } catch (err) {
+    return { ok: false, detail: `${file}: ${firstLine(err)}` };
+  }
+}
+
+async function noticesCheck(url) {
+  const served = await Promise.all(NOTICES.map((notice) => noticeServed(url, notice)));
+  return {
+    name: 'the license and third-party notices ship with the page',
+    pass: served.every((s) => s.ok),
+    detail: served.map((s) => s.detail).join('; '),
+  };
 }
 
 async function flatChecks(page, rec) {
@@ -180,7 +211,8 @@ async function xrChecks(page, rec) {
 async function runChecks(page, rec, url) {
   const load = await loadCheck(page, url);
   if (!load.loaded) return [load.check];
-  return [load.check, ...(await flatChecks(page, rec)), ...(await xrChecks(page, rec))];
+  const notices = await noticesCheck(url);
+  return [load.check, notices, ...(await flatChecks(page, rec)), ...(await xrChecks(page, rec))];
 }
 
 /** What the verdict gets when the browser never started: every built-in check then fails. */
