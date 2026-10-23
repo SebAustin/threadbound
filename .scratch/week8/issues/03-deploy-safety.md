@@ -34,7 +34,7 @@
 - [x] E2E: after a clean `NODE_ENV=production npm run build`, `npm run test:smoke` prints all PASS locally in under 90 s
 - [x] XR: in that run, the production bundle enters an `immersive-ar` session through the offer path, switches to hand mode, and stays in the session 5 s with no console errors. The XR screenshot in `.tmp/prod-smoke/` is checked by eye and shows the diorama
 - [x] E2E (red first): `SMOKE_URL=http://127.0.0.1:9/threadbound/ npm run test:smoke` starts no preview, exits 1 and names that URL, which proves the override. This ticket doesn't run the live Pages URL; ticket 02 does
-- [ ] CI: push the branch only (`git push -u origin <branch>`; `push:` is main-only, so nothing deploys), then `gh workflow run deploy.yml --ref <branch>` runs the build and the smoke green on ubuntu-latest, and the environment policy refuses the deploy job. This ticket then merges into main locally, deletes the remote branch, and never pushes main. The post-merge push and the docs-only no-run check are ticket 02's CI boxes, so they don't hold this ticket open
+- [x] CI: push the branch only (`git push -u origin <branch>`; `push:` is main-only, so nothing deploys), then `gh workflow run deploy.yml --ref <branch>` runs the build and the smoke green on ubuntu-latest, and the environment policy refuses the deploy job. This ticket then merges into main locally, deletes the remote branch, and never pushes main. The post-merge push and the docs-only no-run check are ticket 02's CI boxes, so they don't hold this ticket open
 - [x] README "Develop" lists the pre-push regression, and week 7 ticket 05 has the freeze-plan comment
 
 **Effort:** S (~1 day)
@@ -78,3 +78,9 @@
   - XR: in the clean runs the offered session started through `grantOfferedSession()` with blend mode `alpha-blend` (immersive-ar), switched to hands (left and right), and was still active 5 s later with no end event. Zero console errors and zero page errors over the whole run. `.tmp/prod-smoke/xr.png`, checked by eye, shows the diorama, the "First Thread" plaque and both hand outlines.
   - Not errors, left as they are: IWSDK's gaze warnings (`gaze-tracking` isn't granted on the Quest 3 preset, and no gaze input source appears within 3 s), and Chromium's "GPU stall due to ReadPixels" warnings from the canvas screenshot.
 - **Pending: the main session runs the branch dry run** (the CI box stays unticked). A read-only check has been done for it: `gh api repos/SebAustin/threadbound/environments/github-pages/deployment-branch-policies` lists one policy, branch `main` (`custom_branch_policies: true`), so the deploy job of a branch dispatch should be refused. On ubuntu-latest, watch the SwiftShader flags and the jsDelivr hand models.
+- **CI dry run (main session, Oct 23):**
+  - Branch `ci/week8-smoke-dryrun` at c35811d, dispatched as https://github.com/SebAustin/threadbound/actions/runs/39989887446.
+  - The build succeeded: typecheck, unit tests, the production build and `npm run test:smoke` all passed on ubuntu-latest. The smoke took 28 s.
+  - The deploy job was refused with "Branch "ci/week8-smoke-dryrun" is not allowed to deploy to github-pages due to environment protection rules".
+  - The remote branch was then deleted; `git ls-remote --heads origin` shows only main.
+  - **Slow step:** `npx playwright install --with-deps chromium` took 556 s, almost all of it apt downloading font and X packages from azure.archive.ubuntu.com. So a deploying push now takes about 11 min, against about 1 min before. It's correct, just slow. The fix is in week 9: cache `~/.cache/ms-playwright` keyed on the Playwright version and drop `--with-deps` if the runner already has the libraries, or run the smoke in the `mcr.microsoft.com/playwright:v1.63.0` image.

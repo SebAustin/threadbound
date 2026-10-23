@@ -17,4 +17,5 @@ Anything cut from week 8 at its Oct 30 checkpoint lands here first, in the cut o
 7. **Sound:** distinct cue timbres, a tail fade on the 98/110 Hz notes, and the integer-period tuning fix.
 8. **Onboarding:** a ghost-hand demo for snip on w1-05, and calling the ghost hand "fingertips" in the copy.
 9. **Star icons** on the plaque instead of plain dots.
-10. **A final copy pass,** so the README and submission match what shipped.
+10. **Faster CI smoke:** the Playwright install with `--with-deps` costs about 9 min per deploying push (week 8 ticket 03, Comments). Cache the browser, or run the smoke in the Playwright image.
+11. **A final copy pass,** so the README and submission match what shipped.

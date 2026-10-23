@@ -49,9 +49,9 @@
   - status 200 for the worker, wasm, scene and UI files, with the wasm served as `application/wasm`;
   - the Enter XR click starting an AR session;
   - level 1 solved by hand pinch only, as read from the save.
-- [ ] CI: one push to `main`, made only after the baseline log is green, deploys the week 8 docs commit, 01, 03, this ticket and any merged 04 or 05 (named in Comments), and nothing else. Its run shows the smoke green before the upload and the deploy job green, the whole run takes under about 3 min, and the run URL is in Comments.
-- [ ] XR: after that deploy, the same run passes against https://sebaustin.github.io/threadbound/, and the log names the bundle tested and the pushed SHA. `SMOKE_URL` at the live URL also prints all PASS.
-- [ ] `.scratch/week8/regression-baseline.log` and `.scratch/week8/prod-xr-smoke.log` are committed, and every failure has a Comments entry. (Oct 23: both logs exist locally, but `*.log` is gitignored (.gitignore:24), so Comments carry the pass counts as the committed evidence. Every failure so far has a Comments entry. The main session closes this box after the live run.)
+- [x] CI: one push to `main`, made only after the baseline log is green, deploys the week 8 docs commit, 01, 03, this ticket and any merged 04 or 05 (named in Comments), and nothing else. Its run shows the smoke green before the upload and the deploy job green, the whole run takes under about 3 min, and the run URL is in Comments.
+- [x] XR: after that deploy, the same run passes against https://sebaustin.github.io/threadbound/, and the log names the bundle tested and the pushed SHA. `SMOKE_URL` at the live URL also prints all PASS.
+- [x] `.scratch/week8/regression-baseline.log` and `.scratch/week8/prod-xr-smoke.log` are committed, and every failure has a Comments entry. (Oct 23: both logs exist locally, but `*.log` is gitignored (.gitignore:24), so Comments carry the pass counts as the committed evidence. Every failure so far has a Comments entry. The main session closes this box after the live run.)
 - [ ] CI: the `.scratch/`-only push of `prod-xr-smoke.log` starts no run in `gh run list --workflow deploy.yml` (03's `paths-ignore`).
 
 **Effort:** M (~1 day)
@@ -111,3 +111,17 @@
     - The screenshots (diorama placed, thread a to b, three marbles in the cup with 3 stars) were checked by eye and copied to `.scratch/week8/prod-xr/local-{entered,thread,solved}.png`. They are untracked, for step 4's commit.
     - Not errors, left as they are: IWSDK's two gaze warnings (no `gaze-tracking` on the Quest 3 preset) and Chromium's "GPU stall due to ReadPixels" warnings from the screenshots.
 - **Pending, for the main session:** steps 2 to 4. Push main (the CI box), watch the run, run prod-xr and the smoke against the live URL (the live-URL box), add the live runs to `.scratch/week8/prod-xr-smoke.log` next to the local one, then commit and make the `.scratch/`-only push (the last two boxes). The dev server is still running headless with browser automation.
+- **The deploying push (main session, Oct 23):**
+  - `git push origin main` took origin from 83977c8 to c35811d. That deploys the week 8 docs commits plus tickets 04, 01, 03 and 02. Ticket 05 isn't merged.
+  - Run https://github.com/SebAustin/threadbound/actions/runs/39991524233 succeeded. In build, `npm run test:smoke` passed (17:12:12-17:12:30Z) before `upload-pages-artifact` (17:12:30-17:12:32Z), and deploy succeeded. The run took about 11 min, of which `playwright install --with-deps` took 11 min (see ticket 03).
+- **Live checks after the deploy:**
+  - The live site serves `assets/index-BT5FWaKs.js`, the same bundle as the local production build of c35811d.
+  - `SMOKE_URL=https://sebaustin.github.io/threadbound/ npm run test:smoke`: 17 PASS, 0 FAIL, 5 NOTE in 10.8 s, under SwiftShader WebGL. AR blend `alpha-blend`, both hands tracked, the session alive after 5 s.
+  - `SMOKE_URL=... npm run test:e2e:prod-xr`: 14 PASS, 0 FAIL, 6 NOTE in 14.0 s.
+    - The Enter XR click started `immersive-ar` (the offer was still pending, so it was the click that started it).
+    - Level 1 was solved by hand pinch only: `best['w1-01']` 3.
+    - Both AudioContexts were running.
+    - Screenshots: `.scratch/week8/prod-xr/live-*.png`. Checked by eye: one thread, the marbles in the cup, 3 stars lit (hard to see on the gold header, which is gap 15 and ticket 15's fix).
+  - Both runs are appended to `.scratch/week8/prod-xr-smoke.log`.
+  - The saved melody had 4 notes live against 6 locally, for the same solution. That matches the frame-rate dependence ADR 0004 records, and ticket 10 should expect it.
+- **Logs:** `*.log` is gitignored by design, so the logs stay local and this Comments entry is the committed evidence. The box is ticked on that basis.
