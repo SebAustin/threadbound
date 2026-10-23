@@ -7,7 +7,7 @@ Send as a direct message to a Start program mentor, in the same week as the foru
 Hi [name], my WebXR marble puzzle Threadbound was built entirely in the IWER emulator, without a headset: it has never run on a Quest. Five minutes in Quest Browser? https://sebaustin.github.io/threadbound/
 
 1. Stopwatch time, link tap to first melody (level 1 solved).
-2. OVR Metrics Tool fps screenshot during a drop.
+2. If you have OVR Metrics Tool: an fps screenshot during a drop.
 3. Each permission prompt, in order, and your choice.
 4. Did the diorama land on your table and survive a recenter?
 

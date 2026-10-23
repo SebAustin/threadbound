@@ -23,7 +23,7 @@ Ledge buttons take a pinch from a distance or a fingertip press.
 
 **What would help most** (please answer by number, and skip any you can't do; the date you played helps too, since the build still gets fixes):
 1. **Time to the first melody:** a stopwatch time from tapping the link to the first melody, the notes level 1 plays when you solve it.
-2. **Frame rate:** an OVR Metrics Tool screenshot with the fps overlay on, taken during a drop on **Three Cups**. It's level 12 and the heaviest frame in the game. If you don't get that far, a drop on the furthest level you reach.
+2. **Frame rate:** an OVR Metrics Tool screenshot (a free Meta app you install separately; skip this one if you'd rather not) with the fps overlay on, taken during a drop on **Three Cups**. It's level 12 and the heaviest frame in the game. If you don't get that far, a drop on the furthest level you reach.
 3. **Permission prompts:** every prompt you saw, in order, and what you chose, especially the spatial-data prompt (the game asks for room data to find your table). If you denied it, did the diorama still appear?
 4. **Placement:** did the diorama land on your real table, and was it still there after a recenter (hold the Meta button)?
 5. **Pinching:** how reliable was it? Any misses, or pinches that went to the wrong peg? Please also try one deliberately long or slow pinch on **Enter XR**: did it start the session?
