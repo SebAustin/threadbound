@@ -67,10 +67,13 @@ async function movingKeepsSolve({ page, app, at, check, start }) {
   check('moving a solved level keeps it solved, stars and Next included', kept.status === 'complete' && kept.stars === solved && kept.next === true, JSON.stringify(kept));
 }
 
-/** A move made mid-drop waits for the marbles, then happens. */
+/** A move made mid-drop waits for the marbles, then happens, and the solve keeps its tune. */
 async function moveWaitsForDrop({ app, check, start }) {
   await app.evaluate(restartWithThread);
-  await app.evaluate(() => window.__threadbound.dispatch({ type: 'drop' }));
+  await app.evaluate(() => {
+    window.__threadbound.cueTrace();
+    window.__threadbound.dispatch({ type: 'drop' });
+  });
   const before = await app.evaluate(origin);
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'settings', patch: { offset: { up: 2, near: -1 } } }));
   const mid = await app.evaluate(() => ({ status: window.__threadbound.state().status, origin: window.__threadbound.frame().origin }));
@@ -78,6 +81,20 @@ async function moveWaitsForDrop({ app, check, start }) {
   check('that drop still solves', await waitFor(app, isComplete, 15000));
   const moved = await waitFor(app, atHeight, 3000, [start[1] + 2 * STEP_UP]);
   check('then the diorama moves, still solved', moved && (await app.evaluate(isComplete)), JSON.stringify(await app.evaluate(origin)));
+  await tuneSurvivesWaitingMove({ app, check });
+}
+
+/**
+ * The solve that waited for the move still holds its tune, notes and times alike, and its replay
+ * plays every note. Read from the live state: w1-01's book entry is already there from the solve
+ * before, and a silent solve would leave that entry in place.
+ */
+async function tuneSurvivesWaitingMove({ app, check }) {
+  const tune = await app.evaluate(() => window.__threadbound.state().melody);
+  check('the solve whose move waited keeps its tune: notes, with a time each', tune.notes.length > 0 && tune.times.length === tune.notes.length, JSON.stringify(tune));
+  await waitFor(app, () => !window.__threadbound.celebration().replaying, 12000);
+  const played = (await app.evaluate(() => window.__threadbound.cueTrace())).filter((r) => r.name === 'melody').length;
+  check('and its replay plays every note', played === tune.notes.length && played > 0, `${played}/${tune.notes.length}`);
 }
 
 /** Entering mixed reality places the diorama on the real table: same rebuild, same promise. */

@@ -2,7 +2,7 @@
 // plus puzzle state. Optional SETUP env names one of SETUP_MODES: 'load0' (level 1,
 // fresh), 'fresh' (reset progress, so level 1 teaches again), 'thread' (add a->b),
 // 'busiest' (Three Cups with every marble in flight) or 'solve' (solve and drop the
-// current level, then wait out its melody). An empty
+// current level, then wait until its cadence and replay have played). An empty
 // SETUP runs no setup; an unknown one throws with its name.
 // To add a mode or a field, add a table entry and leave run() alone. Page functions
 // run inside the app frame, so each must be self-contained (see tests/e2e/lib.mjs:2).
@@ -38,18 +38,15 @@ const SETUP_MODES = {
       await wait(100);
     }
   },
-  // Solve the current level and let its replay finish, so the melody book has a tune.
+  // Solve the current level and let its celebration finish, so the melody book has a tune.
+  // The replay keeps the drop's real gaps, which can exceed any quiet window: wait on `replaying`.
   solve: async () => {
     const hook = window.__threadbound;
     const poll = () => new Promise((r) => setTimeout(r, 200));
     hook.solve();
     hook.dispatch({ type: 'drop' });
     for (let t = 0; t < 15000 && hook.state().status !== 'complete'; t += 200) await poll();
-    // The replay is over once no melody note has sounded for a full second.
-    for (let quiet = 0, t = 0; quiet < 1000 && t < 10000; t += 200) {
-      quiet = hook.cues().includes('melody') ? 0 : quiet + 200;
-      await poll();
-    }
+    for (let t = 0; t < 15000 && hook.celebration().replaying; t += 200) await poll();
   },
 };
 
@@ -77,6 +74,14 @@ const PROBE_FIELDS = [
     return a && b ? hook.worldOf((a.x + b.x) / 2, (a.y + b.y) / 2) : null;
   }],
   ['threads', () => window.__threadbound.state().threads],
+  // The notes the last solve played (empty until a solve).
+  ['melodyNotes', () => window.__threadbound.state().melody.notes],
+  // Each cup's centre at half its wall height, as world points.
+  ['cups', () => {
+    const hook = window.__threadbound;
+    const halfWall = 0.0175; // GOAL.wallHeight / 2 (src/config/constants.ts): a page function can't import it.
+    return hook.state().level.goals.map((g) => hook.worldOf(g.x, halfWall));
+  }],
   ['status', () => window.__threadbound.state().status],
   // Marbles in the scene. An unsolved drop leaves its marbles until the next drop or level build, so
   // this still shows a drop happened after its status has gone back to 'idle'.
@@ -111,6 +116,8 @@ const CUE_FIELDS = [
   // Presses on a ledge button or plaque control since the last probe: one per press that
   // landed, even when it changes nothing (Nearer at its stop).
   ['buttonCuesDrained', (records) => records.filter((c) => c.name === 'button').length],
+  // Cadence notes since the last probe: a solve strums exactly 3.
+  ['cadenceDrained', (records) => records.filter((c) => c.name === 'cadence').length],
 ];
 
 export default async function run({ page, frame }) {

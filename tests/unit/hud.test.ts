@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { LEVELS } from '../../src/levels';
-import { hudModel, LEDGE_HINT_MAX_CHARS, REFUSAL_HINTS, settingsModel } from '../../src/lib/hud';
+import { hudModel, LEDGE_HINT_MAX_CHARS, REFUSAL_HINTS, settingsModel, STAR_STAGGER_SECONDS, starsShown } from '../../src/lib/hud';
 import { onboardingHint, type OnboardingStep } from '../../src/lib/onboarding';
 
 const levels = [{ world: 1 }, { world: 1 }, { world: 2 }, { world: 2 }, { world: 2 }];
@@ -114,5 +114,32 @@ describe('hint line: every hint fits the ledge strip', () => {
     expect(LEDGE_HINT_MAX_CHARS).toBe(48);
     expect(hint.length).toBeLessThanOrEqual(LEDGE_HINT_MAX_CHARS);
     expect(hint).toMatch(/^[\x20-\x7E]*$/);
+  });
+});
+
+describe('starsShown: after a fresh solve the stars refill one by one', () => {
+  const step = STAR_STAGGER_SECONDS;
+
+  test('the stagger is about a quarter of a second', () => {
+    expect(step).toBeGreaterThanOrEqual(0.2);
+    expect(step).toBeLessThanOrEqual(0.3);
+  });
+
+  test('starts empty, then adds one star per stagger step', () => {
+    expect(starsShown(3, 0)).toBe(0);
+    expect(starsShown(3, step * 0.99)).toBe(0);
+    expect(starsShown(3, step * 1.01)).toBe(1);
+    expect(starsShown(3, step * 2.01)).toBe(2);
+    expect(starsShown(3, step * 3.01)).toBe(3);
+  });
+
+  test('never shows more than the best', () => {
+    expect(starsShown(1, step * 10)).toBe(1);
+    expect(starsShown(2, step * 2.5)).toBe(2);
+    expect(starsShown(0, step * 5)).toBe(0);
+  });
+
+  test('shows the best at once when there is no fresh solve', () => {
+    for (const best of [0, 1, 2, 3]) expect(starsShown(best, null)).toBe(best);
   });
 });

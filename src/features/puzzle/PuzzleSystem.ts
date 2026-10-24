@@ -1,6 +1,7 @@
 import { createSystem, Vector3 } from '@iwsdk/core';
 import { DIORAMA_DEFAULT_POSITION } from '../../config/constants';
 import type { Level } from '../../lib/levelSchema';
+import { EMPTY_MELODY } from '../../lib/melody';
 import { offsetOrigin, originFromCenter, type DioramaOffset } from '../../lib/placement';
 import { INITIAL_PROGRESS, loadProgress, recordCompletion, recordDaily, saveProgress } from '../../lib/progress';
 import { browserStorage } from '../../lib/storage';
@@ -133,7 +134,7 @@ export class PuzzleSystem extends createSystem({
       pegPositions,
       daily,
       refusal: null,
-      melody: [],
+      melody: EMPTY_MELODY,
     });
     puzzleStore.dispatch({ type: 'levelBuilt', reason });
   }
@@ -175,12 +176,12 @@ export class PuzzleSystem extends createSystem({
 
   /** The player moved the diorama: rebuild it there exactly as they left it, solved or not. */
   private relocate(state: PuzzleState): void {
-    const { level, levelIndex, threads, pegPositions, daily, status, scored, stars } = state;
+    const { level, levelIndex, threads, pegPositions, daily, status, scored, stars, melody } = state;
     this.build(levelIndex, daily, 'relocated');
     if (!level) return;
     for (const step of restoreSteps(level, threads, pegPositions)) puzzleStore.dispatch(step);
-    // Stars of 0 here means the solve isn't recorded yet; onStateChange records it.
-    if (status === 'complete') puzzleStore.update({ status, scored, stars });
+    // Stars of 0 here means the solve isn't recorded yet; onStateChange records it, tune included.
+    if (status === 'complete') puzzleStore.update({ status, scored, stars, melody });
   }
 
   private teardown(): void {

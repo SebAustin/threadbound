@@ -1,7 +1,7 @@
 /**
  * One sound per thing that happens, so a player can follow the puzzle by ear.
- * Musical cues use the pentatonic scale, so they never clash with the melody a
- * drop is playing. Failure cues sit below the scale: dull, unmistakably "no".
+ * Musical cues use the pentatonic scale (in any octave), so they never clash
+ * with the melody a drop is playing. Failure cues sit below the scale: dull, unmistakably "no".
  */
 
 export type CueName =
@@ -25,8 +25,10 @@ export type CueName =
   | 'melody'
   /** A new thread is strung (its pitch comes from its length). */
   | 'thread'
-  /** A marble bounces off a thread (pitch from the thread, gain from the impact). */
-  | 'bounce';
+  /** A marble bounces off a thread (pitch from the thread's climb, gain from the impact). */
+  | 'bounce'
+  /** One note of the chord that closes a solve (CADENCE_HZ in lib/melody), strummed or replayed. */
+  | 'cadence';
 
 export interface Cue {
   readonly hz: number;
@@ -38,7 +40,8 @@ export interface Cue {
 export const CUE_CEILING = 0.8;
 
 export const CUES: Readonly<Record<CueName, Cue>> = {
-  cupCorrect: { hz: 880.0, volume: 0.6 },
+  // C6: above every thread note (A5 is the top), so a scored marble never sounds like a bounce.
+  cupCorrect: { hz: 1046.5, volume: 0.6 },
   cupWrong: { hz: 110.0, volume: 0.5 },
   button: { hz: 587.33, volume: 0.5 },
   pegGrab: { hz: 659.25, volume: 0.25 },
@@ -49,6 +52,8 @@ export const CUES: Readonly<Record<CueName, Cue>> = {
   melody: { hz: 523.25, volume: 0.7 },
   thread: { hz: 440.0, volume: 0.8 },
   bounce: { hz: 440.0, volume: 0.8 },
+  // C5, the cadence's first note; each strummed note passes its own pitch.
+  cadence: { hz: 523.25, volume: 0.6 },
 };
 
 /** Every distinct pitch a cue can ask for (the synth renders each once). */

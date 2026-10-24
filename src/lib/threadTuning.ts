@@ -20,9 +20,16 @@ export function restitutionForLength(len: number): number {
   return maxRestitution + (minRestitution - maxRestitution) * normalizedLength(len);
 }
 
-/** Shorter strings ring higher, quantized to the scale. */
-export function pitchForLength(len: number): number {
+/** A4's scale index: the root of a thread before its length tunes it (DEFAULT_PITCH_HZ). */
+export const DEFAULT_ROOT = 4;
+
+/** A thread's root: its scale index, set by its length. Shorter threads ring higher. */
+export function rootIndex(len: number): number {
   const last = PENTATONIC_HZ.length - 1;
-  const index = Math.round((1 - normalizedLength(len)) * last);
-  return PENTATONIC_HZ[index];
+  return Math.round((1 - normalizedLength(len)) * last);
+}
+
+/** Shorter threads ring higher, quantized to the scale: the root's pitch. */
+export function pitchForLength(len: number): number {
+  return PENTATONIC_HZ[rootIndex(len)];
 }

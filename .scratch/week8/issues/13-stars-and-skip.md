@@ -53,3 +53,5 @@
 - Ticket 10 also changes the progress schema (melody timing). Whichever ticket lands second keeps both fields defaulted for older saves.
 
 ## Comments
+
+- **Oct 24, from ticket 10 (landed first):** this ticket lands second, so it adds the first-drop box's assertion that the save's `melodies['w1-01']` is non-empty after the raise. Ticket 10's `relocate` already carries `melody` in the update at PuzzleSystem.ts:184; `drops` and `missedDrops` join that same update. Melody-book entries now load as `{ notes, times }` (bare arrays from old saves included), so `recordSkip` must keep `melodies` as it is, and a new `skipped` default sits beside the `melodies` default.

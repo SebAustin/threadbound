@@ -6,9 +6,11 @@ import { handleOffset } from '../../lib/rail';
 import { solutionSteps } from '../../lib/solutionSteps';
 import { puzzleStore, type PuzzleCommand } from '../puzzle/puzzleStore';
 import type { CueName } from '../../lib/soundCues';
-import { drainCues } from '../audio/cueLog';
+import { drainCues, drainCueTrace, type CueRecord } from '../audio/cueLog';
 import { stringSynth } from '../audio/stringSynth';
+import { MarbleSystem } from '../marbles/MarbleSystem';
 import { PlacementSystem } from '../placement/PlacementSystem';
+import { Thread } from '../puzzle/components';
 import { PerfProbeSystem } from './PerfProbeSystem';
 
 interface ScreenPoint {
@@ -85,8 +87,15 @@ export interface ThreadboundTestHook {
   placement(): { placedOn: string | null; planesSeen: number };
   /** Whether the active XR session exposes a gaze input source (eye-tracked devices). */
   gazeAvailable(): boolean;
-  /** Sound cues the game asked for since the last call (see features/audio/cueLog). */
+  /** Names of the sound cues the game asked for since the last drain (see features/audio/cueLog). */
   cues(): CueName[];
+  /** The same cues with pitch and time (seconds). Draining either this or cues() empties both. */
+  cueTrace(): CueRecord[];
+  /**
+   * A solve's celebration: stars lit on the plaque (they refill one by one after a fresh solve),
+   * whether a cadence or replay is still playing, and each thread's vibration energy.
+   */
+  celebration(): { starsShown: number; replaying: boolean; threadEnergy: number[] };
   /** Visible meshes (about one draw call each) grouped by what they belong to. */
   meshBreakdown(): Record<string, number>;
   /** Cost of the next rendered frame, and any performance-budget breaches. */
@@ -310,9 +319,24 @@ function visibleInScene(object: Object3D): boolean {
   return true;
 }
 
+function celebrationProbe(world: World): Hook<'celebration'> {
+  return {
+    celebration: () => {
+      const marbles = world.getSystem(MarbleSystem);
+      const plaque = world.getSceneObject<UIKitMLAsset>('hud-plaque');
+      const threads = marbles ? [...marbles.queries.threads.entities] : [];
+      return {
+        starsShown: Number(plaque?.userData.starsShown ?? 0),
+        replaying: marbles?.replaying ?? false,
+        threadEnergy: threads.map((t) => t.getValue(Thread, 'energy') ?? 0),
+      };
+    },
+  };
+}
+
 function sessionProbes(
   world: World,
-): Hook<'gazeAvailable' | 'room' | 'frameStats' | 'meshBreakdown' | 'cues' | 'placement' | 'audio'> {
+): Hook<'gazeAvailable' | 'room' | 'frameStats' | 'meshBreakdown' | 'cues' | 'cueTrace' | 'placement' | 'audio'> {
   return {
     audio: () => stringSynth.state,
     placement: () => {
@@ -320,6 +344,7 @@ function sessionProbes(
       return { placedOn: placement?.placedOn ?? null, planesSeen: placement?.planesSeen ?? 0 };
     },
     cues: () => drainCues(),
+    cueTrace: () => drainCueTrace(),
     meshBreakdown: () => {
       const counts: Record<string, number> = {};
       world.scene.traverse((o) => {
@@ -368,5 +393,6 @@ export function installTestHook(world: World): void {
     ...plaqueProbes(world, probe),
     ...welcomeProbes(world, probe),
     ...sessionProbes(world),
+    ...celebrationProbe(world),
   };
 }

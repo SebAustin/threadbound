@@ -92,6 +92,19 @@ export function hudModel(input: HudInput): HudModel {
   };
 }
 
+/** Seconds between the plaque's stars lighting, one by one, after a fresh solve. */
+export const STAR_STAGGER_SECONDS = 0.25;
+
+/**
+ * How many of the best stars the plaque shows `sinceSolve` seconds after a fresh
+ * solve: none at first, then one more every stagger step, up to the best. With no
+ * fresh solve (null) it shows the best at once.
+ */
+export function starsShown(best: number, sinceSolve: number | null): number {
+  if (sinceSolve === null) return best;
+  return Math.min(best, Math.floor(sinceSolve / STAR_STAGGER_SECONDS));
+}
+
 export interface SettingsModel {
   readonly slowLabel: string;
   readonly offsetLabel: string;

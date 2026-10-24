@@ -22,16 +22,18 @@ import { GEOMETRIES, goalMaterial, marbleMaterial } from '../diorama/palette';
 import { Chute, Marble, Thread } from '../puzzle/components';
 import { puzzleStore } from '../puzzle/puzzleStore';
 import { SimulationClockSystem } from '../simulation/SimulationClockSystem';
+import { EMPTY_MELODY, MelodyClimb, replaySchedule, type Melody } from '../../lib/melody';
 import { MELODY_NOTES_MAX } from '../../lib/progress';
-import { CUES } from '../../lib/soundCues';
-import { DEFAULT_PITCH_HZ } from '../../lib/threadTuning';
+import { DEFAULT_ROOT, PENTATONIC_HZ } from '../../lib/threadTuning';
+import { Celebration } from './celebration';
 
 /** Contact band around a thread that counts as a "pluck". */
 const CONTACT_DIST = MARBLE.radius + THREAD_TUNING.radius + 0.004;
 const CONTACT_DIST_SQ = CONTACT_DIST * CONTACT_DIST;
 /** Marble speed (m/s) that plays a bounce at full volume. */
 const FULL_VOLUME_SPEED = 1.2;
-const MELODY_STEP_SECONDS = 0.22;
+/** After a solve, the replay waits this long so the cadence rings out first. */
+const REPLAY_AFTER_CADENCE_SECONDS = 0.4;
 /** Highest marble center that still counts as "in the cup" (one stacked layer). */
 const CUP_TOP = GOAL.wallHeight + MARBLE.radius;
 /** Marbles count once they have (nearly) come to rest, not while flying over. */
@@ -44,7 +46,7 @@ const MARBLE_ANGULAR_DAMPING = 0.2;
 const NUDGE_SPEED = 0.12;
 
 /**
- * Chute release, goal scoring, lost-marble cleanup and the bounce→note mapping.
+ * Chute release, cup scoring, lost-marble cleanup, the bounce→note climb and the solve's celebration.
  * Havok exposes no collision callbacks, so contact is detected geometrically in
  * the diorama plane each frame (allocation-free).
  */
@@ -62,8 +64,13 @@ export class MarbleSystem extends createSystem({
   private releaseTimer = 0;
   /** Thread entity indices each marble is currently touching, keyed by marble index. */
   private contacts = new Map<number, Set<number>>();
-  /** Notes played during the current drop — the puzzle's "song". */
-  private melody: number[] = [];
+  /** Each thread's climb in the current drop, shared by its marbles (lib/melody). */
+  private climb = new MelodyClimb();
+  /** Notes played during the current drop (the puzzle's "song"), and when: simulation seconds since it began. */
+  private notes: number[] = [];
+  private noteTimes: number[] = [];
+  /** Simulation seconds since the drop began, so a slow-motion solve saves the same tune. */
+  private dropClock = 0;
   /** Reused scratch list so lost marbles are disposed after, not during, iteration. */
   private lost: Entity[] = [];
   private tmpWorld = new Vector3();
@@ -75,10 +82,13 @@ export class MarbleSystem extends createSystem({
   private nudges = new Map<number, number>();
   /** Seconds every marble of the drop has been at rest at once. */
   private quiet = 0;
-  /** Solved melody being replayed, one note per step (paused with the system). */
-  private replay: readonly number[] = [];
-  private replayNext = 0;
-  private replayTimer = 0;
+  /** The cadence strum, the cups' pulse and the replays (paused with this system). */
+  private celebration = new Celebration();
+
+  /** True while a solve's cadence or a replay is still playing. */
+  get replaying(): boolean {
+    return this.celebration.playing;
+  }
 
   init(): void {
     this.clock = this.world.getSystem(SimulationClockSystem);
@@ -95,8 +105,8 @@ export class MarbleSystem extends createSystem({
         if (command.type === 'levelBuilt') {
           this.queue = [];
           this.released = 0;
-          this.melody = [];
-          this.replay = [];
+          this.forgetTune();
+          this.celebration.stop();
         }
       }),
     );
@@ -109,14 +119,22 @@ export class MarbleSystem extends createSystem({
     stringSynth.unlock();
     this.clearMarbles();
     this.resetGoalGlow();
-    this.melody = [];
+    this.celebration.stop();
+    this.forgetTune();
     this.queue = releaseOrder(level.chutes);
     this.released = 0;
     this.releaseTimer = 0;
     this.quiet = 0;
-    this.replay = [];
     // A new drop is a new attempt: unscored, so a better solve is recorded on completion.
-    puzzleStore.update({ status: 'dropping', scored: 0, stars: 0, melody: [] });
+    puzzleStore.update({ status: 'dropping', scored: 0, stars: 0, melody: EMPTY_MELODY });
+  }
+
+  /** Every thread climbs from its root again, and the drop clock restarts. Published tunes are copies. */
+  private forgetTune(): void {
+    this.climb.reset();
+    this.notes.length = 0;
+    this.noteTimes.length = 0;
+    this.dropClock = 0;
   }
 
   private clearMarbles(): void {
@@ -156,8 +174,10 @@ export class MarbleSystem extends createSystem({
   update(delta: number): void {
     // Simulation time: slow motion dilates releases and rest timers with physics.
     const simDelta = this.clock?.simDelta(delta) ?? delta;
+    this.dropClock += simDelta;
     this.releaseDue(simDelta);
-    this.replayDue(delta);
+    // Real time: a replay sounds at normal speed even after a slow-motion solve.
+    this.celebration.update(delta);
     const frame = puzzleStore.frame;
     if (!frame) return;
     let allResting = true;
@@ -238,16 +258,23 @@ export class MarbleSystem extends createSystem({
       const wasInContact = touching.has(thread.index);
       if (inContact && !wasInContact) {
         touching.add(thread.index);
-        const pitch = thread.getValue(Thread, 'pitch') ?? DEFAULT_PITCH_HZ;
+        // The thread's next note: its climb is shared by every marble of the drop.
+        const pitch = PENTATONIC_HZ[this.climb.next(thread.index, thread.getValue(Thread, 'root') ?? DEFAULT_ROOT)];
         const strength = this.speedOf(marble) / FULL_VOLUME_SPEED;
         stringSynth.play('bounce', pitch, strength);
         thread.setValue(Thread, 'energy', Math.min(1, Math.max(MIN_PLUCK_ENERGY, strength)));
-        // Captured up to the book's length, so completion needs no trimming.
-        if (this.melody.length < MELODY_NOTES_MAX) this.melody.push(pitch);
+        this.recordNote(pitch);
       } else if (!inContact && wasInContact) {
         touching.delete(thread.index);
       }
     }
+  }
+
+  /** Captured up to the book's length, with its drop time, so completion needs no trimming. */
+  private recordNote(hz: number): void {
+    if (this.notes.length >= MELODY_NOTES_MAX) return;
+    this.notes.push(hz);
+    this.noteTimes.push(this.dropClock);
   }
 
   private speedOf(marble: Entity): number {
@@ -280,9 +307,20 @@ export class MarbleSystem extends createSystem({
       return;
     }
     // One update, so the solve is recorded together with the tune it played.
-    const melody = this.melody.slice();
+    const melody: Melody = { notes: this.notes.slice(), times: this.noteTimes.slice() };
     puzzleStore.update({ scored, status: 'complete', melody });
-    this.playMelody(melody);
+    // Only after that update: a move deferred during the drop rebuilds the diorama inside it,
+    // and that build's levelBuilt clears anything armed before it.
+    this.celebrate(melody);
+  }
+
+  /** The cups strum the cadence and pulse, every thread shimmers, then the solve's tune replays. */
+  private celebrate(melody: Melody): void {
+    this.celebration.strum();
+    for (const thread of this.queries.threads.entities) thread.setValue(Thread, 'energy', 1);
+    // The live strum has just played the cadence, so this replay stops on its last note.
+    this.celebration.play(replaySchedule(melody, false), REPLAY_AFTER_CADENCE_SECONDS);
+    puzzleStore.dispatch({ type: 'solved' });
   }
 
   /** A marble settled in the wrong cup: a dull thud, once. */
@@ -302,30 +340,14 @@ export class MarbleSystem extends createSystem({
     return -1;
   }
 
-  /** The melody book: replay this level's saved tune (poking the plaque's stars). */
+  /** The melody book: replay this level's saved tune with its timing, closing on the cadence (pinching the plaque's stars). */
   private replaySaved(): void {
     const { level, progress, status } = puzzleStore.get();
     const saved = level ? progress.melodies[level.id] : undefined;
     // A drop in progress is already playing its own notes.
     if (!saved || status === 'dropping') return;
     stringSynth.unlock();
-    this.playMelody(saved);
-  }
-
-  /** Replays the bounces that solved the puzzle: every solution is a song. */
-  private playMelody(notes: readonly number[]): void {
-    this.replay = notes.length > 0 ? notes : [CUES.melody.hz];
-    this.replayNext = 0;
-    this.replayTimer = MELODY_STEP_SECONDS;
-  }
-
-  private replayDue(delta: number): void {
-    if (this.replayNext >= this.replay.length) return;
-    this.replayTimer -= delta;
-    if (this.replayTimer > 0) return;
-    stringSynth.play('melody', this.replay[this.replayNext]);
-    this.replayNext += 1;
-    this.replayTimer = MELODY_STEP_SECONDS;
+    this.celebration.play(replaySchedule(saved, true));
   }
 
   private resetGoalGlow(): void {

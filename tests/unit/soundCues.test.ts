@@ -1,10 +1,16 @@
 import { describe, expect, test } from 'vitest';
 import { AMBIENCE_INTERVAL_SECONDS, ambienceHz, ambienceRests, CUE_CEILING, CUES, cuePitches, type CueName } from '../../src/lib/soundCues';
+import { CADENCE_HZ } from '../../src/lib/melody';
 import { PENTATONIC_HZ } from '../../src/lib/threadTuning';
 
-const ALL: readonly CueName[] = ['cupCorrect', 'cupWrong', 'button', 'pegGrab', 'refused', 'settle', 'snip', 'ambience', 'melody', 'thread', 'bounce'];
+const ALL: readonly CueName[] = ['cupCorrect', 'cupWrong', 'button', 'pegGrab', 'refused', 'settle', 'snip', 'ambience', 'melody', 'thread', 'bounce', 'cadence'];
 /** Cues that mean "that didn't work": deliberately outside the music. */
 const DULL: readonly CueName[] = ['cupWrong', 'refused'];
+const C4 = PENTATONIC_HZ[0];
+const A5 = PENTATONIC_HZ[PENTATONIC_HZ.length - 1];
+/** Semitones above the nearest C at or below `hz` (0 = C), so octaves compare equal. */
+const pitchClass = (hz: number) => (((Math.round(12 * Math.log2(hz / C4)) % 12) + 12) % 12);
+const SCALE_CLASSES = new Set(PENTATONIC_HZ.map(pitchClass));
 
 describe('sound cues: every event the player causes has its own sound', () => {
   test('every event has a cue, audible and under the limiter ceiling', () => {
@@ -14,8 +20,18 @@ describe('sound cues: every event the player causes has its own sound', () => {
     }
   });
 
-  test('musical cues stay in the pentatonic scale, so they fit any melody', () => {
-    for (const name of ALL.filter((n) => !DULL.includes(n))) expect(PENTATONIC_HZ).toContain(CUES[name].hz);
+  test('musical cues stay in the pentatonic scale (any octave), so they fit any melody', () => {
+    for (const name of ALL.filter((n) => !DULL.includes(n))) expect(SCALE_CLASSES.has(pitchClass(CUES[name].hz)), name).toBe(true);
+  });
+
+  test('the cadence is C5 E5 G5, all rendered scale notes, and its cue starts on one of them', () => {
+    for (const hz of CADENCE_HZ) expect(PENTATONIC_HZ).toContain(hz);
+    expect(CADENCE_HZ).toContain(CUES.cadence.hz);
+  });
+
+  test('a scored marble rings above every thread note (A5), still on a C', () => {
+    expect(CUES.cupCorrect.hz).toBeGreaterThan(A5);
+    expect(pitchClass(CUES.cupCorrect.hz)).toBe(0);
   });
 
   test('failure cues sit below the scale and differ from each other', () => {

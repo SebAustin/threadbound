@@ -1,6 +1,6 @@
 import { createSystem, type UIKit, type UIKitMLAsset } from '@iwsdk/core';
 import { HUD } from '../../config/constants';
-import { hudModel, type HudModel } from '../../lib/hud';
+import { hudModel, starsShown, type HudModel } from '../../lib/hud';
 import { onboardingHint } from '../../lib/onboarding';
 import { onboardingStepOf } from '../onboarding/onboardingState';
 import { playerThreadCount, spoolUsed } from '../../lib/threadRules';
@@ -14,6 +14,11 @@ import { SettingsFace } from './settingsFace';
 import { onTap } from '../input/onTap';
 
 const STAR_IDS = ['hud-star-1', 'hud-star-2', 'hud-star-3'] as const;
+
+/** The best stars the plaque stands for: today's daily stars, or the level's best. */
+function bestStarsOf(state: PuzzleState, levelId: string): number {
+  return state.daily ? dailyStarsOn(state.progress, state.daily.day) : (state.progress.best[levelId] ?? 0);
+}
 
 /**
  * The plaque standing on top of the diorama (level title, place in the world,
@@ -30,6 +35,12 @@ export class HudSystem extends createSystem({}) {
    * (rail drags fire per frame); the plaque only depends on these snapshots.
    */
   private shownFrom: PuzzleState | null = null;
+  /** Best stars the plaque stands for (what it shows once any stagger is over). */
+  private bestStars = 0;
+  /** Seconds since a fresh solve, while its stars are still lighting one by one; null otherwise. */
+  private sinceSolve: number | null = null;
+  /** Stars currently lit on the plaque. */
+  private starsLit = -1;
 
   init(): void {
     this.panel = this.world.getSceneObject<UIKitMLAsset>('hud-plaque');
@@ -48,14 +59,56 @@ export class HudSystem extends createSystem({}) {
           this.follow();
           // A new level opens on its own face; moving it or browsing levels keeps the settings open.
           if (command.reason === 'fresh') this.showFace('level');
+          // Another level (or a restart) ends a stagger; moving the solved level lets it finish.
+          if (command.reason !== 'relocated') this.endStagger();
         }
         if (command.type === 'toggleSettings') this.showFace(this.face === 'level' ? 'settings' : 'level');
+        if (command.type === 'solved') this.staggerStars();
       }),
       puzzleStore.subscribe((state) => this.render(state)),
     );
     this.follow();
     this.showFace('level');
     this.render(puzzleStore.get());
+  }
+
+  /**
+   * A fresh solve: the stars empty, then light one by one up to the best (update). Read from the
+   * store now, after every update the solve made: a listener can be handed an older snapshot last.
+   */
+  private staggerStars(): void {
+    const state = puzzleStore.get();
+    if (!state.level) return;
+    this.bestStars = bestStarsOf(state, state.level.id);
+    this.sinceSolve = 0;
+    this.lightStars(0);
+  }
+
+  private endStagger(): void {
+    if (this.sinceSolve === null) return;
+    this.sinceSolve = null;
+    const state = puzzleStore.get();
+    this.bestStars = state.level ? bestStarsOf(state, state.level.id) : 0;
+    this.lightStars(this.bestStars);
+  }
+
+  /** Lights the stars of a fresh solve one by one. Allocation-free while nothing changes. */
+  update(delta: number): void {
+    if (this.sinceSolve === null) return;
+    this.sinceSolve += delta;
+    const shown = starsShown(this.bestStars, this.sinceSolve);
+    if (shown !== this.starsLit) this.lightStars(shown);
+    if (shown >= this.bestStars) this.sinceSolve = null;
+  }
+
+  private lightStars(count: number): void {
+    const panel = this.panel;
+    if (!panel) return;
+    this.starsLit = count;
+    panel.userData.starsShown = count;
+    STAR_IDS.forEach((id, i) => {
+      panel.getElementById(id)?.setProperties({ backgroundColor: i < count ? HUD.starOn : HUD.starOff });
+    });
   }
 
   private showFace(face: PlaqueFace): void {
@@ -90,7 +143,7 @@ export class HudSystem extends createSystem({}) {
       threadsUsed: playerThreadCount(state.threads),
       maxThreads: level.maxThreads,
       par: level.par,
-      bestStars: state.daily ? dailyStarsOn(state.progress, state.daily.day) : (state.progress.best[level.id] ?? 0),
+      bestStars: bestStarsOf(state, level.id),
       solved: state.status === 'complete',
       hint: onboardingHint(onboardingStepOf(state)),
       spool:
@@ -131,8 +184,9 @@ export class HudSystem extends createSystem({}) {
     panel
       .getElementById('hud-header')
       ?.setProperties({ backgroundColor: hud.status === 'solved' ? HUD.solvedColor : HUD.playingColor });
-    STAR_IDS.forEach((id, i) => {
-      panel.getElementById(id)?.setProperties({ backgroundColor: hud.stars[i] ? HUD.starOn : HUD.starOff });
-    });
+    // While a fresh solve's stars are lighting one by one, update() owns them.
+    if (this.sinceSolve !== null) return;
+    this.bestStars = hud.stars.filter(Boolean).length;
+    if (this.starsLit !== this.bestStars) this.lightStars(this.bestStars);
   }
 }

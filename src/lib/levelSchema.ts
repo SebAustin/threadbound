@@ -157,7 +157,7 @@ export function solutionLength(level: Pick<RawLevel, 'pegs' | 'slides' | 'soluti
 }
 
 /** Peg positions once the solution's rail slides are applied. */
-function solvedPegPositions(level: Pick<RawLevel, 'pegs' | 'slides'>): Record<string, { x: number; y: number }> {
+export function solvedPegPositions(level: Pick<RawLevel, 'pegs' | 'slides'>): Record<string, { x: number; y: number }> {
   const positions = Object.fromEntries(level.pegs.map((p) => [p.id, { x: p.x, y: p.y }]));
   for (const slide of level.slides) {
     const peg = level.pegs.find((p) => p.id === slide.peg);

@@ -50,10 +50,10 @@ class StringSynth {
 
   /**
    * The sound for a game event (see lib/soundCues). `hz` overrides the cue's pitch
-   * (thread length, melody, ambience phrase); `gain` scales its volume (impact).
+   * (a thread's climb, a replayed note, a cadence note, the ambience phrase); `gain` scales its volume (impact).
    */
   play(name: CueName, hz = CUES[name].hz, gain = 1): void {
-    recordCue(name);
+    recordCue(name, hz);
     this.pluck(hz, Math.min(CUE_CEILING, CUES[name].volume * gain));
   }
 

@@ -17,7 +17,7 @@ import {
 import { PEG, THREAD_TUNING } from '../../config/constants';
 import { segmentTransform } from '../../lib/threadGeometry';
 import { checkNewThread, findSnapPeg, sameThread, spoolUsed, type PegPoint } from '../../lib/threadRules';
-import { pitchForLength, restitutionForLength } from '../../lib/threadTuning';
+import { PENTATONIC_HZ, restitutionForLength, rootIndex } from '../../lib/threadTuning';
 import { stringSynth } from '../audio/stringSynth';
 import { devLog } from '../debug/devLog';
 import { GEOMETRIES, MATERIALS } from '../diorama/palette';
@@ -291,7 +291,8 @@ export class ThreadSystem extends createSystem({
     group.add(mesh);
     this.layoutThread(group, from.x, from.y, to.x, to.y);
 
-    const pitch = pitchForLength(seg.length);
+    const root = rootIndex(seg.length);
+    const pitch = PENTATONIC_HZ[root];
     const entity = this.world.createTransformEntity(group);
     entity.addComponent(Thread, {
       fromPeg: from.id,
@@ -301,6 +302,7 @@ export class ThreadSystem extends createSystem({
       bx: to.x,
       by: to.y,
       pitch,
+      root,
       preset,
     });
     entity.addComponent(RayInteractable);

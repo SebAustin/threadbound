@@ -35,7 +35,8 @@ async function proveLevel(app, i, { id, name }, slowMotion) {
   const { frameStats, solved } = await solveWithSolution(app, i, slowMotion);
   const state = await app.evaluate(() => {
     const s = window.__threadbound.state();
-    return { scored: s.scored, marbles: s.level.marbles, stars: s.stars, threads: s.threads.length };
+    // Distinct notes the solve played (ADR 0004: bounces climb, so few levels should play one note).
+    return { scored: s.scored, marbles: s.level.marbles, stars: s.stars, threads: s.threads.length, notes: new Set(s.melody.notes).size };
   });
   const marbles = solved ? [] : await app.evaluate(() => window.__threadbound.marbles());
   return {

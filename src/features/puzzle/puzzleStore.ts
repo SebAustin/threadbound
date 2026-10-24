@@ -1,4 +1,5 @@
 import type { Level } from '../../lib/levelSchema';
+import { EMPTY_MELODY, type Melody } from '../../lib/melody';
 import { INITIAL_PROGRESS, type Progress } from '../../lib/progress';
 import { DEFAULT_SETTINGS, type Settings } from '../../lib/settings';
 import type { RefusalReason, ThreadLink } from '../../lib/threadRules';
@@ -38,8 +39,8 @@ export interface PuzzleState {
   readonly daily: DailySession | null;
   /** Why the player's last thread or slide was refused; cleared by their next success. */
   readonly refusal: RefusalReason | null;
-  /** The melody a solve played (Hz), published when the level completes; empty until then. */
-  readonly melody: readonly number[];
+  /** The melody a solve played (notes in Hz, drop times in seconds), published when the level completes; empty until then. */
+  readonly melody: Melody;
 }
 
 /** Everything that changes the puzzle goes through here: buttons, placement, tests. */
@@ -61,6 +62,8 @@ export type PuzzleCommand =
   /** Flip the plaque between the level face and the settings face. */
   | { readonly type: 'toggleSettings' }
   | { readonly type: 'drop' }
+  /** Emitted once a drop solves the level, after the solve's state is published: the celebration starts. */
+  | { readonly type: 'solved' }
   | { readonly type: 'addThread'; readonly from: string; readonly to: string }
   | { readonly type: 'snip'; readonly from: string; readonly to: string }
   | { readonly type: 'place'; readonly origin: Vec3; readonly yaw: number }
@@ -91,7 +94,7 @@ const INITIAL: PuzzleState = {
   settings: DEFAULT_SETTINGS,
   daily: null,
   refusal: null,
-  melody: [],
+  melody: EMPTY_MELODY,
 };
 
 /**

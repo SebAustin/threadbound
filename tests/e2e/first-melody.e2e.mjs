@@ -1,7 +1,8 @@
 // E2E (Stage 1 bar, "first five minutes"): from a cold start on a fresh save, the
 // onboarding gets a player to their first melody in well under 60 s, with real
-// pointer input. Automation acts faster than a person, so the game's own share
-// (pinching the chute to hearing the first melody note) is recorded separately.
+// pointer input, and that melody climbs (at least three distinct notes). Automation acts
+// faster than a person, so the game's own share (pinching the chute to hearing the first
+// replayed melody note) is recorded separately.
 import { canvasMapper, checks, click, drag, freshSave, waitFor } from './lib.mjs';
 
 const FIRST_MELODY_BUDGET_MS = 60000;
@@ -43,5 +44,8 @@ export default async function run({ page, frame }) {
   const gameShare = Date.now() - dropAt;
   check('the first melody plays within a minute of a cold start', heard && total < FIRST_MELODY_BUDGET_MS, `${(total / 1000).toFixed(1)} s`);
   check("the game's own share (drop to melody) leaves time to learn", heard && gameShare < GAME_SHARE_BUDGET_MS, `${(gameShare / 1000).toFixed(1)} s`);
+  // Each bounce climbs the thread's scale (ADR 0004): a tune, not one repeated note.
+  const notes = await app.evaluate(() => window.__threadbound.state().melody.notes);
+  check('the first solve plays at least 3 distinct notes', new Set(notes).size >= 3, JSON.stringify(notes));
   return results;
 }

@@ -1,11 +1,31 @@
 import { z } from 'zod';
 import { nextStreak, NO_STREAK } from './daily';
+import { timesFit, type Melody } from './melody';
 import { loadJson, saveJson, type StorageLike } from './storage';
 
 const STORAGE_KEY = 'threadbound.progress.v1';
 
 /** Longest melody kept per level; a busy drop would otherwise drone on when replayed. */
 export const MELODY_NOTES_MAX = 16;
+
+const MelodyNotes = z.array(z.number().positive()).max(MELODY_NOTES_MAX);
+
+/** Keeps times only when they fit the notes, so bad times never cost a player their save. */
+const timedMelody = (notes: number[], times: readonly number[] | undefined): { notes: number[]; times: number[] } => ({
+  notes,
+  times: timesFit(notes.length, times) ? [...times] : [],
+});
+
+/**
+ * A melody-book entry: a bare array of notes (saves from before timing) or `{ notes, times }`.
+ * Both load as `{ notes, times }`; times that don't fit are dropped and the notes kept.
+ */
+const MelodyEntry = z
+  .union([
+    MelodyNotes,
+    z.object({ notes: MelodyNotes, times: z.array(z.number()).optional().catch(undefined) }),
+  ])
+  .transform((entry) => (Array.isArray(entry) ? timedMelody(entry, undefined) : timedMelody(entry.notes, entry.times)));
 
 const ProgressSchema = z.object({
   /**
@@ -23,10 +43,8 @@ const ProgressSchema = z.object({
   dailyBest: z
     .object({ day: z.string().nullable(), stars: z.number().int().min(0).max(3) })
     .default({ day: null, stars: 0 }),
-  /** Melody book: the notes each campaign level's best solve played (Hz). */
-  melodies: z
-    .record(z.string(), z.array(z.number().positive()).max(MELODY_NOTES_MAX))
-    .default({}),
+  /** Melody book: the tune each campaign level's best solve played (Hz), with when each note sounded. */
+  melodies: z.record(z.string(), MelodyEntry).default({}),
 });
 
 export type Progress = Readonly<z.infer<typeof ProgressSchema>>;
@@ -47,17 +65,19 @@ export interface Solve {
   readonly levelIndex: number;
   readonly stars: number;
   readonly levelCount: number;
-  /** Notes the drop played, in order (Hz). */
-  readonly melody: readonly number[];
+  /** The tune the drop played: notes in order (Hz) and their drop times. */
+  readonly melody: Melody;
 }
 
 export function recordCompletion(progress: Progress, solve: Solve): Progress {
   const previous = progress.best[solve.levelId] ?? 0;
   // The book keeps the tune of the best solve; ties take the newest. A silent solve has no tune to keep.
-  const melodies =
-    solve.stars >= previous && solve.melody.length > 0
-      ? { ...progress.melodies, [solve.levelId]: solve.melody.slice(0, MELODY_NOTES_MAX) }
-      : progress.melodies;
+  const { notes, times } = solve.melody;
+  const keep = solve.stars >= previous && notes.length > 0;
+  // Times are checked against every note the drop played, then trimmed with them.
+  const fit = timesFit(notes.length, times);
+  const entry = { notes: notes.slice(0, MELODY_NOTES_MAX), times: fit ? times.slice(0, MELODY_NOTES_MAX) : [] };
+  const melodies = keep ? { ...progress.melodies, [solve.levelId]: entry } : progress.melodies;
   return {
     ...progress,
     unlocked: Math.max(progress.unlocked, Math.min(solve.levelIndex + 1, solve.levelCount - 1)),
