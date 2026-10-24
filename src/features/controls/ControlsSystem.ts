@@ -34,8 +34,8 @@ export class ControlsSystem extends createSystem({
   }
 
   private press(entity: Entity): void {
-    // A hidden button (Next before solving) is not there for the player.
-    if (!entity.active || !entity.object3D?.visible) return;
+    // A hidden button (Next before solving, or the whole diorama while placement searches) is not there for the player.
+    if (!entity.active || !entity.object3D?.visible || puzzleStore.get().dioramaHidden) return;
     const action = entity.getValue(ControlButton, 'action');
     if (!isControlAction(action)) return;
     stringSynth.tap();

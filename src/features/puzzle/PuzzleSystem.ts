@@ -23,6 +23,9 @@ interface FramePose {
   readonly yaw: number;
 }
 
+/** A drop or a drag is in progress: a rebuild would cut it short, so a move waits. */
+const busy = (state: PuzzleState) => state.status === 'dropping' || state.drags > 0;
+
 /** Default spot on the virtual study's table (VR, browser, and AR without a table). */
 function defaultPose(level: Level): FramePose {
   const [x, y, z] = DIORAMA_DEFAULT_POSITION;
@@ -82,14 +85,26 @@ export class PuzzleSystem extends createSystem({
       case 'place':
         // Only the table pose changes: rebuild there with the player's work intact.
         this.placedPose = { origin: command.origin, yaw: command.yaw };
+        puzzleStore.update({ surface: command.surface });
         this.relocateSoon();
         break;
       case 'resetPlacement':
         this.placedPose = null;
+        puzzleStore.update({ surface: null, dioramaHidden: false });
         this.relocateSoon();
         break;
       default:
+        this.handleFlag(command);
         break;
+    }
+  }
+
+  /** Flags other systems raise through the bus: the diorama hidden, a drag started or ended. */
+  private handleFlag(command: PuzzleCommand): void {
+    if (command.type === 'dioramaHidden') puzzleStore.update({ dioramaHidden: command.hidden });
+    if (command.type === 'drag') {
+      const drags = Math.max(0, puzzleStore.get().drags + (command.active ? 1 : -1));
+      puzzleStore.update({ drags });
     }
   }
 
@@ -123,6 +138,9 @@ export class PuzzleSystem extends createSystem({
     puzzleStore.diorama = buildDiorama(this.world, frame, level);
     const next = puzzleStore.diorama.nextButton.object3D;
     if (next) next.visible = false;
+    const shadow = puzzleStore.diorama.contactShadow.object3D;
+    // Floating, there is no table under the case to shadow.
+    if (shadow) shadow.visible = puzzleStore.get().surface !== 'floating';
     const pegPositions = Object.fromEntries(level.pegs.map((p) => [p.id, { x: p.x, y: p.y }]));
     puzzleStore.update({
       level,
@@ -135,14 +153,16 @@ export class PuzzleSystem extends createSystem({
       daily,
       refusal: null,
       melody: EMPTY_MELODY,
+      // Every build drops any drag still open (its systems release their pointers on levelBuilt).
+      drags: 0,
     });
     puzzleStore.dispatch({ type: 'levelBuilt', reason });
   }
 
   private onStateChange(state: PuzzleState): void {
-    // A move during a drop waits for it to end: this check reruns on every change.
+    // A move during a drop or a drag waits for it to end: this check reruns on every change.
     const moved = this.relocatePending || (this.builtOffset !== null && state.settings.offset !== this.builtOffset);
-    if (moved && state.status !== 'dropping') {
+    if (moved && !busy(state)) {
       this.relocate(state);
       return;
     }
@@ -167,10 +187,10 @@ export class PuzzleSystem extends createSystem({
     puzzleStore.update({ stars, progress });
   }
 
-  /** Rebuild at the new pose now, or once a drop in progress has finished. */
+  /** Rebuild at the new pose now, or once a drop or drag in progress has finished. */
   private relocateSoon(): void {
     const state = puzzleStore.get();
-    if (state.status === 'dropping') this.relocatePending = true;
+    if (busy(state)) this.relocatePending = true;
     else this.relocate(state);
   }
 

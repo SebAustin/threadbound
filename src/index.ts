@@ -13,6 +13,7 @@ import { ControlsSystem } from './features/controls/ControlsSystem.js';
 import { EnvironmentSystem } from './features/environment/EnvironmentSystem.js';
 import { MarbleSystem } from './features/marbles/MarbleSystem.js';
 import { PlacementSystem } from './features/placement/PlacementSystem.js';
+import { RevealSystem } from './features/placement/RevealSystem.js';
 import { PuzzleSystem } from './features/puzzle/PuzzleSystem.js';
 import { SettingsSystem } from './features/settings/SettingsSystem.js';
 import { SimulationClockSystem } from './features/simulation/SimulationClockSystem.js';
@@ -40,6 +41,8 @@ World.create(
   world.registerSystem(ControlsSystem);
   world.registerSystem(SliderSystem);
   world.registerSystem(PlacementSystem);
+  // After placement: a placement's rebuild starts its fade, which waits while the diorama is hidden.
+  world.registerSystem(RevealSystem);
   world.registerSystem(PanelSystem);
   world.registerSystem(HudSystem);
   world.registerSystem(OnboardingSystem);

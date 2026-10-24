@@ -25,6 +25,8 @@ export interface HudInput {
   readonly levelHint?: string;
   /** The last campaign level is solved. */
   readonly campaignComplete?: boolean;
+  /** Passthrough found no table, so the diorama floats in front of the player. */
+  readonly noTable?: boolean;
 }
 
 export interface HudModel {
@@ -63,16 +65,21 @@ export const REFUSAL_HINTS: Readonly<Record<RefusalReason, string>> = {
 
 const DAILY_HINT = 'Poke the sun to return';
 
+/** Passthrough found no table: Quest's Space Setup is what lets it find one. */
+export const NO_TABLE_HINT = 'No table found - run Space Setup';
+
 const endingHint = (campaignLength: number) => `All ${campaignLength} solved - poke the sun for a daily`;
 
 /**
  * One hint line, most urgent first: why something was refused, onboarding, the
- * mechanic this level introduces, the campaign's ending, how to leave a daily.
+ * mechanic this level introduces, no table found, the campaign's ending, how to
+ * leave a daily.
  */
 function hintFor(input: HudInput): string {
   const refusal = input.refusal ? REFUSAL_HINTS[input.refusal] : '';
+  const noTable = input.noTable ? NO_TABLE_HINT : '';
   const ending = input.campaignComplete ? endingHint(input.levels.length) : '';
-  return refusal || input.hint || input.levelHint || ending || (input.daily ? DAILY_HINT : '');
+  return refusal || input.hint || input.levelHint || noTable || ending || (input.daily ? DAILY_HINT : '');
 }
 
 /** Plaque and ledge copy: plain ASCII, because the panel font has no typographic glyphs. */

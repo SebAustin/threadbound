@@ -1,4 +1,4 @@
-import { Object3D, Quaternion, Vector3, type UIKitMLAsset, type World } from '@iwsdk/core';
+import { Box3, Object3D, Quaternion, Vector3, type UIKitMLAsset, type World } from '@iwsdk/core';
 import { AIM_PLANE_Z, CHUTE, PERF_BUDGET } from '../../config/constants';
 import { LEVELS } from '../../levels';
 import { budgetBreaches, type FrameStats } from '../../lib/perfBudget';
@@ -10,6 +10,7 @@ import { drainCues, drainCueTrace, type CueRecord } from '../audio/cueLog';
 import { stringSynth } from '../audio/stringSynth';
 import { MarbleSystem } from '../marbles/MarbleSystem';
 import { PlacementSystem } from '../placement/PlacementSystem';
+import { RevealSystem } from '../placement/RevealSystem';
 import { Thread } from '../puzzle/components';
 import { PerfProbeSystem } from './PerfProbeSystem';
 
@@ -68,7 +69,8 @@ export interface ThreadboundTestHook {
   marbles(): Array<WorldPoint & { color: string }>;
   /** World-space position of a diorama-local point (for aiming emulated hands). */
   worldOf(x: number, y: number, z?: number): WorldPoint;
-  room(): { visible: boolean; background: boolean; blendMode: string | null };
+  /** The virtual study: shown or not, its background, the session's blend mode, and its table top's height (world y). */
+  room(): { visible: boolean; background: boolean; blendMode: string | null; tableTop: number | null };
   /** What the diorama plaque last rendered, and where it sits in diorama-local space. */
   hud(): { model: unknown; local: WorldPoint } | null;
   /** Which plaque face is showing, and where a plaque element is. */
@@ -83,8 +85,22 @@ export interface ThreadboundTestHook {
   welcome(): { entry: unknown; visible: boolean; elements: Record<WelcomeElement, Located | null> } | null;
   /** Audio: 'locked' until a gesture unlocks it, then the AudioContext state. */
   audio(): string;
-  /** Passthrough placement: where the diorama landed and how many detected planes were seen. */
-  placement(): { placedOn: string | null; planesSeen: number };
+  /**
+   * Passthrough placement: where the diorama landed, how many detected planes were seen, the
+   * search's phase, how many `place` commands this XR session has seen (since load outside XR),
+   * whether the diorama is hidden, and `reveal`, the fade's progress from 0 to 1 (1 only once
+   * every material is back to its own opacity and transparency).
+   */
+  placement(): {
+    placedOn: string | null;
+    planesSeen: number;
+    phase: string;
+    placements: number;
+    hidden: boolean;
+    reveal: number;
+  };
+  /** Recenters the emulated headset (IWER): its reference space fires 'reset' on the next frame. */
+  recenter(): void;
   /** Whether the active XR session exposes a gaze input source (eye-tracked devices). */
   gazeAvailable(): boolean;
   /** Names of the sound cues the game asked for since the last drain (see features/audio/cueLog). */
@@ -107,6 +123,8 @@ export interface ThreadboundTestHook {
 declare global {
   interface Window {
     __threadbound?: ThreadboundTestHook;
+    /** The emulated XR device the IWSDK dev plugin injects (IWER). */
+    IWER_DEVICE?: { recenter(): void };
   }
 }
 
@@ -334,15 +352,37 @@ function celebrationProbe(world: World): Hook<'celebration'> {
   };
 }
 
-function sessionProbes(
-  world: World,
-): Hook<'gazeAvailable' | 'room' | 'frameStats' | 'meshBreakdown' | 'cues' | 'cueTrace' | 'placement' | 'audio'> {
+function placementProbes(world: World): Hook<'placement' | 'recenter'> {
   return {
-    audio: () => stringSynth.state,
     placement: () => {
       const placement = world.getSystem(PlacementSystem);
-      return { placedOn: placement?.placedOn ?? null, planesSeen: placement?.planesSeen ?? 0 };
+      return {
+        placedOn: placement?.placedOn ?? null,
+        planesSeen: placement?.planesSeen ?? 0,
+        phase: placement?.phase ?? 'inactive',
+        placements: placement?.placements ?? 0,
+        hidden: puzzleStore.get().dioramaHidden,
+        reveal: world.getSystem(RevealSystem)?.progress ?? 0,
+      };
     },
+    recenter: () => {
+      if (!window.IWER_DEVICE) throw new Error('recenter: no emulated XR device (window.IWER_DEVICE)');
+      window.IWER_DEVICE.recenter();
+    },
+  };
+}
+
+/** World y of the study table's top, as drawn (it scales with the offset). */
+function studyTableTop(world: World): number | null {
+  const table = world.scene.getObjectByName('study-table');
+  if (!table) return null;
+  table.updateWorldMatrix(true, false);
+  return new Box3().setFromObject(table).max.y;
+}
+
+function sessionProbes(world: World): Hook<'gazeAvailable' | 'room' | 'frameStats' | 'meshBreakdown' | 'cues' | 'cueTrace' | 'audio'> {
+  return {
+    audio: () => stringSynth.state,
     cues: () => drainCues(),
     cueTrace: () => drainCueTrace(),
     meshBreakdown: () => {
@@ -375,6 +415,7 @@ function sessionProbes(
       visible: world.scene.getObjectByName('virtual-room')?.visible ?? false,
       background: world.scene.background !== null,
       blendMode: world.session?.environmentBlendMode ?? null,
+      tableTop: studyTableTop(world),
     }),
   };
 }
@@ -393,6 +434,7 @@ export function installTestHook(world: World): void {
     ...plaqueProbes(world, probe),
     ...welcomeProbes(world, probe),
     ...sessionProbes(world),
+    ...placementProbes(world),
     ...celebrationProbe(world),
   };
 }

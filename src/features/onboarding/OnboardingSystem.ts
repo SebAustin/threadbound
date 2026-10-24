@@ -90,7 +90,8 @@ export class OnboardingSystem extends createSystem({}) {
   update(delta: number, time: number): void {
     const step = this.step;
     const frame = puzzleStore.frame;
-    const showing = (step === 'pinch-pull' || step === 'drop') && frame !== null;
+    // The ghost hand hides with the diorama while placement searches.
+    const showing = (step === 'pinch-pull' || step === 'drop') && frame !== null && !puzzleStore.get().dioramaHidden;
     this.root.visible = showing;
     if (!showing || !frame) return;
     this.clock += delta;

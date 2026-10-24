@@ -32,8 +32,12 @@ const READY_TIMEOUT_MS = 20_000;
 const SESSION_START_TIMEOUT_MS = 5_000;
 /** The game offers #enter-xr once it has resolved the session mode, right after it is up. */
 const ENTER_XR_TIMEOUT_MS = 10_000;
-/** PlacementSystem's table search (SEARCH_TIMEOUT_SECONDS, src/features/placement/PlacementSystem.ts:15), plus two evaluations. */
-const PLACEMENT_WAIT_MS = 3_000 + 500;
+/**
+ * With no planes, the table search floats the diorama after 3 s of visible time (SEARCH.floatAfter,
+ * src/lib/placementSearch.ts), hidden until then, then fades it in over 0.3 s (REVEAL_SECONDS); plus
+ * two evaluations' slack. A hidden diorama takes no pinch, so the first pinch waits for all of it.
+ */
+const PLACEMENT_WAIT_MS = 3_000 + 300 + 500;
 /** A level-1 drop takes a few seconds of physics; the save is written when it completes. */
 const SOLVE_TIMEOUT_MS = 20_000;
 const POLL_MS = 100;

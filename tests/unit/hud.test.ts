@@ -1,6 +1,14 @@
 import { describe, expect, test } from 'vitest';
 import { LEVELS } from '../../src/levels';
-import { hudModel, LEDGE_HINT_MAX_CHARS, REFUSAL_HINTS, settingsModel, STAR_STAGGER_SECONDS, starsShown } from '../../src/lib/hud';
+import {
+  hudModel,
+  LEDGE_HINT_MAX_CHARS,
+  NO_TABLE_HINT,
+  REFUSAL_HINTS,
+  settingsModel,
+  STAR_STAGGER_SECONDS,
+  starsShown,
+} from '../../src/lib/hud';
 import { onboardingHint, type OnboardingStep } from '../../src/lib/onboarding';
 
 const levels = [{ world: 1 }, { world: 1 }, { world: 2 }, { world: 2 }, { world: 2 }];
@@ -99,6 +107,27 @@ describe('hint line: teaching each new mechanic, and an ending', () => {
   });
 });
 
+describe('hint line: no table found in passthrough', () => {
+  const campaign = Array.from({ length: 24 }, () => ({ world: 4 }));
+
+  test('a floating diorama asks for Space Setup', () => {
+    expect(NO_TABLE_HINT).toBe('No table found - run Space Setup');
+    expect(hudModel({ ...base, noTable: true }).hint).toBe(NO_TABLE_HINT);
+    expect(hudModel(base).hint).toBe('');
+  });
+
+  test('ranks below the refusal, onboarding and level hints', () => {
+    expect(hudModel({ ...base, noTable: true, refusal: 'limit' }).hint).toBe('No threads left - snip one first');
+    expect(hudModel({ ...base, noTable: true, hint: 'Pinch a peg' }).hint).toBe('Pinch a peg');
+    expect(hudModel({ ...base, noTable: true, levelHint: 'Pinch a thread to snip it' }).hint).toBe('Pinch a thread to snip it');
+  });
+
+  test('ranks above the ending and the daily line', () => {
+    expect(hudModel({ ...base, noTable: true, levels: campaign, levelIndex: 23, campaignComplete: true }).hint).toBe(NO_TABLE_HINT);
+    expect(hudModel({ ...base, noTable: true, daily: { streak: 2 } }).hint).toBe(NO_TABLE_HINT);
+  });
+});
+
 describe('hint line: every hint fits the ledge strip', () => {
   const STEPS: readonly OnboardingStep[] = ['pinch-pull', 'drop', 'watch', 'done'];
   const campaign = LEVELS.map((l) => ({ world: l.world }));
@@ -108,6 +137,7 @@ describe('hint line: every hint fits the ledge strip', () => {
     ...LEVELS.filter((l) => l.hint).map((l): [string, string] => [`level ${l.id}`, l.hint ?? '']),
     ['the ending', hudModel({ ...base, levels: campaign, levelIndex: campaign.length - 1, campaignComplete: true }).hint],
     ['the daily line', hudModel({ ...base, daily: { streak: 999 } }).hint],
+    ['the no-table line', hudModel({ ...base, noTable: true }).hint],
   ];
 
   test.each(hints)('%s is at most LEDGE_HINT_MAX_CHARS (48) characters, in plain ASCII', (_name, hint) => {

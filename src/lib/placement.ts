@@ -1,5 +1,5 @@
-import { AIM_PLANE_Z, CHUTE, CONTROLS, HUD } from '../config/constants';
-import { LEDGE_BUTTON_Z, LEDGE_BUTTONS, ledgeButtonX } from './ledge';
+import { AIM_PLANE_Z, CHUTE, CONTROLS, DIORAMA, DIORAMA_DEFAULT_POSITION, HUD } from '../config/constants';
+import { LEDGE_BUTTON_Z, LEDGE_BUTTONS, LEDGE_FRONT_Z, ledgeButtonX } from './ledge';
 import type { Level } from './levelSchema';
 import type { Vec3 } from './vec';
 
@@ -24,14 +24,23 @@ export interface PlaneCandidate {
   readonly pose?: PlanePose;
 }
 
-/** Half the depth of the diorama's footprint on a table (case plus ledge, rounded up). */
-export const FOOTPRINT_HALF_DEPTH = 0.1;
+/**
+ * The base's real footprint on a table, from the marble channel (frame z = 0): the case
+ * reaches 3 cm behind it, the ledge 8 cm in front of it.
+ */
+export const FOOTPRINT = {
+  back: DIORAMA.channelHalfDepth + DIORAMA.slab,
+  front: LEDGE_FRONT_Z,
+} as const;
 /** The side walls stand just outside the level's width. */
-const FOOTPRINT_SIDE_MARGIN = 0.01;
+const FOOTPRINT_SIDE_MARGIN = DIORAMA.wallThickness;
 const FIT_EPSILON = 1e-6;
 
 export interface Placement {
-  /** Center of the diorama base, on the surface. */
+  /**
+   * Centre of the base's top along the marble channel: the frame origin's height. On a
+   * table that is DIORAMA.slab above the surface, so the base rests on it.
+   */
   readonly center: Vec3;
   /** Rotation about +Y so the diorama's front (+z) faces the player. */
   readonly yaw: number;
@@ -42,19 +51,23 @@ const MIN_SURFACE_HEIGHT = 0.45;
 const MAX_SURFACE_HEIGHT = 1.15;
 const MIN_BELOW_EYES = 0.15;
 /**
- * A table's near edge must be within this horizontal distance of the head: with
- * the edge inset, the diorama's centre then stays within a seated 2 ft. A table
- * farther away isn't the player's table; floating in front of them is better.
+ * A table is accepted only while everything a player touches on it (reachAt) is within
+ * this distance of the head: 2 ft, the user's decision on Oct 23, so "within a seated
+ * 2 ft" holds on every accepted table. Farther, the diorama floats within reach instead.
  */
-const MAX_REACH = 0.45;
+export const ACCEPT_REACH = 0.61;
 const MIN_DEPTH = 0.2;
-/** How far in from the near edge the diorama center sits so its base rests fully on the surface. */
-const EDGE_INSET = 0.15;
 const TABLE_LABELS = new Set(['table', 'desk']);
 /** Score penalty (≈ meters) for a surface fully to the side; scales with off-axis angle. */
 const FACING_WEIGHT = 0.8;
-/** Surfaces more than ~60° off the player's heading are not "their" table. */
+/** The diorama standing more than 60 degrees off the player's heading is not on "their" table. */
 const MIN_FACING_COS = 0.5;
+/**
+ * Score bonus (≈ meters) for a plane labelled table or desk. It stays below the facing
+ * penalty at the gate (FACING_WEIGHT * (1 - MIN_FACING_COS) / 2 = 0.2), so a desk well off
+ * to the side can't beat an unlabelled table straight ahead.
+ */
+const TABLE_LABEL_BONUS = 0.15;
 const HEAD_FORWARD = 0.45;
 const HEAD_DROP = 0.42;
 
@@ -123,10 +136,10 @@ function footprintLocal(frame: SurfaceFrame, center: Vec3, yaw: number, halfWidt
   const s = Math.sin(yaw);
   const corners: [number, number][] = [];
   for (const [x, z] of [
-    [-halfWidth, -FOOTPRINT_HALF_DEPTH],
-    [halfWidth, -FOOTPRINT_HALF_DEPTH],
-    [halfWidth, FOOTPRINT_HALF_DEPTH],
-    [-halfWidth, FOOTPRINT_HALF_DEPTH],
+    [-halfWidth, -FOOTPRINT.back],
+    [halfWidth, -FOOTPRINT.back],
+    [halfWidth, FOOTPRINT.front],
+    [-halfWidth, FOOTPRINT.front],
   ]) {
     corners.push(frame.toLocal(center[0] + x * c + z * s, center[2] - x * s + z * c));
   }
@@ -147,7 +160,10 @@ function fitShift(frame: SurfaceFrame, corners: readonly [number, number][]): [n
   return shift;
 }
 
-/** Near the edge closest to the player, inset, facing them, and with the whole base on the surface. */
+/**
+ * As close to the player's edge as the base's real footprint allows (the ledge's front on
+ * the near edge), facing them, with the whole base on the surface and resting on it.
+ */
 function placeOn(frame: SurfaceFrame, head: Vec3, dioramaWidth: number): Placement | null {
   const [hx, hz] = frame.toLocal(head[0], head[2]);
   const [nx, nz] = nearestLocal(frame, head);
@@ -160,8 +176,8 @@ function placeOn(frame: SurfaceFrame, head: Vec3, dioramaWidth: number): Placeme
     dz = (frame.min[1] + frame.max[1]) / 2 - hz;
     len = Math.hypot(dx, dz) || 1;
   }
-  const lx = clamp(nx + (dx / len) * EDGE_INSET, frame.min[0], frame.max[0]);
-  const lz = clamp(nz + (dz / len) * EDGE_INSET, frame.min[1], frame.max[1]);
+  const lx = clamp(nx + (dx / len) * FOOTPRINT.front, frame.min[0], frame.max[0]);
+  const lz = clamp(nz + (dz / len) * FOOTPRINT.front, frame.min[1], frame.max[1]);
   // Face the player from the first spot; with the facing fixed, one shift fits the base exactly.
   const [wx, wz] = frame.toWorld(lx, lz);
   const yaw = facingYaw([wx, frame.top, wz], head);
@@ -169,10 +185,10 @@ function placeOn(frame: SurfaceFrame, head: Vec3, dioramaWidth: number): Placeme
   const shift = fitShift(frame, footprintLocal(frame, [wx, frame.top, wz], yaw, halfWidth));
   if (!shift) return null;
   const [fx, fz] = frame.toWorld(lx + shift[0], lz + shift[1]);
-  return { center: [fx, frame.top, fz], yaw };
+  // The frame origin is the base's top: lift it by the slab so the base sits on the surface, not in it.
+  return { center: [fx, frame.top + DIORAMA.slab, fz], yaw };
 }
 
-/** Best table-like surface within seated reach, or null to fall back to head-relative. */
 /** cos of the horizontal angle between `forward` and the direction to (x, z); 1 if undefined. */
 function facingCos(head: Vec3, forward: Vec3 | undefined, x: number, z: number): number {
   if (!forward) return 1;
@@ -185,36 +201,39 @@ function facingCos(head: Vec3, forward: Vec3 | undefined, x: number, z: number):
 }
 
 /**
- * Best table-like surface within seated reach, or null to fall back to
- * head-relative. With `forward`, surfaces ahead are preferred and anything
- * more than ~60° to the side (or behind) is ignored: floating the diorama in
- * front of a seated player beats making them turn to a side table.
+ * Lower is better: how far away and how far off the heading the diorama would stand, less
+ * a little for a plane labelled as a table. Null when it would stand more than ~60 degrees
+ * off the heading, or when anything a player touches would be past ACCEPT_REACH.
+ */
+function scorePlacement(placement: Placement, plane: PlaneCandidate, head: Vec3, level: ReachLevel, forward?: Vec3): number | null {
+  const [cx, , cz] = placement.center;
+  const cos = facingCos(head, forward, cx, cz);
+  if (cos < MIN_FACING_COS || reachAt(placement, head, level) > ACCEPT_REACH) return null;
+  const distance = Math.hypot(cx - head[0], cz - head[2]);
+  const label = plane.label && TABLE_LABELS.has(plane.label) ? TABLE_LABEL_BONUS : 0;
+  return distance + FACING_WEIGHT * ((1 - cos) / 2) - label;
+}
+
+/**
+ * Best table-like surface, or null to float the diorama in front of the player. Each
+ * surface gets the placement placeOn finds, and is judged there: with `forward`, a
+ * diorama more than ~60 degrees to the side (or behind) is refused, and surfaces ahead
+ * are preferred. A surface is only accepted while every control stays within a seated
+ * 2 ft (ACCEPT_REACH) of the head.
  */
 export function choosePlacement(
   planes: readonly PlaneCandidate[],
   head: Vec3,
-  dioramaWidth: number,
+  level: ReachLevel,
   forward?: Vec3,
 ): Placement | null {
   let best: { placement: Placement; score: number } | null = null;
   for (const plane of planes) {
     const frame = surfaceFrame(plane);
-    if (!isUsableSurface(plane, frame, head, dioramaWidth)) continue;
-    // Rotation preserves distance, so reach is measured in the surface's frame.
-    const [hx, hz] = frame.toLocal(head[0], head[2]);
-    const [nx, nz] = nearestLocal(frame, head);
-    const distance = Math.hypot(nx - hx, nz - hz);
-    if (distance > MAX_REACH) continue;
-    const [cx, cz] = frame.toWorld((frame.min[0] + frame.max[0]) / 2, (frame.min[1] + frame.max[1]) / 2);
-    const cos = facingCos(head, forward, cx, cz);
-    if (cos < MIN_FACING_COS) continue;
-    const placement = placeOn(frame, head, dioramaWidth);
-    if (!placement) continue;
-    const score =
-      distance +
-      FACING_WEIGHT * ((1 - cos) / 2) -
-      (plane.label && TABLE_LABELS.has(plane.label) ? 0.5 : 0);
-    if (!best || score < best.score) best = { placement, score };
+    if (!isUsableSurface(plane, frame, head, level.size[0])) continue;
+    const placement = placeOn(frame, head, level.size[0]);
+    const score = placement && scorePlacement(placement, plane, head, level, forward);
+    if (placement && score !== null && (!best || score < best.score)) best = { placement, score };
   }
   return best?.placement ?? null;
 }
@@ -302,4 +321,25 @@ export function reachAt(placement: Placement, head: Vec3, level: ReachLevel): nu
     farthest = Math.max(farthest, Math.hypot(x - head[0], y - head[1], z - head[2]));
   }
   return farthest;
+}
+
+/** Top of the virtual study's table, unmoved: it meets the base's underside at the study pose. */
+export const STUDY_TABLE_TOP = DIORAMA_DEFAULT_POSITION[1] - DIORAMA.slab;
+
+/** How the study table follows the player's offset: slid along z, and scaled about the floor. */
+export interface StudyTableFit {
+  readonly z: number;
+  readonly scaleY: number;
+}
+
+/**
+ * The study table's fit for an offset: Near steps slide it along z with the diorama (the
+ * study pose faces +z); Up steps scale it about the floor, so its top stays flush with
+ * the base's underside and its legs stay on the floor.
+ */
+export function studyTableFit(offset: DioramaOffset): StudyTableFit {
+  return {
+    z: offset.near * OFFSET_STEP.near,
+    scaleY: (STUDY_TABLE_TOP + offset.up * OFFSET_STEP.up) / STUDY_TABLE_TOP,
+  };
 }

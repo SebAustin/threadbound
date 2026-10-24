@@ -100,7 +100,7 @@ async function tuneSurvivesWaitingMove({ app, check }) {
 /** Entering mixed reality places the diorama on the real table: same rebuild, same promise. */
 async function placementKeepsThreads({ app, check }) {
   await app.evaluate(restartWithThread);
-  await app.evaluate(() => window.__threadbound.dispatch({ type: 'place', origin: [0.1, 0.7, -0.5], yaw: 0.2 }));
+  await app.evaluate(() => window.__threadbound.dispatch({ type: 'place', origin: [0.1, 0.7, -0.5], yaw: 0.2, surface: 'table' }));
   const placed = await app.evaluate(() => ({ threads: window.__threadbound.state().threads.length, yaw: window.__threadbound.frame()?.yaw }));
   check('placing the diorama on a table keeps the player\'s threads', placed.threads === 1 && Math.abs(placed.yaw - 0.2) < 1e-6, JSON.stringify(placed));
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'resetPlacement' }));
@@ -110,7 +110,7 @@ async function placementKeepsThreads({ app, check }) {
 async function placementWaitsForDrop({ app, check }) {
   await app.evaluate(() => {
     window.__threadbound.dispatch({ type: 'drop' });
-    window.__threadbound.dispatch({ type: 'place', origin: [0.1, 0.7, -0.5], yaw: 0.3 });
+    window.__threadbound.dispatch({ type: 'place', origin: [0.1, 0.7, -0.5], yaw: 0.3, surface: 'table' });
   });
   const during = await app.evaluate(() => ({ status: window.__threadbound.state().status, yaw: window.__threadbound.frame()?.yaw }));
   check('placing mid-drop lets the marbles finish first', during.status === 'dropping' && Math.abs(during.yaw - 0.3) > 1e-6, JSON.stringify(during));

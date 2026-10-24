@@ -43,6 +43,8 @@ export interface BuiltDiorama {
   readonly goalMeshes: readonly Mesh[];
   /** Shown only once the puzzle is solved. */
   readonly nextButton: Entity;
+  /** Grounds the case on a table; hidden while the diorama floats. */
+  readonly contactShadow: Entity;
 }
 
 const PEG_ROTATION = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), Math.PI / 2);
@@ -331,9 +333,10 @@ export function buildDiorama(world: World, frame: DioramaFrame, level: Level): B
   const goals = level.goals.map((g) => buildGoal(world, frame, g));
   const [w] = level.size;
   const nextButton = buildButton(world, frame, ledgeButtonX('next', w), ControlActions.Next);
+  const contactShadow = buildContactShadow(world, frame, level);
   return {
     entities: [
-      buildContactShadow(world, frame, level),
+      contactShadow,
       ...buildCase(world, frame, level),
       ...buildWalls(world, frame, level),
       ...level.pegs.map((p) => buildPeg(world, frame, p)),
@@ -349,5 +352,6 @@ export function buildDiorama(world: World, frame: DioramaFrame, level: Level): B
     goals: goals.map((g) => g.range),
     goalMeshes: goals.map((g) => g.mesh),
     nextButton,
+    contactShadow,
   };
 }

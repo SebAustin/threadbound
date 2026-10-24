@@ -240,7 +240,20 @@ const GLYPH_MATERIALS: Partial<Record<MarbleColor, MeshStandardMaterial>> = {
   azure: new MeshStandardMaterial({ color: COLORS.azure, emissive: COLORS.azure, emissiveIntensity: 0.6 }),
 };
 
-/** A flat, player-facing shape for a sorting color, or null for colors without one. */
+/**
+ * Every material a diorama build, its threads and its marbles draw with, once each: the
+ * one fade-in (RevealSystem) scales these. A diorama material added later must join one
+ * of the maps above, or it shows at full opacity while the rest fades in.
+ */
+export const DIORAMA_MATERIALS: readonly (MeshStandardMaterial | MeshBasicMaterial)[] = [
+  ...new Set([
+    ...Object.values(MATERIALS),
+    ...Object.values(MARBLE_MATERIALS),
+    ...Object.values(GOAL_MATERIALS).flatMap((set) => [set.idle, set.done]),
+    ...Object.values(GLYPH_MATERIALS).filter((m): m is MeshStandardMaterial => m !== undefined),
+  ]),
+];
+
 /**
  * Every geometry shared across levels. Level teardown must never dispose these,
  * or the GPU re-uploads them on every load (see disposeLevelEntity).
@@ -250,6 +263,7 @@ export const SHARED_GEOMETRIES: ReadonlySet<BufferGeometry> = new Set<BufferGeom
   ...Object.values(GLYPH_GEOMETRIES),
 ]);
 
+/** A flat, player-facing shape for a sorting color, or null for colors without one. */
 export function glyphMesh(color: MarbleColor): Mesh | null {
   const glyph = colorGlyph(color);
   const material = GLYPH_MATERIALS[color];

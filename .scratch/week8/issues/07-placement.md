@@ -26,36 +26,36 @@
 
 **Blocked by:** 01, 02 (merge after its step-4 log push; also for the prod-xr box)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Unit: new tests/unit/placementSearch.test.ts covers the search policy:
+- [x] Unit: new tests/unit/placementSearch.test.ts covers the search policy:
   - while paused, the step neither advances nor evaluates, so nothing is placed, even with a table in view;
   - floating after 3 s of visible time with no table;
   - a table at 10 s moves an untouched idle level, but not one with a player thread or a drag;
   - no evaluation after 18 s or once on a table;
   - `reset` restarts the search, hidden and from zero, and waits for a drop or a drag to end;
   - `revealOpacity` is 0 at build and 1 from 0.3 s on, rising and clamped.
-- [ ] Unit: tests/unit/placement.test.ts:
-  - a 0.74 m desk with its near edge 0.50 m from a seated head (1.15 m) is accepted (RED today); at 0.70 m it floats;
+- [x] Unit: tests/unit/placement.test.ts:
+  - a 0.74 m desk with its near edge 0.50 m from a seated head (1.15 m) is accepted (RED today); at 0.70 m it floats; (as written for the old 0.75 m assumption: with `ACCEPT_REACH` 0.61 the test uses 0.40 m accepted and 0.43 m floating, see Comments, Oct 24)
   - a wide table centred 50 degrees off, with its near edge 80 degrees off, is rejected;
   - an unlabelled table straight ahead beats a "desk" 55 degrees off;
   - the frame origin is `DIORAMA.slab` above the surface;
   - `studyTableFit` stays flush from up -6 to +6;
   - the existing 0, 25 and 40 degree tables and the too-small table still pass.
-- [ ] Unit: tests/unit/hud.test.ts: the `noTable` hint ranks below the refusal, onboarding and level hints, and above the ending and the daily line.
-- [ ] E2E: new tests/e2e/placement.e2e.mjs, in the `test:e2e` chain:
+- [x] Unit: tests/unit/hud.test.ts: the `noTable` hint ranks below the refusal, onboarding and level hints, and above the ending and the daily line.
+- [x] E2E: new tests/e2e/placement.e2e.mjs, in the `test:e2e` chain:
   - `place` with `'floating'` hides the contact shadow, and `'table'` shows it; after each `place`, `reveal` is below 1 on the first frame and reaches 1 within 0.4 s;
   - with real pointer input, a `place` sent mid-pull waits for the release, the thread is made, and the next pinch-pull works;
   - after Raise twice, the study table top is flush with the base's underside (`room()` reports it).
-- [ ] E2E: tests/e2e/controls.e2e.mjs: after the real Next (:28) and Restart (:34) clicks, `placement().reveal` is below 1 on the first frame and reaches 1 within 0.4 s, while `levelIndex` and the threads are already live. `test:e2e:levels` passes with outcomes unchanged.
-- [ ] XR: new tests/e2e/xr-placement.sh, in `test:e2e:hands` (package.json:19):
+- [x] E2E: tests/e2e/controls.e2e.mjs: after the real Next (:28) and Restart (:34) clicks, `placement().reveal` is below 1 on the first frame and reaches 1 within 0.4 s, while `levelIndex` and the threads are already live. `test:e2e:levels` passes with outcomes unchanged.
+- [x] XR: new tests/e2e/xr-placement.sh, in `test:e2e:hands` (package.json:19):
   - entering AR places the diorama on the living_room table with `placements` = 1, hidden until then, ledge strip included (`visible` in xr-probe's `ledge` field; whichever of 07 and 12 lands second adds this check);
   - make a thread, turn the head 120 degrees and call `recenter()`: a second `place` reaches the command bus, the diorama hides and then shows again with the thread intact, and the next pinch-pull works;
   - run `probe hide` (pause.e2e.mjs's `setHidden`, waiting inline for `paused`), then `probe recenter`, so the `reset` arrives while the page is hidden: no `place` for 5 s, then one once `probe show` runs;
   - a `'floating'` place shows the hint and hides the shadow.
-- [ ] XR: xr-full-level.sh still passes. The reach on the table is at most 0.61 m, and `settle` (xr-lib.sh:15) waits for `reveal` to reach 1.
-- [ ] XR: ticket 02's `tests/e2e/prod-xr.mjs` has no hook, so its placement wait becomes the 3 s window plus the fade (about 3.4 s of visible time) before the first pinch. After `NODE_ENV=production npm run build`, re-run `npm run test:e2e:prod-xr` on the local preview: it solves level 1, and `tests/unit/prodXrTargets.test.ts` stays green (update the fixture in the same change if the floating pose moved).
-- [ ] Config: typecheck, vitest and both E2E chains pass with the three features off, and `placement().planesSeen` is above 0 in AR.
+- [x] XR: xr-full-level.sh still passes. The reach on the table is at most 0.61 m, and `settle` (xr-lib.sh:15) waits for `reveal` to reach 1.
+- [x] XR: ticket 02's `tests/e2e/prod-xr.mjs` has no hook, so its placement wait becomes the 3 s window plus the fade (about 3.4 s of visible time) before the first pinch. After `NODE_ENV=production npm run build`, re-run `npm run test:e2e:prod-xr` on the local preview: it solves level 1, and `tests/unit/prodXrTargets.test.ts` stays green (update the fixture in the same change if the floating pose moved).
+- [x] Config: typecheck, vitest and both E2E chains pass with the three features off, and `placement().planesSeen` is above 0 in AR.
 
 **Effort:** M (~2.5 days)
 
@@ -74,3 +74,39 @@
 ## Comments
 
 - **Oct 23, from ticket 05's review:** ticket 18 (`18-solve-depends-on-placement.md`, needs-triage) records stored solutions that end `idle` on the emulator's table at yaw 90 degrees but solve at yaw 0 and in the browser view: w1-04 (Relay) and daily pools 1, 3 and 6. This ticket changes the table pose (the slab lift, the near-edge inset), so re-run 18's sweep once 07 lands. Triage may fold 18's boxes into this ticket.
+- **Oct 24, agent: landed locally on main (not pushed).** One commit, `feat: placement that holds up ...` (ticket 07). Every box is proven locally, so none is left for the main session.
+  - **What landed:**
+    - Search policy: src/lib/placementSearch.ts (`SEARCH` :10, `startSearch` :63, `requestRestart` :79, `stepSearch` :97, `revealOpacity` :123). PlacementSystem (src/features/placement/PlacementSystem.ts) steps it every frame (`update` :160) from the paused flag, the status, the player threads and the open drags, and sends `dioramaHidden` on the bus (`syncHidden` :177). It places first, then clears the flag, so the rebuild happens hidden (`place` :249). The `reset` listener goes on at `sessionstart`, or on a later frame if the space is null, and comes off at `sessionend` (`attachResetListener` :137).
+    - The fade: src/features/placement/RevealSystem.ts, registered after PlacementSystem (src/index.ts:45). It restarts on every `levelBuilt` and whenever the flag goes up, holds at 0 while hidden, and restores each material's `opacity` and `transparent` exactly (`restore` :85). `progress` (:29) is 1 only when every material matches its base. The materials are `DIORAMA_MATERIALS` (src/features/diorama/palette.ts:248): `MATERIALS`, `MARBLE_MATERIALS`, `GOAL_MATERIALS` and `GLYPH_MATERIALS`, deduplicated (20). The boot level's fade is the warm-up: it runs before the player can press anything.
+    - Hidden: the materials are held at opacity 0, the plaque and the strip get `visible = false` (HudSystem.ts:137-138, `LedgeStrip.show`), and the ghost hand checks the flag (OnboardingSystem.ts:94). Input guards: peg drags (ThreadSystem.ts:137), tab drags (SliderSystem.ts:91), the chute pinch (MarbleSystem.ts:98) and the buttons (ControlsSystem.ts:38). **Beyond the list:** thread snips are also ignored while hidden (ThreadSystem.ts:361). It's the same risk, since a ray still hits a hidden thread.
+    - Placement (src/lib/placement.ts): the 0.45 m near-edge limit and `EDGE_INSET` are gone. `ACCEPT_REACH` 0.61 (:58) is checked with ticket 12's `reachAt`. `FOOTPRINT` (:31) is 3 cm behind the channel and 8 cm in front of it (`LEDGE_FRONT_Z`), and `placeOn` (:167) puts the ledge's front on the near edge. A table placement's frame origin is lifted by `DIORAMA.slab` (:189). The facing gate and the score are taken at the placed centre (`scorePlacement` :208), and the label bonus is 0.15 (:70), below the 0.2 facing penalty at the gate. `studyTableFit` (:340) and `STUDY_TABLE_TOP` (:327) drive EnvironmentSystem's `fitTable` (mesh `study-table`).
+    - Store and bus: `place` carries `surface`, PuzzleSystem stores it, and the contact shadow (`BuiltDiorama.contactShadow`) is hidden while floating (PuzzleSystem.ts:143). There are new `dioramaHidden` and `drag` commands (`handleFlag` :103). The state has `dioramaHidden`, `surface` and `drags`. `relocateSoon` and `onStateChange` wait on `busy` (a drop or an open drag, :27). Every build resets `drags` to 0 (:157), and an open drag releases its pointer on `levelBuilt` before it is dropped (ThreadSystem.ts:226, SliderSystem.ts:171).
+    - Hint: `NO_TABLE_HINT` "No table found - run Space Setup" (32 characters, src/lib/hud.ts:69) ranks after refusal, onboarding and the level hint, and before the ending and the daily line (:82). HudSystem passes `noTable: surface === 'floating'`. It goes to the ledge strip, and it joins the `LEDGE_HINT_MAX_CHARS` test.
+    - Config: `anchors`, `meshDetection` and `grabbing` are false. `planeDetection` and `sceneUnderstanding` stay. Nothing in src/ or public/scenes/ uses Grabbable, XRAnchor or XRMesh (grep).
+    - Hook: `placement()` adds `phase`, `placements`, `reveal` and also `hidden`. `placements` counts `place` commands since the XR session started, or since load outside XR. `recenter()` calls `window.IWER_DEVICE.recenter()`. `room()` adds `tableTop`.
+    - xr-probe: new modes `recenter`, `hide`, `show` (setHidden inline, waiting for `paused`) and `float`, plus `load1` (level 2 has no onboarding or level hint, so the no-table line can show). New fields `shadow` and `hint`. New helper tests/e2e/placement-watch.e2e.mjs records what was visible every 10 ms. xr-settled.e2e.mjs (`settle`) now also waits for `reveal` 1.
+  - **`ACCEPT_REACH` 0.61 changes the unit test numbers** (they were written for the earlier 0.75 m assumption; see the git history of this ticket).
+    - The ledge buttons are the farthest touch point: with the ledge front on the near edge they sit 2.5 cm behind it, 0.19 m to the side and 0.386 m below a 1.15 m head. So a 0.74 m table is accepted only up to about a 0.41 m near edge. At 0.50 m the buttons are 0.679 m away.
+    - The test now checks that a 0.40 m desk is accepted on all 24 levels with `reachAt` at most 0.61 (0.605). It is RED today: today's 0.15 m inset puts the buttons 0.663 m away. At 0.43 m, inside the old 0.45 m limit, the desk floats (RED today: today accepts it). At 0.70 m it floats.
+    - "Still pass": the turned-table fixture moved from a 0.40 m to a 0.25 m near edge, because at 40 degrees the base has to shift to fit and its farthest control is then 0.59 m away. Each turned-table case also asserts the reach.
+    - The old "30 degrees off-axis" table forced the base about 0.59 m out, so the 30-degree case is now a table facing the head at 30 degrees, 0.30 m away. The facing-preference "ahead" table moved from 0.40 to 0.35 m.
+    - **For ticket 06 and week 9's copy pass:** a table is accepted only when its near edge is within about 0.41 m (horizontal) of a seated head.
+  - **The first look comes one evaluation period in (0.25 s), not on the session's first frame** (`startSearch`; unit test "the first look comes one evaluation period in", RED log `ticket07-first-look-red.log`, then GREEN). A chosen table ends the search, so looking before plane detection has reported every plane could pin the diorama to the wrong surface. On the first run, xr-placement could not see a hidden period: IWER reports the table on the first frame, so the diorama was hidden for one frame only. Now it is hidden for about 0.23 s before the table placement.
+  - **Drags:** `drags` is a count, not a flag, so a thread pull and a tab slide by two hands both hold a move. The `drag` end goes on the bus on the next frame, outside the pointer handler, so a relocation never disposes the peg mesh inside its own `pointerup`.
+  - **README:** the hands command line now names placement and recenter. The measured table reach in "How it's tested" changed from 0.569 to 0.513 m (xr-full-level). The accepted-table markers (`every accepted table: true once week 8 ticket 07's ACCEPT_REACH lands`) stay for ticket 17 and week 9 to remove: copyHonesty.test.ts still requires them.
+  - **Accepted allocations:** `evaluate()` builds the candidate list and two tuples at most 4 times a second, and only while a search runs (as before). `stepSearch` allocates only the placement it returns. The per-frame input object, the `findTable` closure and the drag commands are created once.
+  - **Red first** (logs in `.scratch/week8/logs/ticket07-*.log`, gitignored):
+    - Unit (`ticket07-unit-red.log`): 3 files failed, 56 tests failed and 53 passed. placementSearch failed to load, placement.test.ts failed at import (`ACCEPT_REACH`, `FOOTPRINT`, `studyTableFit` missing), and hud failed on `NO_TABLE_HINT`. By geometry, today's code also accepts the 0.43 m desk and the 50/80-degree table, and lets the desk 55 degrees off win (label bonus 0.5).
+    - E2E (`ticket07-e2e-red.log`): placement.e2e had 7 FAIL and 1 PASS. The table top stayed at 0.768 with the base underside at 0.818, there was no `reveal`, and the shadow showed while floating. The mid-pull place rebuilt at once and lost the thread (`threads: []`). controls.e2e failed its 2 new checks (no fade).
+  - **Evidence on the final tree:** no Vite overlay (`no-overlay.e2e.mjs` true). The dev server stayed headless with browser automation (`browserCommandReady: true`; the config edit restarted Vite in place). iwsdk.config.json had no change after gaze-pinch other than the three features.
+    - `npm run typecheck` exit 0. `npm test`: 41 files, 560 tests passed (placementSearch 17, placement 71). `npm run coverage` exit 0: 96.94 % statements, 95.51 % branches, 98.64 % functions, 97.41 % lines.
+    - `npm run test:e2e`: all 28 scripts (placement.e2e added after raise-lower), 187 PASS, 0 FAIL, exit 0.
+      - Fades: after a 'floating' place, reveal was 0.16 on the first frame and 1 at 296 ms; after a 'table' place, 1 at 315 ms.
+      - controls: after the real Next click, the first fade frame read 0.17, with level index 1, 0 threads, and an `addThread` on that same frame landing (1 thread). The fade finished in 274 ms. Restart finished in 294 ms.
+      - Raise twice: table top 0.8180, base underside 0.818.
+    - `test:e2e:levels` 24/24 and `:slow` 24/24, exit 0. Solved, self-solved, scored, marbles, stars and threads are identical to ticket 12's logs on every level. The busiest level is 57 calls, with no breach. perf-split w4-06: 53 draw calls, as in the levels run.
+    - `npm run test:e2e:hands`: all 7 scripts, 40 PASS, 0 FAIL, exit 0.
+      - xr-full-level: on the table, reach 0.513 m. The busiest XR frame is 114 calls over 2 views, no breach.
+      - xr-placement: hidden for 231 ms on entry, then on the table with 1 place and 17 planes seen. After the recenter it was hidden for 3.1 s and then floated (place 2), with the thread a->b intact, and b->c pinch-pulled. Hidden page: 2 places for 5 s, 3 once shown. Floating: the ledge shows the no-table line, with no shadow.
+    - `NODE_ENV=production npm run build` exit 0. `npm run test:smoke`: 19 PASS, 0 FAIL, 5 NOTE. `npm run test:e2e:prod-xr` on the local preview: 15 PASS, 0 FAIL, 6 NOTE. The wait is now 3 s + 0.3 s + 0.5 s. The Enter XR click started immersive-ar, and level 1 was solved by hand pinch (`best['w1-01']` 3, melody 5 notes). The floating pose is unchanged (no slab lift without a table), so the fixture and prodXrTargets.test.ts are unchanged and green.
+  - **For triage (ticket 18):** the table pose changed (slab lift, ledge on the near edge), so 18's yaw-90 sweep should be re-run.

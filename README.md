@@ -65,7 +65,7 @@ There's no headset in the loop, so the emulator (IWER) and automated tests carry
   - a full level played with hand pinches only;
   - pinching the chute, a thread, Restart, the settings button, Slow-mo, the sun and the stars;
   - gaze plus pinch on an eye-tracked headset;
-  - level 1 placed on the emulator's detected table, with everything touchable within 2 ft of the head (0.569 m);
+  - level 1 placed on the emulator's detected table, with everything touchable within 2 ft of the head (0.513 m);
   - every outside host a session with hands contacts: only jsDelivr, for the hand and controller models (the emulator's own room aside).
 - **Budget:** a draw-call budget is checked on every level. The busiest frame in an XR session is 57 draw calls and about 16k triangles per view, tracked hands included (budget: 80 calls, 100k triangles). Frame rate on a Quest is not measured.
 
@@ -78,7 +78,7 @@ npm test                  # unit tests (vitest)
 npm run coverage          # unit tests with coverage
 npm run test:e2e          # real-input E2E suite (needs the dev server, see below)
 npm run test:e2e:levels   # every level solvable, not self-solving, within budget
-npm run test:e2e:hands    # emulated XR: hands-only level, ledge/plaque pinches, gaze + pinch, outside hosts
+npm run test:e2e:hands    # emulated XR: hands-only level, ledge/plaque pinches, gaze + pinch, outside hosts, placement and recenter
 npm run build             # production build to dist/
 npm run test:smoke        # production smoke on dist/: headless Chromium + IWER, flat view and an AR session
 npm run test:e2e:prod-xr  # production bundle in AR: the Enter XR click, then level 1 by hand pinch only

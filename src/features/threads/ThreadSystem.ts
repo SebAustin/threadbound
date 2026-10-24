@@ -36,6 +36,10 @@ const UP = new Vector3(0, 1, 0);
 /** The drag preview is drawn thinner than a real thread. */
 const PREVIEW_RADIUS = THREAD_TUNING.radius * 0.7;
 
+/** The bus hears every pull start and end, so a relocation waits for the release. */
+const DRAG_START: PuzzleCommand = { type: 'drag', active: true };
+const DRAG_END: PuzzleCommand = { type: 'drag', active: false };
+
 const touchesPeg = (thread: Entity, pegId: string) =>
   thread.getValue(Thread, 'fromPeg') === pegId || thread.getValue(Thread, 'toPeg') === pegId;
 
@@ -63,6 +67,8 @@ export class ThreadSystem extends createSystem({
   releasedThreads: { required: [Thread, TapReleased] },
 }) {
   private drag: Drag | null = null;
+  /** A pull ended: tell the bus on the next frame, outside the pointer handler (a relocation may follow). */
+  private dragEnded = false;
   private preview!: Mesh;
   private dragPoint = { x: 0, y: 0 };
   private tmpDir = new Vector3();
@@ -127,7 +133,8 @@ export class ThreadSystem extends createSystem({
   }
 
   private startDrag(source: Entity, target: Object3D, e: SpatialPointerEvent): void {
-    if (this.drag) return;
+    // A hidden diorama (placement is searching) takes no pinch, though rays still hit its meshes.
+    if (this.drag || puzzleStore.get().dioramaHidden) return;
     stringSynth.unlock();
     stringSynth.play('pegGrab');
     e.stopPropagation();
@@ -143,6 +150,7 @@ export class ThreadSystem extends createSystem({
       captureTarget: target,
     };
     capturePointer(target, e.pointerId);
+    puzzleStore.dispatch(DRAG_START);
   }
 
   private moveDrag(e: SpatialPointerEvent): void {
@@ -159,6 +167,7 @@ export class ThreadSystem extends createSystem({
     if (!drag || e.pointerId !== drag.pointerId) return;
     this.moveDrag(e);
     this.drag = null;
+    this.dragEnded = true;
     this.preview.visible = false;
     releasePointer(drag.captureTarget, drag.pointerId);
 
@@ -175,6 +184,7 @@ export class ThreadSystem extends createSystem({
     const drag = this.drag;
     if (!drag || e.pointerId !== drag.pointerId) return;
     this.drag = null;
+    this.dragEnded = true;
     this.preview.visible = false;
     releasePointer(drag.captureTarget, drag.pointerId);
   }
@@ -212,7 +222,10 @@ export class ThreadSystem extends createSystem({
 
   private handleCommand(command: PuzzleCommand): void {
     if (command.type === 'levelBuilt') {
+      // The build already counted every drag as over; free the pointer before dropping the pull.
+      if (this.drag) releasePointer(this.drag.captureTarget, this.drag.pointerId);
       this.drag = null;
+      this.dragEnded = false;
       this.preview.visible = false;
       this.createPresetThreads();
     } else if (command.type === 'addThread') {
@@ -333,6 +346,10 @@ export class ThreadSystem extends createSystem({
   }
 
   update(): void {
+    if (this.dragEnded) {
+      this.dragEnded = false;
+      puzzleStore.dispatch(DRAG_END);
+    }
     this.snipReleased();
     this.updatePreview();
   }
@@ -340,7 +357,8 @@ export class ThreadSystem extends createSystem({
   private snipReleased(): void {
     for (const entity of this.queries.releasedThreads.entities) {
       entity.removeComponent(TapReleased);
-      this.snip(entity);
+      // A hidden diorama's threads can still be hit by a ray; they aren't there for the player.
+      if (!puzzleStore.get().dioramaHidden) this.snip(entity);
     }
   }
 

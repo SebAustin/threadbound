@@ -14,9 +14,9 @@
       "offer": "always",
       "features": {
         "handTracking": true,
-        "anchors": true,
+        "anchors": false,
         "planeDetection": true,
-        "meshDetection": true,
+        "meshDetection": false,
         "gazeTracking": true
       }
     },
@@ -36,7 +36,7 @@
     },
     "features": {
       "locomotion": false,
-      "grabbing": true,
+      "grabbing": false,
       "physics": {
         "useWorker": true,
         "updateFrequency": 120,

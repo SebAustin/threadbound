@@ -40,6 +40,11 @@ export class LedgeStrip {
     this.panel.getElementById('ledge')?.setProperties({ width });
   }
 
+  /** Drawn or not (it hides with the diorama while placement searches). */
+  show(visible: boolean): void {
+    this.panel.visible = visible;
+  }
+
   render(hud: HudModel): void {
     const shown = this.shown;
     if (shown && shown.hint === hud.hint && shown.threads === hud.threadsLabel && shown.spool === hud.spoolLabel) return;

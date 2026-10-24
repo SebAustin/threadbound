@@ -15,6 +15,10 @@ import { puzzleStore, type PuzzleCommand } from '../puzzle/puzzleStore';
 import { slideFitsSpool } from '../../lib/threadRules';
 import { refuse } from '../puzzle/refuse';
 
+/** The bus hears every slide start and end, so a relocation waits for the release. */
+const DRAG_START: PuzzleCommand = { type: 'drag', active: true };
+const DRAG_END: PuzzleCommand = { type: 'drag', active: false };
+
 interface SlideDrag {
   readonly pegId: string;
   readonly pointerId: number;
@@ -41,6 +45,8 @@ export class SliderSystem extends createSystem({
   pegs: { required: [Peg] },
 }) {
   private drag: SlideDrag | null = null;
+  /** A slide ended: tell the bus on the next frame, outside the pointer handler (a relocation may follow). */
+  private dragEnded = false;
   private previewCommand = { type: 'pegPreview' as const, pegId: '', x: 0, y: 0 };
   /** Scratch values reused on every pointer move (the drag path must not allocate). */
   private point = { x: 0, y: 0 };
@@ -81,7 +87,8 @@ export class SliderSystem extends createSystem({
   private start(pegId: string, target: Object3D, e: SpatialPointerEvent): void {
     const pos = this.positionOf(pegId);
     const rail = this.railOf(pegId);
-    if (this.drag || !pos || !rail) return;
+    // A hidden diorama (placement is searching) takes no pinch, though rays still hit its meshes.
+    if (this.drag || !pos || !rail || puzzleStore.get().dioramaHidden) return;
     e.stopPropagation();
     stringSynth.unlock();
     stringSynth.play('pegGrab');
@@ -90,6 +97,7 @@ export class SliderSystem extends createSystem({
     const handle = this.findHandle(pegId)?.object3D;
     this.drag = { pegId, pointerId: e.pointerId, captureTarget: target, rail, tabX, tabY, peg, handle, x: pos.x, y: pos.y };
     capturePointer(target, e.pointerId);
+    puzzleStore.dispatch(DRAG_START);
   }
 
   private move(e: SpatialPointerEvent): void {
@@ -114,6 +122,7 @@ export class SliderSystem extends createSystem({
     if (!drag || e.pointerId !== drag.pointerId) return;
     this.move(e);
     this.drag = null;
+    this.dragEnded = true;
     releasePointer(drag.captureTarget, drag.pointerId);
     puzzleStore.dispatch({ type: 'movePeg', pegId: drag.pegId, x: drag.x, y: drag.y });
   }
@@ -123,13 +132,20 @@ export class SliderSystem extends createSystem({
     const drag = this.drag;
     if (!drag || e.pointerId !== drag.pointerId) return;
     this.drag = null;
+    this.dragEnded = true;
     releasePointer(drag.captureTarget, drag.pointerId);
     const home = this.positionOf(drag.pegId);
     if (home) this.placeVisuals(drag.pegId, home.x, home.y);
   }
 
+  update(): void {
+    if (!this.dragEnded) return;
+    this.dragEnded = false;
+    puzzleStore.dispatch(DRAG_END);
+  }
+
   private handleCommand(command: PuzzleCommand): void {
-    if (command.type === 'levelBuilt') this.drag = null;
+    if (command.type === 'levelBuilt') this.dropDrag();
     if (command.type !== 'movePeg') return;
     const rail = this.railOf(command.pegId);
     const current = this.positionOf(command.pegId);
@@ -148,6 +164,13 @@ export class SliderSystem extends createSystem({
     this.commitPhysics(command.pegId, next.x, next.y);
     stringSynth.play('settle');
     puzzleStore.dispatch({ type: 'pegMoved', pegId: command.pegId });
+  }
+
+  /** A rebuild already counted every drag as over; free the pointer before dropping the slide. */
+  private dropDrag(): void {
+    if (this.drag) releasePointer(this.drag.captureTarget, this.drag.pointerId);
+    this.drag = null;
+    this.dragEnded = false;
   }
 
   private findPeg(pegId: string): Entity | undefined {

@@ -93,7 +93,10 @@ export class MarbleSystem extends createSystem({
   init(): void {
     this.clock = this.world.getSystem(SimulationClockSystem);
     this.cleanupFuncs.push(
-      this.queries.pressedChutes.subscribe('qualify', () => puzzleStore.dispatch({ type: 'drop' })),
+      // A hidden diorama (placement is searching) takes no pinch, though rays still hit the chute.
+      this.queries.pressedChutes.subscribe('qualify', () => {
+        if (!puzzleStore.get().dioramaHidden) puzzleStore.dispatch({ type: 'drop' });
+      }),
       this.queries.marbles.subscribe('disqualify', (m) => {
         this.contacts.delete(m.index);
         this.rest.delete(m.index);

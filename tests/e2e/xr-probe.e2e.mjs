@@ -1,9 +1,13 @@
 // Helper for the XR shell tests: world positions of everything a hand can pinch,
 // plus puzzle state. Optional SETUP env names one of SETUP_MODES: 'load0' (level 1,
-// fresh), 'fresh' (reset progress, so level 1 teaches again), 'thread' (add a->b),
-// 'busiest' (Three Cups with every marble in flight) or 'solve' (solve and drop the
-// current level, then wait until its cadence and replay have played). An empty
-// SETUP runs no setup; an unknown one throws with its name.
+// fresh), 'load1' (level 2, which has no onboarding or level hint), 'fresh' (reset
+// progress, so level 1 teaches again), 'thread' (add a->b), 'busiest' (Three Cups
+// with every marble in flight), 'solve' (solve and drop the current level, then wait
+// until its cadence and replay have played), 'recenter' (the emulated headset
+// recenters: its reference space fires 'reset' on the next frame), 'hide' / 'show'
+// (the page reports itself hidden / shown, waiting until the puzzle pauses / resumes)
+// or 'float' (a 'floating' place where the diorama is). An empty SETUP runs no setup;
+// an unknown one throws with its name.
 // To add a mode or a field, add a table entry and leave run() alone. Page functions
 // run inside the app frame, so each must be self-contained (see tests/e2e/lib.mjs:2).
 import { sleep } from './lib.mjs';
@@ -14,6 +18,7 @@ const SETTLE_MS = 300;
 /** One page function per SETUP mode. */
 const SETUP_MODES = {
   load0: () => window.__threadbound.dispatch({ type: 'load', index: 0 }),
+  load1: () => window.__threadbound.dispatch({ type: 'load', index: 1 }),
   // Progress reset, waiting until it lands (tests/e2e/lib.mjs's freshSave): earlier hand
   // scripts solved level 1, so without this its onboarding would read 'done'.
   fresh: async () => {
@@ -26,6 +31,23 @@ const SETUP_MODES = {
     for (let t = 0; t < 3000 && !landed(); t += 100) await new Promise((r) => setTimeout(r, 100));
   },
   thread: () => window.__threadbound.dispatch({ type: 'addThread', from: 'a', to: 'b' }),
+  recenter: () => window.__threadbound.recenter(),
+  // pause.e2e.mjs's setHidden, written inline, then a wait until the puzzle has paused.
+  hide: async () => {
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+    document.dispatchEvent(new Event('visibilitychange'));
+    for (let t = 0; t < 2000 && !window.__threadbound.state().paused; t += 50) await new Promise((r) => setTimeout(r, 50));
+  },
+  show: async () => {
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+    document.dispatchEvent(new Event('visibilitychange'));
+    for (let t = 0; t < 2000 && window.__threadbound.state().paused; t += 50) await new Promise((r) => setTimeout(r, 50));
+  },
+  float: () => {
+    const hook = window.__threadbound;
+    const f = hook.frame();
+    hook.dispatch({ type: 'place', origin: f.origin, yaw: f.yaw, surface: 'floating' });
+  },
   // The heaviest frame in the campaign: Three Cups, solution hung, every marble in flight.
   busiest: async () => {
     const hook = window.__threadbound;
@@ -99,6 +121,10 @@ const PROBE_FIELDS = [
   // The ledge strip: its pose on the ledge, what it shows (hint, threads, spool) and whether it is drawn.
   ['ledge', () => window.__threadbound.ledge()],
   ['placement', () => window.__threadbound.placement()],
+  // Whether the contact shadow under the base is drawn (hidden while the diorama floats).
+  ['shadow', () => (window.__threadbound.meshBreakdown()['contact-shadow'] ?? 0) > 0],
+  // The hint line the hud model carries (the ledge strip shows it: `ledge.text.hint`).
+  ['hint', () => window.__threadbound.hud()?.model?.hint ?? null],
   ['audio', () => window.__threadbound.audio()],
   ['frame', () => window.__threadbound.frameStats()],
 ];

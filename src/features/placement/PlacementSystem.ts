@@ -7,15 +7,25 @@ import {
   type PlaneCandidate,
   type PlanePose,
 } from '../../lib/placement';
+import {
+  createSearch,
+  requestRestart,
+  startSearch,
+  stepSearch,
+  stopSearch,
+  type SearchFrame,
+  type SearchPhase,
+  type SearchPlace,
+} from '../../lib/placementSearch';
+import { playerThreadCount } from '../../lib/threadRules';
 import { shouldShowVirtualRoom } from '../../lib/xrMode';
 import { devLog } from '../debug/devLog';
 import { puzzleStore } from '../puzzle/puzzleStore';
 
-/** How long to wait for a table plane before placing in front of the player. */
-const SEARCH_TIMEOUT_SECONDS = 3;
-const EVALUATE_EVERY_SECONDS = 0.25;
+type Where = 'table' | 'in front of you';
 
-type Phase = 'inactive' | 'searching' | 'placed';
+/** The search's per-frame input, reused every frame (update() must not allocate). */
+type MutableFrame = { -readonly [K in keyof SearchFrame]: SearchFrame[K] };
 
 /** The slice of a native WebXR XRPlane we read. Its polygon is in plane space (x, z). */
 interface NativePlaneInfo {
@@ -45,28 +55,25 @@ function polygonBounds(
 }
 
 /**
- * Mixed reality: put the diorama on the player's real table, facing them.
- * Picks the best detected horizontal plane within seated reach; if none shows
- * up in time, floats it at table height in front of the player.
+ * Mixed reality: put the diorama on the player's real table, facing them (lib/placementSearch
+ * decides when). From the start of a passthrough session, and during every new search, the
+ * diorama stays hidden until it is placed. With no table it floats in front of the player, and
+ * a table that turns up while the level is untouched still takes it. A recenter (the reference
+ * space's 'reset') searches again from the current head pose.
  */
 export class PlacementSystem extends createSystem({
   planes: { required: [XRPlane] },
 }) {
-  private phase: Phase = 'inactive';
-  private where: 'table' | 'in front of you' | null = null;
+  private readonly search = createSearch();
+  private readonly frameInput: MutableFrame = { delta: 0, paused: false, status: 'idle', playerThreads: 0, drags: 0 };
+  private readonly findTable = (): Placement | null => this.evaluate();
+  private where: Where | null = null;
   private planes = 0;
-
-  /** Where the diorama was last placed in passthrough (null outside AR or before placing). */
-  get placedOn(): 'table' | 'in front of you' | null {
-    return this.where;
-  }
-
-  /** Detected planes seen at the last evaluation (scene understanding). */
-  get planesSeen(): number {
-    return this.planes;
-  }
-  private elapsed = 0;
-  private sinceEvaluate = 0;
+  private placeCount = 0;
+  /** The dioramaHidden flag as last sent on the bus. */
+  private sentHidden = false;
+  private needsResetListener = false;
+  private detachReset: (() => void) | null = null;
   private box = new Box3();
   private head = new Vector3();
   private forward = new Vector3();
@@ -75,53 +82,124 @@ export class PlacementSystem extends createSystem({
   private planeQuat = new Quaternion();
   private planeAxis = new Vector3();
 
+  /** Where the diorama was last placed in passthrough (null outside AR or before placing). */
+  get placedOn(): Where | null {
+    return this.where;
+  }
+
+  /** Detected planes seen at the last evaluation (scene understanding). */
+  get planesSeen(): number {
+    return this.planes;
+  }
+
+  get phase(): SearchPhase {
+    return this.search.phase;
+  }
+
+  /** `place` commands on the bus since this XR session started (since the page loaded, outside XR). */
+  get placements(): number {
+    return this.placeCount;
+  }
+
   init(): void {
-    this.cleanupFuncs.push(this.world.visibilityState.subscribe(() => this.onVisibility()));
+    this.xrManager.addEventListener('sessionstart', this.onSessionStart);
+    this.xrManager.addEventListener('sessionend', this.onSessionEnd);
+    this.cleanupFuncs.push(
+      this.world.visibilityState.subscribe(() => this.onVisibility()),
+      puzzleStore.onCommand((command) => {
+        if (command.type === 'place') this.placeCount += 1;
+      }),
+      () => {
+        this.xrManager.removeEventListener('sessionstart', this.onSessionStart);
+        this.xrManager.removeEventListener('sessionend', this.onSessionEnd);
+        this.onSessionEnd();
+      },
+    );
+  }
+
+  /** As IWSDK's EnvironmentSystem does: listen for 'reset', on a later frame if the space isn't there yet. */
+  private readonly onSessionStart = (): void => {
+    this.placeCount = 0;
+    this.attachResetListener();
+  };
+
+  private readonly onSessionEnd = (): void => {
+    this.detachReset?.();
+    this.detachReset = null;
+    this.needsResetListener = false;
+  };
+
+  private readonly onReset = (): void => {
+    devLog('reference space reset: searching again');
+    requestRestart(this.search);
+  };
+
+  private attachResetListener(): void {
+    const space = this.xrManager.getReferenceSpace();
+    this.needsResetListener = space === null;
+    if (!space) return;
+    space.addEventListener('reset', this.onReset);
+    this.detachReset = () => space.removeEventListener('reset', this.onReset);
   }
 
   private onVisibility(): void {
-    const visibility = this.world.visibilityState.peek();
-    if (visibility === VisibilityState.NonImmersive) {
-      if (this.phase === 'placed') puzzleStore.dispatch({ type: 'resetPlacement' });
-      this.phase = 'inactive';
+    if (this.world.visibilityState.peek() === VisibilityState.NonImmersive) {
+      if (this.where !== null) puzzleStore.dispatch({ type: 'resetPlacement' });
       this.where = null;
+      stopSearch(this.search);
+      this.syncHidden();
       return;
     }
     const passthrough = !shouldShowVirtualRoom(true, this.world.session?.environmentBlendMode);
-    if (passthrough && this.phase === 'inactive') {
-      this.phase = 'searching';
-      this.elapsed = 0;
-      this.sinceEvaluate = EVALUATE_EVERY_SECONDS;
+    if (passthrough && this.search.phase === 'inactive') {
+      startSearch(this.search);
+      this.syncHidden();
     }
   }
 
   update(delta: number): void {
-    if (this.phase !== 'searching') return;
-    this.elapsed += delta;
-    this.sinceEvaluate += delta;
-    if (this.sinceEvaluate < EVALUATE_EVERY_SECONDS) return;
-    this.sinceEvaluate = 0;
+    if (this.needsResetListener) this.attachResetListener();
+    if (this.search.phase === 'inactive') return;
+    const state = puzzleStore.get();
+    const input = this.frameInput;
+    input.delta = delta;
+    input.paused = state.paused;
+    input.status = state.status;
+    input.playerThreads = playerThreadCount(state.threads);
+    input.drags = state.drags;
+    const place = stepSearch(this.search, input, this.findTable);
+    // Place first, so the rebuild happens hidden and its fade starts once the flag clears.
+    if (place) this.place(place);
+    this.syncHidden();
+  }
 
+  /** The dioramaHidden flag on the bus follows the search's. */
+  private syncHidden(): void {
+    if (this.search.hidden === this.sentHidden) return;
+    this.sentHidden = this.search.hidden;
+    puzzleStore.dispatch({ type: 'dioramaHidden', hidden: this.sentHidden });
+  }
+
+  /** Best table for the current level from the detected planes, or null. Runs at most 4 times a second. */
+  private evaluate(): Placement | null {
     const level = puzzleStore.get().level;
-    if (!level) return;
+    if (!level) return null;
     this.readHead();
-    const head = [this.head.x, this.head.y, this.head.z] as const;
     const candidates = this.candidates();
     this.planes = candidates.length;
+    const head = [this.head.x, this.head.y, this.head.z] as const;
     const forward = [this.forward.x, this.forward.y, this.forward.z] as const;
-    const onTable = choosePlacement(candidates, head, level.size[0], forward);
-    if (import.meta.env.DEV && (onTable || this.elapsed >= SEARCH_TIMEOUT_SECONDS)) {
-      const fmt = (v: readonly number[]) => v.map((n) => n.toFixed(2)).join(',');
-      const lines = candidates
-        .filter((c) => c.orientation === 'horizontal')
-        .map((c) => `${c.label || '?'} [${fmt(c.min)}]..[${fmt(c.max)}]`);
-      devLog(`placement candidates: ${lines.join(' | ')}`);
-    }
-    if (onTable) {
-      this.place(onTable, level.size[0], 'table');
-    } else if (this.elapsed >= SEARCH_TIMEOUT_SECONDS) {
-      this.place(headRelativePlacement(head, forward), level.size[0], 'in front of you');
-    }
+    const onTable = choosePlacement(candidates, head, level, forward);
+    if (import.meta.env.DEV && onTable) this.logCandidates(candidates);
+    return onTable;
+  }
+
+  private logCandidates(candidates: readonly PlaneCandidate[]): void {
+    const fmt = (v: readonly number[]) => v.map((n) => n.toFixed(2)).join(',');
+    const lines = candidates
+      .filter((c) => c.orientation === 'horizontal')
+      .map((c) => `${c.label || '?'} [${fmt(c.min)}]..[${fmt(c.max)}]`);
+    devLog(`placement candidates: ${lines.join(' | ')}`);
   }
 
   private readHead(): void {
@@ -167,11 +245,21 @@ export class PlacementSystem extends createSystem({
     };
   }
 
-  private place(placement: Placement, width: number, where: 'table' | 'in front of you'): void {
-    this.phase = 'placed';
+  /** On the table found, or floating in front of the head as it is now. */
+  private place(place: SearchPlace<Placement>): void {
+    const level = puzzleStore.get().level;
+    if (!level) return;
+    const where: Where = place.surface === 'table' ? 'table' : 'in front of you';
+    let placement: Placement;
+    if (place.surface === 'table') {
+      placement = place.placement;
+    } else {
+      this.readHead();
+      placement = headRelativePlacement([this.head.x, this.head.y, this.head.z], [this.forward.x, this.forward.y, this.forward.z]);
+    }
     this.where = where;
-    const origin = originFromCenter(placement.center, placement.yaw, width);
-    devLog(`diorama placed ${where}`);
-    puzzleStore.dispatch({ type: 'place', origin, yaw: placement.yaw });
+    const origin = originFromCenter(placement.center, placement.yaw, level.size[0]);
+    devLog(`diorama placed ${where} (${this.planes} planes seen)`);
+    puzzleStore.dispatch({ type: 'place', origin, yaw: placement.yaw, surface: place.surface });
   }
 }

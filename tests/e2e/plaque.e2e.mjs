@@ -94,7 +94,7 @@ async function solveLightsPlaque(app, check) {
 /** Mixed reality: the diorama moves to the player's table; the plaque and the strip must follow. */
 async function plaqueFollowsTable(app, check) {
   const before = await app.evaluate(stripOnLedge, BUTTON_RADIUS);
-  const placed = { origin: [0.2, 0.7, -0.5], yaw: 0.6 };
+  const placed = { origin: [0.2, 0.7, -0.5], yaw: 0.6, surface: 'table' };
   await app.evaluate((p) => window.__threadbound.dispatch({ type: 'place', ...p }), placed);
   await waitFor(app, (yaw) => Math.abs((window.__threadbound.frame()?.yaw ?? 0) - yaw) < 1e-3, 3000, placed.yaw);
   const onTable = await app.evaluate(hud);

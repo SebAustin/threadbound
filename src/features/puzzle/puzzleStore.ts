@@ -9,6 +9,9 @@ import type { DioramaFrame } from '../diorama/dioramaFrame';
 
 export type PuzzleStatus = 'idle' | 'dropping' | 'complete';
 
+/** What a passthrough placement stands the diorama on: a detected table, or nothing (it floats). */
+export type PlacementSurface = 'table' | 'floating';
+
 /**
  * Why a diorama was (re)built: a fresh level, the same level moved (offset or
  * table placement), or a level stepped to from the settings face.
@@ -41,6 +44,15 @@ export interface PuzzleState {
   readonly refusal: RefusalReason | null;
   /** The melody a solve played (notes in Hz, drop times in seconds), published when the level completes; empty until then. */
   readonly melody: Melody;
+  /**
+   * Passthrough placement is searching: the diorama, its plaque, its ledge strip, its threads
+   * and the ghost hand stay hidden, and it takes no input (PlacementSystem sets it).
+   */
+  readonly dioramaHidden: boolean;
+  /** What the last passthrough placement stood it on; null at the default pose (the study's table). */
+  readonly surface: PlacementSurface | null;
+  /** Thread pulls and tab slides in progress: a relocation waits for them, as it waits for a drop. */
+  readonly drags: number;
 }
 
 /** Everything that changes the puzzle goes through here: buttons, placement, tests. */
@@ -66,9 +78,13 @@ export type PuzzleCommand =
   | { readonly type: 'solved' }
   | { readonly type: 'addThread'; readonly from: string; readonly to: string }
   | { readonly type: 'snip'; readonly from: string; readonly to: string }
-  | { readonly type: 'place'; readonly origin: Vec3; readonly yaw: number }
+  | { readonly type: 'place'; readonly origin: Vec3; readonly yaw: number; readonly surface: PlacementSurface }
   /** Back to the virtual table (leaving mixed reality). */
   | { readonly type: 'resetPlacement' }
+  /** Placement hides the diorama while it searches, and shows it once placed. */
+  | { readonly type: 'dioramaHidden'; readonly hidden: boolean }
+  /** A thread pull or tab slide started (active) or ended. */
+  | { readonly type: 'drag'; readonly active: boolean }
   /** Final slide of a rail peg (player release, or a solution replay). Clamped to the rail. */
   | { readonly type: 'movePeg'; readonly pegId: string; readonly x: number; readonly y: number }
   /** Live preview while a rail peg is dragged: visuals only, physics catches up on release. */
@@ -95,6 +111,9 @@ const INITIAL: PuzzleState = {
   daily: null,
   refusal: null,
   melody: EMPTY_MELODY,
+  dioramaHidden: false,
+  surface: null,
+  drags: 0,
 };
 
 /**

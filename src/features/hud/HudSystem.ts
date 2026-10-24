@@ -133,6 +133,9 @@ export class HudSystem extends createSystem({}) {
   private render(state: PuzzleState): void {
     this.settingsFace?.render(state.settings);
     this.settingsFace?.renderLevel(state.levelIndex);
+    // While placement searches, the plaque and the strip hide with the diorama.
+    if (this.panel) this.panel.visible = !state.dioramaHidden;
+    this.ledge?.show(!state.dioramaHidden);
     const { level } = state;
     if (!this.panel || !level || !this.changed(state)) return;
     this.shownFrom = state;
@@ -152,6 +155,7 @@ export class HudSystem extends createSystem({}) {
       refusal: state.refusal,
       levelHint: state.status === 'complete' ? undefined : level.hint,
       campaignComplete: !state.daily && state.levelIndex === LEVELS.length - 1 && state.status === 'complete',
+      noTable: state.surface === 'floating',
     });
     this.apply(hud);
   }
@@ -168,6 +172,7 @@ export class HudSystem extends createSystem({}) {
       last.progress !== state.progress ||
       last.daily !== state.daily ||
       last.refusal !== state.refusal ||
+      last.surface !== state.surface ||
       // Sliding a rail peg changes thread lengths, which only the ledge's spool readout shows.
       (state.level?.spool !== undefined && last.pegPositions !== state.pegPositions)
     );

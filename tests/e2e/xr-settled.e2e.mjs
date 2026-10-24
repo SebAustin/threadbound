@@ -1,6 +1,7 @@
 // Helper for the XR shell tests: a deterministic wait instead of fixed sleeps.
-// Resolves once the game hook is up and, with WANT=session, an immersive session
-// is running and the diorama has stopped moving (AR re-places it on entry).
+// Resolves once the game hook is up, the diorama has stopped moving and its fade-in is
+// over (`placement().reveal` is 1, so it is placed and shown), and, with WANT=session,
+// an immersive session is running (AR places the diorama again on entry, hidden until then).
 const TIMEOUT_MS = 20000;
 const POLL_MS = 100;
 /** The frame must hold still this long to count as placed. */
@@ -16,7 +17,8 @@ export default async function run({ page, frame }) {
       let stillSince = performance.now();
       while (performance.now() - start < timeout) {
         const hook = window.__threadbound;
-        const ready = Boolean(hook?.state().level) && (!wantSession || hook.room().blendMode !== null);
+        const shown = hook?.placement().reveal === 1;
+        const ready = Boolean(hook?.state().level) && shown && (!wantSession || hook.room().blendMode !== null);
         const origin = JSON.stringify(hook?.frame()?.origin ?? null);
         if (origin !== last) {
           last = origin;
