@@ -108,6 +108,9 @@ const cueDrain = () => window.__threadbound.cues().map((name) => ({ name }));
 const CUE_FIELDS = [
   // Melody notes since the last probe (the drain resets the count).
   ['melodyNotesDrained', (records) => records.filter((c) => c.name === 'melody').length],
+  // Presses on a ledge button or plaque control since the last probe: one per press that
+  // landed, even when it changes nothing (Nearer at its stop).
+  ['buttonCuesDrained', (records) => records.filter((c) => c.name === 'button').length],
 ];
 
 export default async function run({ page, frame }) {

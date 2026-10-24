@@ -27,7 +27,7 @@
 
 **Status:** done
 
-- [x] Unit: new tests/unit/viewExtent.test.ts, written first. `viewSpan` returns 0 for one point, 70 for points 35 degrees either side, and centres on a pitched view.
+- [x] Unit: new tests/unit/viewExtent.test.ts (not shown to be written first: no failing-first run was recorded, see Comments, Oct 24 review). `viewSpan` returns 0 for one point, 70 for points 35 degrees either side, and centres on a pitched view.
 - [x] Unit: across all 24 levels, the level face and the other essential points fit 70 x 66:
   - in the Quest pose at the default offset, Raise +6, Lower -6 and Farther -2;
   - in the study pose at the same four offsets;
@@ -96,3 +96,24 @@
     - The refusal copy now says "the ledge" (README.md:45, docs/submission.md:112, :128-129).
     - Test labels name the settings button (settings.e2e, xr-controls.sh), and hint checks say "ledge".
     - docs/video/* is untouched (ticket 05).
+- **Oct 24, agent: review findings fixed locally on main as `fix: ticket 12 review findings`; nothing pushed.** All five low findings were small enough to fix, so none is left.
+  - **Medium, the Nearer +2 width check proved nothing. Fixed as the review proposed.**
+    - At Nearer +2 the test now asserts that **every level fits 70 x 66 in the Quest pose with the level face up**: `worstSpan(QUEST_POSE, NEARER, 'level')` gives 69.4 (w2-03) x 65.4 (w1-02). This replaces the check against the cups' and pegs' horizontal extent; that wording in box 2 is no longer what is asserted. The study pose is stated, not asserted: the playfield alone (cups, chutes, knobs) spans 70.8 degrees there (`widestPlayfield`, tests/unit/viewExtent.test.ts), and everything spans 75.5 x 73.5. The settings face at Nearer +2 is still not asserted (67.6 x 67.8 in the Quest pose).
+    - The plaque and the strip do widen the view. In the Quest pose at Nearer +2, w2-03's playfield spans 64.1 degrees and everything spans 69.4; for w1-05 the figures are 46.2 and 68.1. At the default offset, w2-03 goes from 54.2 to 57.7. The `HUD.maxWidth` comment (src/config/constants.ts:104-112) now says the plaque sits inside the cups' spread but still widens the pitched view, and gives w2-03's figures. The test note above the Nearer block says the same.
+    - src/lib/settings.ts:7-10 says one more Nearer step puts the diorama past a 70-degree view. That is now asserted rather than only claimed.
+  - **Low findings, all fixed:**
+    - Box 1 said the test was written first, but there is no RED run for viewExtent.test.ts: the week 8 logs hold none, and ticket 12 landed in one commit. Box 1 now says so instead of claiming test-first.
+    - `worstSpan` tracks the widest level (`atH`) and the tallest (`atV`) separately, and each failure message names the matching one. Before this fix, every level-face message named w2-03, the widest level, but the tallest is w1-02 at every pose and offset. So every "tallest" message named the wrong level.
+    - xr-controls.sh: after each Nearer pinch, `settled_probe` reads until `offset` and the moved Nearer toggle give the same reading twice, so the next pinch aims at the toggle's new position. The script records `offset.near` after each pinch and asserts the sequence 1 2 2. xr-probe gains a `buttonCuesDrained` cue field (each press that lands on a ledge button or plaque control plays the `button` cue, even when it changes nothing), and the script asserts that each of the three pinches pressed once. So the third pinch is shown to have landed on the toggle and changed nothing, rather than being swallowed.
+    - The settings icon is `SETTINGS_ICON` / `settingsIconGeometry`, with `bars`, `barLength`, `barWidth`, `thumbRadius`, `thumbHeight` and `thumbSegments` (src/features/diorama/buildDiorama.ts:204-249). The comment "Three sliders read as settings" stays.
+    - `buildLedge` centres the ledge at `LEDGE_FRONT_Z - ledgeDepth / 2` from src/lib/ledge.ts. The ledge, its buttons and the strip now share one front edge.
+  - **Red first** (logs `.scratch/week8/logs/ticket12-review-*.log`, gitignored). For each mutation, `OFFSET_LIMITS.near` was temporarily set to [-2, 3] (the old limit) and then restored with `git checkout`:
+    - The old test: the horizontal-extent check still passed with the diorama 76.8 degrees wide. Only the vertical check failed, at 70.4 (1 failed, 33 passed).
+    - The new test: `widest 76.8 x 70.4 (w2-03): expected 76.79 to be less than or equal to 70` (1 failed, 33 passed).
+    - The new xr-controls.sh: `FAIL three Nearer pinches land and stop at +2 (near 1 2 3, presses 1 1 1)`, exit 1. The old script would have passed that run if any one pinch had been swallowed.
+    - The rename and the ledge's z don't change behaviour, so they have no RED run. Existing tests cover them, and draw calls are unchanged (below).
+  - **Evidence, Oct 24.** There was no Vite overlay before or after the runs (`no-overlay.e2e.mjs` true). The dev server stayed headless with browser automation (`browserCommandReady: true`). iwsdk.config.json had no diff after gaze-pinch.
+    - `npm run typecheck`: exit 0. `npm test`: 39 files, 437 tests passed (viewExtent still 34: its two Nearer tests are now the Quest-pose fit and the study-pose statement).
+    - `npm run test:e2e`: all 26 scripts, 159 PASS, 0 FAIL, exit 0. buildDiorama is shared by every script, so the whole chain was run.
+    - `npm run test:e2e:hands`: all 6 scripts, 30 PASS, 0 FAIL, exit 0. This includes `PASS three Nearer pinches land and stop at +2 (near 1 2 2, presses 1 1 1)`. xr-probe is shared, so the whole chain was run.
+    - `npm run test:e2e:levels`: 24/24, with draw calls per level identical to the ticket 12 run (busiest w2-06 at 57). `:levels:slow` wasn't re-run: nothing that slow motion touches changed.

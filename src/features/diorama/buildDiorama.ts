@@ -23,7 +23,7 @@ import { AIM_PLANE_Z, CHUTE, CONTROLS, DIORAMA, FRICTION, GLYPH, GOAL, PEG, SLID
 import type { SortingColor } from '../../lib/marbleColors';
 import type { Chute as ChuteSpec, Level } from '../../lib/levelSchema';
 import { handleOffset, type Rail } from '../../lib/rail';
-import { LEDGE_BUTTON_Z, ledgeButtonX } from '../../lib/ledge';
+import { LEDGE_BUTTON_Z, LEDGE_FRONT_Z, ledgeButtonX } from '../../lib/ledge';
 import { Chute, ControlActions, ControlButton, Peg, SliderHandle, type ControlAction } from '../puzzle/components';
 import type { DioramaFrame } from './dioramaFrame';
 import { GEOMETRIES, glyphMesh, goalMaterial, MATERIALS, marbleMaterial } from './palette';
@@ -201,20 +201,20 @@ const SUN = {
   rayLength: 0.2,
   rayWidth: 0.08,
 } as const;
-/** Settings icon proportions (three slider rails, each with its knob), as fractions of the cap radius. */
-const SLIDERS = {
-  /** Each rail's z, and its knob's x along it. */
-  rails: [
+/** Settings icon proportions (three bars, each with its thumb), as fractions of the cap radius. */
+const SETTINGS_ICON = {
+  /** Each bar's z, and its thumb's x along it. */
+  bars: [
     [-0.32, -0.22],
     [0, 0.2],
     [0.32, -0.05],
   ],
-  railLength: 0.9,
-  railWidth: 0.09,
+  barLength: 0.9,
+  barWidth: 0.09,
   thickness: 0.12,
-  knobRadius: 0.13,
-  knobHeight: 0.24,
-  knobSegments: 10,
+  thumbRadius: 0.13,
+  thumbHeight: 0.24,
+  thumbSegments: 10,
 } as const;
 /** Cap icons lean about 30 degrees toward the player. */
 const ICON_TILT = 0.52;
@@ -238,12 +238,12 @@ function sunGeometry(r: number): BufferGeometry {
   return mergeParts([{ geometry: disc }, ...rays]);
 }
 
-/** Settings: three slider rails with their knobs at different stops, merged into one draw call. */
-function slidersGeometry(r: number): BufferGeometry {
-  const { railLength, railWidth, thickness, knobRadius, knobHeight, knobSegments } = SLIDERS;
-  const parts: GeometryPart[] = SLIDERS.rails.flatMap(([z, knobX]): GeometryPart[] => [
-    { geometry: new BoxGeometry(r * railLength, r * thickness, r * railWidth), at: [0, 0, r * z] },
-    { geometry: new CylinderGeometry(r * knobRadius, r * knobRadius, r * knobHeight, knobSegments), at: [r * knobX, 0, r * z] },
+/** Settings: three bars with their thumbs at different stops, merged into one draw call. */
+function settingsIconGeometry(r: number): BufferGeometry {
+  const { barLength, barWidth, thickness, thumbRadius, thumbHeight, thumbSegments } = SETTINGS_ICON;
+  const parts: GeometryPart[] = SETTINGS_ICON.bars.flatMap(([z, thumbX]): GeometryPart[] => [
+    { geometry: new BoxGeometry(r * barLength, r * thickness, r * barWidth), at: [0, 0, r * z] },
+    { geometry: new CylinderGeometry(r * thumbRadius, r * thumbRadius, r * thumbHeight, thumbSegments), at: [r * thumbX, 0, r * z] },
   ]);
   return mergeParts(parts);
 }
@@ -262,7 +262,7 @@ const BUTTON_ICONS: Readonly<Record<ControlAction, (r: number) => Mesh>> = {
   },
   daily: (r) => new Mesh(sunGeometry(r), MATERIALS.walnut),
   // Three sliders read as "settings" without text.
-  settings: (r) => new Mesh(slidersGeometry(r), MATERIALS.walnut),
+  settings: (r) => new Mesh(settingsIconGeometry(r), MATERIALS.walnut),
 };
 
 /** Pokeable (near) and pinchable (ray) button resting on the front ledge. */
@@ -294,7 +294,8 @@ function buildLedge(world: World, frame: DioramaFrame, level: Level): Entity[] {
   const { ledgeDepth } = CONTROLS;
   const w = level.size[0] + DIORAMA.wallThickness * 2;
   const ledge = new Mesh(new BoxGeometry(w, DIORAMA.slab, ledgeDepth), MATERIALS.walnut);
-  const z = DIORAMA.channelHalfDepth + DIORAMA.slab + ledgeDepth / 2;
+  // Centred halfway back from the front edge the buttons and the strip share (lib/ledge).
+  const z = LEDGE_FRONT_Z - ledgeDepth / 2;
   return [place(world, frame, ledge, [level.size[0] / 2, -DIORAMA.slab / 2, z])];
 }
 

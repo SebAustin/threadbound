@@ -43,10 +43,33 @@ F=$(field "$(probe)" "['face']"); [ "$F" = "settings" ] && pass "pinching the se
 sleep 0.5 # let the settings face lay out
 pinch_at "$(field "$(probe)" "['slowToggle']")"
 M=$(field "$(probe)" "['slowMotion']"); [ "$M" = "true" ] && pass "pinching a plaque toggle works in XR" || fail "pinching a plaque toggle works in XR (slowMotion=$M)"
-# Nearer three times: each pinch moves the diorama a step toward the player, and the third stops at +2.
-for n in 1 2 3; do pinch_at "$(field "$(probe)" "['nearToggle']")"; done
-O=$(field "$(probe)" "['offset']")
-[ "$(field "$O" "['near']")" = "2" ] && pass "three Nearer pinches stop at +2 ($O)" || fail "three Nearer pinches stop at +2 ($O)"
+# Nearer three times: each pinch lands (a press cue) and moves the diorama a step toward the
+# player, and the third lands on the toggle and changes nothing. After each pinch, wait until the
+# offset and the moved toggle read the same twice, so the next pinch aims where the toggle now is.
+settled_probe() {
+  local i prev="" cur
+  for i in 1 2 3 4 5 6; do
+    P=$(probe); PRESSES=$(( PRESSES + $(field "$P" "['buttonCuesDrained']") ))
+    cur="$(field "$P" "['offset']") $(field "$P" "['nearToggle']")"
+    [ "$cur" = "$prev" ] && return 0
+    prev=$cur
+  done
+  return 1
+}
+settled_probe # drains the slow-motion pinch's press
+NEARS=(); PRESSED=()
+for n in 1 2 3; do
+  PRESSES=0
+  pinch_at "$(field "$P" "['nearToggle']")"
+  settled_probe
+  NEARS+=$(field "$P" "['offset']['near']"); PRESSED+=$PRESSES
+done
+NEAR_SEEN="near ${NEARS[*]}, presses ${PRESSED[*]}"
+if [ "${NEARS[*]}" = "1 2 2" ] && [ "${PRESSED[1]}" -gt 0 ] && [ "${PRESSED[2]}" -gt 0 ] && [ "${PRESSED[3]}" -gt 0 ]; then
+  pass "three Nearer pinches land and stop at +2 ($NEAR_SEEN)"
+else
+  fail "three Nearer pinches land and stop at +2 ($NEAR_SEEN)"
+fi
 iw browser run tests/e2e/reset-settings.e2e.mjs >/dev/null 2>&1
 
 P=$(probe load0)

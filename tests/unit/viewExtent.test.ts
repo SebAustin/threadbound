@@ -53,17 +53,27 @@ const originOf = (pose: Placement, level: Level, offset: DioramaOffset): Vec3 =>
 
 const fmt = (span: { h: number; v: number }) => `${span.h.toFixed(1)} x ${span.v.toFixed(1)}`;
 
-/** The widest and tallest span over every level, and the level each came from. */
+/** The widest and tallest span over every level, and the level each came from (`atH`, `atV`). */
 function worstSpan(pose: Placement, offset: DioramaOffset, face: 'level' | 'settings') {
-  let worst = { h: 0, v: 0, at: '' };
+  let worst = { h: 0, v: 0, atH: '', atV: '' };
   for (const level of LEVELS) {
     const span = viewSpan(HEAD, essentialPoints(level, originOf(pose, level, offset), pose.yaw, face));
-    if (span.h > worst.h || span.v > worst.v) {
-      worst = { h: Math.max(worst.h, span.h), v: Math.max(worst.v, span.v), at: level.id };
-    }
+    if (span.h > worst.h) worst = { ...worst, h: span.h, atH: level.id };
+    if (span.v > worst.v) worst = { ...worst, v: span.v, atV: level.id };
   }
   return worst;
 }
+
+/** The widest playfield (cups, chutes and knobs; no plaque or strip) over every level, in degrees. */
+const widestPlayfield = (pose: Placement, offset: DioramaOffset): number =>
+  Math.max(
+    ...LEVELS.map((level) => {
+      const parts = essentialParts(level, 'level');
+      const origin = originOf(pose, level, offset);
+      const points = [...parts.cups, ...parts.chutes, ...parts.pegs].map((p) => frameToWorld(origin, pose.yaw, p));
+      return viewSpan(HEAD, points).h;
+    }),
+  );
 
 /** A direction from the head at azimuth `az` (right of -z) and elevation `el`, in degrees. */
 function lookAt(az: number, el: number): Vec3 {
@@ -96,58 +106,35 @@ describe('field of view: the level face, the ledge strip and the playfield fit 7
     for (const [offsetName, offset] of Object.entries(OFFSETS)) {
       test(`${poseName}, ${offsetName}: every level fits`, () => {
         const worst = worstSpan(pose, offset, 'level');
-        expect(worst.h, `widest ${fmt(worst)} (${worst.at})`).toBeLessThanOrEqual(FOV.h);
-        expect(worst.v, `tallest ${fmt(worst)} (${worst.at})`).toBeLessThanOrEqual(FOV.v);
+        expect(worst.h, `widest ${fmt(worst)} (${worst.atH})`).toBeLessThanOrEqual(FOV.h);
+        expect(worst.v, `tallest ${fmt(worst)} (${worst.atV})`).toBeLessThanOrEqual(FOV.v);
       });
     }
   }
 
   test('the p90 view (58 x 54) is stated, not asserted: the playfield alone is wider in the study pose', () => {
-    const offset = OFFSETS['the default offset'];
-    const widest = Math.max(
-      ...LEVELS.map((level) => {
-        const parts = essentialParts(level, 'level');
-        const origin = originOf(STUDY_POSE, level, offset);
-        return viewSpan(HEAD, [...parts.cups, ...parts.chutes, ...parts.pegs].map((p) => frameToWorld(origin, 0, p))).h;
-      }),
-    );
-    expect(widest).toBeGreaterThan(P90.h);
+    expect(widestPlayfield(STUDY_POSE, OFFSETS['the default offset'])).toBeGreaterThan(P90.h);
   });
 });
 
 /**
- * Nearer +2 is a partial check. Everything essential spans 69.4 x 65.4 degrees
- * in the Quest pose and 75.5 x 73.5 in the study pose; the playfield alone
- * (cups, chutes, knobs) already spans 70.8 x 54.7 in the study pose, whatever
- * the plaque and the strip do. So only two things are asserted, in the Quest
- * pose: the height fits, and the plaque and the strip add no width, because
- * they lie inside the horizontal extent of the campaign's cups and pegs (x
- * 0.01-0.49 m). On a one-cup level (w1-05, w4-01, w4-02) the plaque reaches a
- * little past that level's own leftmost peg, but never past where cups and
- * pegs sit elsewhere.
+ * Nearer +2 is a partial check: only the Quest pose with the level face up is
+ * asserted. There everything essential spans 69.4 x 65.4 degrees (w2-03 is the
+ * widest). The study pose isn't asserted: there the playfield alone (cups,
+ * chutes, knobs) spans 70.8 degrees, whatever the plaque and the strip do, and
+ * everything spans 75.5 x 73.5. The plaque and the strip widen the view even
+ * though they sit inside the cups' spread: in the Quest pose w2-03's playfield
+ * spans 64.1 degrees and everything 69.4, and w1-05's 46.2 and 68.1.
  */
-describe(`field of view at Nearer +${NEARER.near} (Quest pose): a partial check`, () => {
-  const azimuth = (p: Vec3) => (Math.atan2(p[0] - HEAD[0], -(p[2] - HEAD[2])) * 180) / Math.PI;
-
-  test('the vertical span is at most 66 on every level', () => {
+describe(`field of view at Nearer +${NEARER.near}: a partial check`, () => {
+  test('Quest pose: every level fits 70 x 66', () => {
     const worst = worstSpan(QUEST_POSE, NEARER, 'level');
-    expect(worst.v, `tallest ${fmt(worst)} (${worst.at})`).toBeLessThanOrEqual(FOV.v);
+    expect(worst.h, `widest ${fmt(worst)} (${worst.atH})`).toBeLessThanOrEqual(FOV.h);
+    expect(worst.v, `tallest ${fmt(worst)} (${worst.atV})`).toBeLessThanOrEqual(FOV.v);
   });
 
-  test("the plaque and the strip lie inside the cups' and pegs' horizontal extent", () => {
-    const world = (level: Level, points: readonly Vec3[]) =>
-      points.map((p) => azimuth(frameToWorld(originOf(QUEST_POSE, level, NEARER), QUEST_POSE.yaw, p)));
-    const playfield = LEVELS.flatMap((level) => {
-      const parts = essentialParts(level, 'level');
-      return world(level, [...parts.cups, ...parts.pegs]);
-    });
-    const [lo, hi] = [Math.min(...playfield), Math.max(...playfield)];
-    for (const level of LEVELS) {
-      const parts = essentialParts(level, 'level');
-      const ui = world(level, [...parts.plaque, ...parts.strip]);
-      expect(Math.min(...ui), level.id).toBeGreaterThanOrEqual(lo);
-      expect(Math.max(...ui), level.id).toBeLessThanOrEqual(hi);
-    }
+  test('study pose: stated, not asserted, because the playfield alone is wider than 70', () => {
+    expect(widestPlayfield(STUDY_POSE, NEARER)).toBeGreaterThan(FOV.h);
   });
 });
 
@@ -160,8 +147,8 @@ describe('field of view with the settings face up: the face and the settings but
     for (const [offsetName, offset] of Object.entries(OFFSETS)) {
       test(`${poseName}, ${offsetName}`, () => {
         const worst = worstSpan(pose, offset, 'settings');
-        expect(worst.h, `widest ${fmt(worst)} (${worst.at})`).toBeLessThanOrEqual(FOV.h);
-        expect(worst.v, `tallest ${fmt(worst)} (${worst.at})`).toBeLessThanOrEqual(FOV.v);
+        expect(worst.h, `widest ${fmt(worst)} (${worst.atH})`).toBeLessThanOrEqual(FOV.h);
+        expect(worst.v, `tallest ${fmt(worst)} (${worst.atV})`).toBeLessThanOrEqual(FOV.v);
       });
     }
   }

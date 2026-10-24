@@ -104,7 +104,10 @@ export const HUD = {
   /**
    * The plaque's faces stay within these (public/ui/hud.uikitml; settings.e2e
    * measures them), so the field-of-view test can rely on them. 44 cm is inside
-   * the cups' 48 cm spread, so the plaque adds no width to the view.
+   * the cups' 48 cm spread, but the plaque still widens the view: it sits high,
+   * so the view pitches up to take it in, and a point far above or below the
+   * view's centre lands wider on the display than its x alone gives (w2-03,
+   * Quest pose, default offset: playfield 54.2 degrees, with the plaque 57.7).
    */
   maxWidth: 0.44,
   /** Title, world label and stars in one row. */
