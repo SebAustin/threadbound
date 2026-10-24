@@ -55,6 +55,11 @@ export interface ThreadboundTestHook {
   /** Which plaque face is showing, and where a plaque element is. */
   plaque(): { face: string; resetLabel: string } | null;
   plaqueElement(id: string): Located | null;
+  /**
+   * The welcome card: the entryView it last rendered (panel.userData.entry), whether it is
+   * shown, and where its elements are on screen (null for an element it doesn't have).
+   */
+  welcome(): { entry: unknown; visible: boolean; elements: Record<WelcomeElement, Located | null> } | null;
   /** Audio: 'locked' until a gesture unlocks it, then the AudioContext state. */
   audio(): string;
   /** Passthrough placement: where the diorama landed and how many detected planes were seen. */
@@ -107,6 +112,10 @@ class Probe {
 }
 
 type Hook<K extends keyof ThreadboundTestHook> = Pick<ThreadboundTestHook, K>;
+
+/** The welcome card's elements the E2E scripts aim at (public/ui/welcome.uikitml). */
+const WELCOME_ELEMENTS = ['welcome-card', 'xr-button', 'xr-note'] as const;
+type WelcomeElement = (typeof WELCOME_ELEMENTS)[number];
 
 function levelProbes(
   probe: Probe,
@@ -184,6 +193,27 @@ function sceneProbes(world: World, probe: Probe): Hook<'button' | 'handle' | 'ha
   };
 }
 
+/** A UIKit element's screen and world position: elements are scene objects, placed at their centre. */
+function locateElement(probe: Probe, panel: UIKitMLAsset | undefined, id: string): Located | null {
+  const element = panel?.getElementById(id) as unknown;
+  return element instanceof Object3D ? probe.locate(element) : null;
+}
+
+function welcomeProbes(world: World, probe: Probe): Hook<'welcome'> {
+  return {
+    welcome: () => {
+      const panel = world.getSceneObject<UIKitMLAsset>('welcome-panel');
+      if (!panel) return null;
+      const elements = Object.fromEntries(WELCOME_ELEMENTS.map((id) => [id, locateElement(probe, panel, id)]));
+      return {
+        entry: panel.userData.entry ?? null,
+        visible: panel.visible,
+        elements: elements as Record<WelcomeElement, Located | null>,
+      };
+    },
+  };
+}
+
 function plaqueProbes(world: World, probe: Probe): Hook<'hud' | 'plaque' | 'plaqueElement'> {
   const plaque = () => world.getSceneObject<UIKitMLAsset>('hud-plaque');
   return {
@@ -200,11 +230,7 @@ function plaqueProbes(world: World, probe: Probe): Hook<'hud' | 'plaque' | 'plaq
         ? { face: String(panel.userData.face ?? ''), resetLabel: String(panel.userData.resetLabel ?? 'Reset progress') }
         : null;
     },
-    plaqueElement: (id) => {
-      // UIKit elements are scene objects; their world position is the element's centre.
-      const element = plaque()?.getElementById(id) as unknown;
-      return element instanceof Object3D ? probe.locate(element) : null;
-    },
+    plaqueElement: (id) => locateElement(probe, plaque(), id),
   };
 }
 
@@ -286,6 +312,7 @@ export function installTestHook(world: World): void {
     ...levelProbes(probe),
     ...sceneProbes(world, probe),
     ...plaqueProbes(world, probe),
+    ...welcomeProbes(world, probe),
     ...sessionProbes(world),
   };
 }

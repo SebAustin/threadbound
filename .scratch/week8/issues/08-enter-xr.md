@@ -23,37 +23,37 @@
 
 **Blocked by:** 02 (merge after its step-4 log push; also for the prod-xr change). The rest can start at once on a branch in its own worktree (02).
 
-**Status:** ready-for-agent
+**Status:** done except: the Manual box (user)
 
-- [ ] Unit: in `tests/unit/xrMode.test.ts`, `entryView`:
+- [x] Unit: in `tests/unit/xrMode.test.ts`, `entryView`:
   - shows the button and no note for either immersive mode;
   - shows no button and exactly "Open in Quest Browser to play in mixed reality" for null;
   - shows nothing while checking;
   - shows the button and the retry note after a failed launch.
-- [ ] Unit: `bootErrorMessage` gives a short, plain line with the reason for an `Error`, and a generic line for a string, `undefined` or an object. It never includes a stack.
-- [ ] Unit: new `tests/unit/onTap.test.ts`, with a fake target:
+- [x] Unit: `bootErrorMessage` gives a short, plain line with the reason for an `Error`, and a generic line for a string, `undefined` or an object. It never includes a stack.
+- [x] Unit: new `tests/unit/onTap.test.ts`, with a fake target:
   - a press released after any delay fires once;
   - a release from another pointer doesn't fire;
   - the teardown removes both listeners.
-- [ ] Unit: `index.html` has the `#boot` loading line and an explicit body background that isn't white.
-- [ ] E2E: new `tests/e2e/enter-xr.sh`, using `fresh_page` and `settle session` from `xr-lib.sh`:
+- [x] Unit: `index.html` has the `#boot` loading line and an explicit body background that isn't white.
+- [x] E2E: new `tests/e2e/enter-xr.sh`, using `fresh_page` and `settle session` from `xr-lib.sh`:
   - a real mouse press on the card's Enter XR, held 800 ms and drifting 3 px inside the button, starts an IWER session (`room().blendMode` isn't null);
   - after `xr_stop`, the card and `#enter-xr` are back, and a second long press enters again;
   - after a fresh `fresh_page`, focusing `#enter-xr` and pressing Enter starts a session. This proves the DOM path without the canvas.
-- [ ] E2E: new `no-xr.e2e.mjs`. With `navigator.xr.isSessionSupported` stubbed to return false and a `devicechange` dispatched:
+- [x] E2E: new `no-xr.e2e.mjs`. With `navigator.xr.isSessionSupported` stubbed to return false and a `devicechange` dispatched:
   - the card and `#boot` show the Quest Browser line, and `#enter-xr` is hidden;
   - a press where the button was starts no session and logs no console error;
   - a real mouse drag from a to b on level 1 still makes the thread.
 
   Removing the stub brings back "Enter XR".
-- [ ] E2E: in the same script, with `requestSession` stubbed to reject, a long press shows "Couldn't start XR - try Enter XR again" and starts no session.
-- [ ] E2E: new `boot-screen.e2e.mjs`:
+- [x] E2E: in the same script, with `requestSession` stubbed to reject, a long press shows "Couldn't start XR - try Enter XR again" and starts no session.
+- [x] E2E: new `boot-screen.e2e.mjs`:
   - after an in-frame reload (the pattern at `first-melody.e2e.mjs:21-26`), the loading line is gone once the hook is ready, and `elementFromPoint` hits the canvas at both the card and peg a;
   - with `scenes/main.iwsdk.scene.json` aborted through `page.route`, `#boot` shows the boot error.
-- [ ] E2E: whichever of 05 and 08 lands second makes ticket 05's `tests/e2e/shot-preflight.e2e.mjs` hide `#enter-xr` in browser-view shots, and `npm run test:e2e:shots` fails while it shows.
-- [ ] In `package.json`, add `no-xr` and `boot-screen` to `test:e2e`, and `enter-xr.sh` to `test:e2e:hands`.
-- [ ] XR: after `NODE_ENV=production npm run build`, `npm run test:e2e:prod-xr` passes on the local preview. It enters AR through the click on `#enter-xr`, without the `grantOfferedSession()` fallback, and `tests/unit/prodXrTargets.test.ts` stays green (it checks only the knob and chute points).
-- [ ] Manual: run `npm run build && npm run preview` in desktop Chrome with no headset and no emulator. Expect the loading line, then the Quest Browser line, and a clean console.
+- [x] E2E: whichever of 05 and 08 lands second makes ticket 05's `tests/e2e/shot-preflight.e2e.mjs` hide `#enter-xr` in browser-view shots, and `npm run test:e2e:shots` fails while it shows.
+- [x] In `package.json`, add `no-xr` and `boot-screen` to `test:e2e`, and `enter-xr.sh` to `test:e2e:hands`.
+- [x] XR: after `NODE_ENV=production npm run build`, `npm run test:e2e:prod-xr` passes on the local preview. It enters AR through the click on `#enter-xr`, without the `grantOfferedSession()` fallback, and `tests/unit/prodXrTargets.test.ts` stays green (it checks only the knob and chute points).
+- [ ] Manual: run `npm run build && npm run preview` in desktop Chrome with no headset and no emulator. Expect the loading line, then the Quest Browser line, and a clean console. (user: see Comments for a headless stand-in run)
 
 **Effort:** M (~1.5 days)
 
@@ -66,3 +66,43 @@
 - **Boot-error test:** if aborting the scene JSON makes `World.create` hang instead of reject, block the first request whose failure does reject it, and record which one in Comments.
 
 ## Comments
+
+- **Oct 23, agent: landed locally on main as one commit; nothing pushed.** 02 and 05 had both landed (02's step-4 push is done, 05 is in), so 08 lands second and adds the `#enter-xr` hiding to 05's preflight.
+- **Where things are:**
+  - model: `entryView` src/lib/xrMode.ts:43, `bootErrorMessage` :58, the two notes :35-36.
+  - PanelSystem (src/panel.ts): the mode resolved in `init()` and again on `devicechange` (:41-43, teardown in `cleanupFuncs`), `onTap` on `xr-button` (:44), the DOM button's launch (:45), the failed-launch watch in `update()` (:54), `resolveMode` (:62), the synchronous guarded `launch` (:71-77), `render` from `entryView` (:81). `exit-button`, `exitXR` and every `click` listener are gone, and so is the "no immersive session mode" `console.warn`.
+  - shell: src/features/entry/bootScreen.ts (`ready` :24 removes `#boot-cover`, `fail` :33, `showEntry` :43, `onEnter` :49); index.html's walnut body (`#3d2f2a`, cream `#f4ead8`), `#boot` (`role="status"`), `#boot-cover`, and the bottom bar (`pointer-events: none`, only `#enter-xr` takes `auto`).
+  - src/index.ts: `bootScreen.ready()` after the last system registers (:51), and the `.catch` after the `.then` (:64), which also logs the error.
+  - card: public/ui/welcome.uikitml rebuilt from the plaque (walnut header, cream body, 3px brass border, `xr-button` as a toggle span with `:hover` and `:active`, `xr-note` with placeholder text, notes only in `<!-- -->`). The gesture sentence is unchanged.
+  - test hook: `welcome()` src/features/debug/testHook.ts:202 returns `{ entry, visible, elements }` for `welcome-card`, `xr-button` and `xr-note`; `entry` mirrors `panel.userData.entry`. `plaqueElement` now shares `locateElement` with it.
+  - E2E: tests/e2e/enter-xr.sh with its helper enter-xr.e2e.mjs (STEP press/key/state), no-xr.e2e.mjs, boot-screen.e2e.mjs, entry-notes.mjs (the notes mirrored for Playwright); lib.mjs gains `longPress`, `clearOverCanvas` (split out of `clickCanvas`, same behaviour), `welcomeElementAt` (shares `steadyPoint` with `plaqueElementAt`) and `entryState`.
+  - preflight: shot-preflight.e2e.mjs:33-36 hides `#enter-xr` in browser-view shots only; in XR the game hides it, so `visibleChrome` still catches one that shows in a session.
+  - prod-xr: tests/e2e/prod-xr.mjs:144 `clickEnterXr` waits for `#enter-xr` and clicks it (`page.locator('#enter-xr').click()`); the 5 s rule and the `grantOfferedSession()` fallback are unchanged. The fixture drops `enterXr`, and prodXrTargets.test.ts's Enter XR point test became "the fixture carries no Enter XR point".
+- **Decisions beyond the ticket text:**
+  - **A failed launch** is caught by a `launching` flag that `update()` clears once `sessionRequestPending` drops: no session then means `launchFailed`. That also covers a `requestSession` that throws synchronously. `update()` does nothing else and allocates nothing.
+  - **The DOM button hides during a session**, like the card's button. XR shots rely on that (their preflight would report it as chrome).
+  - **The note's text is never blanked:** an empty note is `display: none` only, because a span emptied once may not lay out its next text (the empty-span gotcha).
+  - **The bar sits below the ledge.** On all 24 levels the ledge buttons project at y 425 of the 469 px managed canvas (sun at x 319, Next at x 503). The button is 13 px text with 4 px padding, 6 px from the bottom: x 334-422, y 435-463. It overlaps none of them.
+  - **Boot-error test:** aborting `scenes/main.iwsdk.scene.json` makes `World.create` reject ("Failed to fetch"), with no hang, so the scene JSON is the request it blocks. #boot then read "Threadbound couldn't start: Failed to fetch. Reload the page to try again."
+  - `bootErrorMessage` quotes the first line of an Error's message, capped at 80 characters; a string, `undefined`, an object or an empty Error get the generic line.
+  - `isSupported`'s `console.warn` for a query that throws stays: only the "no mode" warning was the one to go.
+  - tests/unit/e2eDefaults.test.ts now also checks entry-notes.mjs against `entryView` and `bootErrorMessage`, as it does for `DEFAULT_SETTINGS`.
+- **Red first** (logs `.scratch/week8/logs/08-*-red.log`, gitignored):
+  - unit, before the model and the page shell: 16 failed (entryView 6, bootErrorMessage 7, index.html 3). onTap.test.ts passed at once (8 tests): `onTap` already behaves, so its red is the panel's old `click`, shown next.
+  - E2E against the old panel, card and index.html (only the `welcome()` hook was in): enter-xr.sh 0/4, and the 800 ms drifting press at (115, 122) on the old card's Enter XR started no session; no-xr 3 PASS, 5 FAIL; boot-screen 0/3.
+  - With `#enter-xr` in the page but before the preflight hid it, `shot.sh study` took its do-not-record branch (exit 1) with chrome `["#enter-xr"]`. Afterwards: `hid ["Enter XR pill", "#enter-xr"]`, chrome `[]`, start recording.
+- **Evidence, Oct 23, all on the final tree** (logs `.scratch/week8/logs/08-*.log`, gitignored, so this entry is the committed evidence):
+  - unit: `npm run typecheck` exit 0; `npm run coverage`: 38 files, 384 tests, 96.49 % statements, 95.01 % branches, 98.75 % functions, 97.19 % lines, exit 0.
+  - `npm run test:e2e`: all 26 scripts, 148 PASS, 0 FAIL, exit 0. That is 137 before plus no-xr 8 and boot-screen 3.
+    - no-xr: the card and #boot read "Open in Quest Browser to play in mixed reality", #enter-xr hidden; a long press where Enter XR was started no session and logged no console error; a mouse drag a (251, 266) to b (410, 336) made the thread; removing the stub brought Enter XR back on the card and as #enter-xr; with `requestSession` rejecting, a long press showed "Couldn't start XR - try Enter XR again", kept both buttons and started no session.
+    - boot-screen: after the in-frame reload the cover is gone and #boot hidden; `elementFromPoint` hit the canvas at the card (115, 82) and at peg a (251, 266); the aborted scene showed the boot error in #boot.
+  - `npm run test:e2e:hands`: 28 PASS, exit 0: hand-pinch 5, xr-full-level 5, xr-controls 9, xr-hosts 2, gaze-pinch 3 and enter-xr 4 (long press enters, both buttons back after `xr_stop`, a second long press enters, Enter on the focused #enter-xr enters). iwsdk.config.json had no changes afterwards.
+  - `npm run test:e2e:shots`: 43 PASS, 0 FAIL, exit 0 (browser-view shots now hide #enter-xr; XR shots find it hidden by the game).
+  - `npm run test:e2e:levels` 24/24 exit 0; `npm run test:e2e:levels:slow` 24/24 exit 0; `npm run test:e2e:dailies` 7/7 exit 0. Run because the bottom bar sits over the canvas, though no physics, level or thread code changed.
+  - `NODE_ENV=production npm run build` exit 0; `npm run test:smoke`: 18 PASS, 0 FAIL, 5 NOTE in 10.4 s.
+  - `npm run test:e2e:prod-xr` on the local preview: 14 PASS, 0 FAIL, 6 NOTE in 14.0 s, exit 0. `PASS the Enter XR click starts an immersive-ar session — #enter-xr: mode immersive-ar, blend alpha-blend, offer still pending: true`, so the click started it and the fallback never ran. Level 1 solved by hand pinch only (`best['w1-01']` 3, melody 3 notes). prodXrTargets.test.ts is green.
+  - Before each dev-server run: no Vite overlay (`no-overlay.e2e.mjs` true), and the server stayed headless with browser automation (`browserCommandReady: true`).
+  - UI checks (iwsdk-ui): `ui inspect` shows `#xr-button` displayed with "Enter XR" and `#xr-note` `display: none` on a 344 x 225 card; a preview and a runtime capture were checked by eye (card in the plaque's palette, top left; #enter-xr bottom centre, clear of the ledge). Not committed.
+- **Open for the user: the Manual box.** Run `npm run build && npm run preview` in desktop Chrome with no headset and no emulator. Expect "Loading Threadbound..." on walnut, then "Open in Quest Browser to play in mixed reality" at the bottom centre with no Enter XR, and a clean console.
+  - A headless stand-in (plain Chromium, no IWER, against the production preview, not committed) saw exactly that: "Loading Threadbound..." over `rgb(61, 47, 42)` with the cover up, then the Quest Browser line with #enter-xr hidden. The console held only IWSDK's banner and Chromium's "GPU stall due to ReadPixels" warnings from its screenshot. It doesn't replace the headed check.
+- **Not proven here:** a real long hand pinch on Quest Browser's 2D page (the ticket's risk). Confirm it on the production XR smoke or a tester's device; the forum post already asks testers for a long pinch on Enter XR.

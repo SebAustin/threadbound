@@ -5,8 +5,10 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import { createSystem, SessionMode, UIKitMLAsset, VisibilityState } from '@iwsdk/core';
-import { resolveSessionMode } from './lib/xrMode.js';
+import { createSystem, SessionMode, type UIKit, type UIKitMLAsset, VisibilityState } from '@iwsdk/core';
+import { bootScreen } from './features/entry/bootScreen.js';
+import { onTap } from './features/input/onTap.js';
+import { entryView, resolveSessionMode, type EntryMode } from './lib/xrMode.js';
 
 async function isSupported(mode: SessionMode): Promise<boolean> {
   try {
@@ -17,52 +19,79 @@ async function isSupported(mode: SessionMode): Promise<boolean> {
   }
 }
 
+/**
+ * The welcome card in the browser view, and the way into XR. The session mode is resolved
+ * once up front (and again when the XR device changes), so a tap launches synchronously,
+ * while the press's user activation is still fresh. Enter XR acts on release (onTap), so a
+ * press of any length enters, even one that drifts within the button. The card and the DOM
+ * fallback (bootScreen) both render from entryView.
+ */
 export class PanelSystem extends createSystem({}) {
-  init(): void {
-    const panel = this.world.getSceneObject<UIKitMLAsset>('welcome-panel');
-    const xrButton = panel?.getElementById('xr-button');
-    const exitButton = panel?.getElementById('exit-button');
-    if (xrButton == null || exitButton == null) {
-      return;
-    }
-    if (!this.world.xrEnabled) {
-      xrButton.setProperties({ display: 'none' });
-      exitButton.setProperties({ display: 'none' });
-      return;
-    }
+  private panel: UIKitMLAsset | undefined;
+  private mode: EntryMode = 'checking';
+  private launchFailed = false;
+  /** A launch was requested and its outcome isn't known yet. */
+  private launching = false;
+  /** Bumped per resolution, so an older answer can't overwrite a newer one. */
+  private resolution = 0;
 
-    // Mixed reality when the runtime has passthrough, otherwise the VR study
-    // (Safari on visionOS only offers immersive-vr).
-    const launchXR = async () => {
-      const mode = resolveSessionMode({
-        ar: await isSupported(SessionMode.ImmersiveAR),
-        vr: await isSupported(SessionMode.ImmersiveVR),
-      });
-      if (!mode) {
-        console.warn('[Threadbound] no immersive session mode is supported here');
-        return;
-      }
-      this.world.launchXR({
-        sessionMode: mode === 'immersive-ar' ? SessionMode.ImmersiveAR : SessionMode.ImmersiveVR,
-      });
-    };
-    const exitXR = () => this.world.exitXR();
-    xrButton.addEventListener('click', launchXR);
-    exitButton.addEventListener('click', exitXR);
+  init(): void {
+    this.panel = this.world.getSceneObject<UIKitMLAsset>('welcome-panel');
+    const onDeviceChange = () => void this.resolveMode();
+    navigator.xr?.addEventListener('devicechange', onDeviceChange);
     this.cleanupFuncs.push(
-      () => xrButton.removeEventListener('click', launchXR),
-      () => exitButton.removeEventListener('click', exitXR),
-      this.world.visibilityState.subscribe((visibilityState) => {
-        const is2D = visibilityState === VisibilityState.NonImmersive;
-        // In XR the plaque on the diorama carries the game state; no floating menu.
-        if (panel) {
-          panel.visible = is2D;
-          // Invisible objects still intersect rays; take it out of pointer hit-testing too.
-          (panel as typeof panel & { pointerEvents?: string }).pointerEvents = is2D ? 'auto' : 'none';
-        }
-        xrButton.setProperties({ display: is2D ? 'flex' : 'none' });
-        exitButton.setProperties({ display: is2D ? 'none' : 'flex' });
-      }),
+      () => navigator.xr?.removeEventListener('devicechange', onDeviceChange),
+      onTap(this.panel?.getElementById('xr-button'), this.launch),
+      bootScreen.onEnter(this.launch),
+      this.world.visibilityState.subscribe(() => this.render()),
     );
+    if (this.world.xrEnabled) void this.resolveMode();
+    else this.mode = null;
+    this.render();
+  }
+
+  /** A launch that ended without a session (IWSDK only logs a rejected requestSession) asks for a retry. */
+  update(): void {
+    if (!this.launching || this.world.sessionRequestPending) return;
+    this.launching = false;
+    this.launchFailed = this.world.session == null;
+    this.render();
+  }
+
+  /** Mixed reality when the runtime has passthrough, otherwise the VR study (Safari on visionOS only offers immersive-vr). */
+  private async resolveMode(): Promise<void> {
+    const run = ++this.resolution;
+    const ar = await isSupported(SessionMode.ImmersiveAR);
+    const vr = await isSupported(SessionMode.ImmersiveVR);
+    if (run !== this.resolution) return;
+    this.mode = resolveSessionMode({ ar, vr });
+    this.render();
+  }
+
+  private readonly launch = (): void => {
+    const mode = this.mode;
+    if (mode === null || mode === 'checking') return;
+    if (this.world.session != null || this.world.sessionRequestPending) return;
+    this.launching = true;
+    this.launchFailed = false;
+    this.world.launchXR({ sessionMode: mode === 'immersive-ar' ? SessionMode.ImmersiveAR : SessionMode.ImmersiveVR });
+    this.render();
+  };
+
+  private render(): void {
+    const view = entryView({ mode: this.mode, launchFailed: this.launchFailed });
+    const is2D = this.world.visibilityState.peek() === VisibilityState.NonImmersive;
+    bootScreen.showEntry(view, !is2D);
+    const panel = this.panel;
+    if (!panel) return;
+    panel.userData.entry = view;
+    // In XR the plaque on the diorama carries the game state; no floating card.
+    panel.visible = is2D;
+    // Invisible objects still intersect rays; take it out of pointer hit-testing too.
+    (panel as typeof panel & { pointerEvents?: string }).pointerEvents = is2D ? 'auto' : 'none';
+    panel.getElementById('xr-button')?.setProperties({ display: view.button && is2D ? 'flex' : 'none' });
+    // Never blank the note's text: a span emptied once may not lay out its next text.
+    const note = view.note ? { text: view.note, display: 'flex' as const } : { display: 'none' as const };
+    panel.getElementById<UIKit.Text>('xr-note')?.setProperties(note);
   }
 }

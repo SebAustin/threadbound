@@ -23,6 +23,7 @@ import { OnboardingSystem } from './features/onboarding/OnboardingSystem.js';
 import { HudSystem } from './features/hud/HudSystem.js';
 import { PauseSystem } from './features/pause/PauseSystem.js';
 import { PanelSystem } from './panel.js';
+import { bootScreen } from './features/entry/bootScreen.js';
 
 World.create(
   document.getElementById('scene-container') as HTMLDivElement,
@@ -46,6 +47,8 @@ World.create(
   world.registerSystem(AmbienceSystem);
   // Last: it pauses systems registered above.
   world.registerSystem(PauseSystem);
+  // The game is up: remove the loading cover so it can never sit over mouse play.
+  bootScreen.ready();
   if (import.meta.env.DEV) {
     // Dev-only tooling, imported dynamically so none of it reaches the production bundle.
     const [{ PerfProbeSystem }, { installTestHook }] = await Promise.all([
@@ -55,4 +58,8 @@ World.create(
     world.registerSystem(PerfProbeSystem);
     installTestHook(world);
   }
+}).catch((error: unknown) => {
+  // A rejected World.create, or an error while registering systems: say so on screen, not only here.
+  console.error('[Threadbound] the game failed to start', error);
+  bootScreen.fail(error);
 });

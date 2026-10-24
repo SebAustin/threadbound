@@ -1,5 +1,5 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta
@@ -8,9 +8,102 @@
     />
     <link rel="icon" href="data:," />
     <title>Threadbound</title>
+    <!--
+      The page shell (src/features/entry/bootScreen.ts): a walnut screen with a loading line
+      while the ~2.9 MB game loads, then only a pointer-transparent bar at the bottom centre
+      holding the DOM Enter XR fallback or a note. The palette is the plaque's (public/ui/hud.uikitml).
+      The button stays small and low: the ledge buttons sit just above it in the browser view.
+    -->
+    <style>
+      :root {
+        --walnut: #3d2f2a;
+        --cream: #f4ead8;
+        --brass: #8a6a3c;
+        --brass-lit: #f2c14e;
+        --brass-pressed: #d9a63a;
+        --parchment: #e3d3b4;
+        --bar-gap: 6px;
+      }
+      body {
+        margin: 0;
+        background: #3d2f2a;
+        color: #f4ead8;
+        font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      #boot-cover {
+        position: fixed;
+        inset: 0;
+        z-index: 10;
+        background: var(--walnut);
+      }
+      #entry-bar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: var(--bar-gap);
+        z-index: 11;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        pointer-events: none;
+      }
+      body.booting #entry-bar {
+        top: 0;
+        bottom: 0;
+        justify-content: center;
+      }
+      #boot {
+        margin: 0;
+        padding: 6px 14px;
+        border-radius: 8px;
+        background: var(--walnut);
+        color: var(--cream);
+        font-size: 14px;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+      }
+      body.booting #boot {
+        font-size: 18px;
+        background: none;
+      }
+      #enter-xr {
+        pointer-events: auto;
+        padding: 4px 14px;
+        border: 2px solid var(--brass);
+        border-radius: 8px;
+        background: var(--parchment);
+        color: var(--walnut);
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 2px 6px rgb(0 0 0 / 0.35);
+        transition: transform 120ms ease-out;
+      }
+      #enter-xr:hover {
+        background: var(--brass-lit);
+      }
+      #enter-xr:active {
+        background: var(--brass-pressed);
+        transform: translateY(1px);
+      }
+      #enter-xr:focus-visible {
+        outline: 3px solid var(--brass-lit);
+        outline-offset: 2px;
+      }
+    </style>
   </head>
-  <body style="margin: 0">
+  <body class="booting">
     <div id="scene-container"></div>
+    <div id="boot-cover"></div>
+    <div id="entry-bar">
+      <p id="boot" role="status">Loading Threadbound...</p>
+      <button id="enter-xr" type="button" hidden>Enter XR</button>
+    </div>
     <script type="module" src="/src/index.ts"></script>
   </body>
 </html>

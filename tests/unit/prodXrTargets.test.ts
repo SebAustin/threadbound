@@ -21,7 +21,6 @@ interface Point {
 interface ProdXrFixture {
   level: string;
   viewport: { width: number; height: number };
-  enterXr: { x: number; y: number };
   head: { position: Point; orientation: Point & { w: number } };
   knobs: Record<string, Point>;
   chute: Point;
@@ -65,12 +64,8 @@ describe('prod-xr fixture for level 1', () => {
     expect(Math.hypot(x, y, z, w)).toBeCloseTo(1, 6);
   });
 
-  test('the Enter XR point lies on the 1280x720 canvas', () => {
-    const { x, y } = fixture.enterXr;
-    expect(x).toBeGreaterThan(0);
-    expect(x).toBeLessThan(fixture.viewport.width);
-    expect(y).toBeGreaterThan(0);
-    expect(y).toBeLessThan(fixture.viewport.height);
+  test('carries no Enter XR point: prod-xr clicks the DOM #enter-xr, which needs no coordinates', () => {
+    expect(fixture).not.toHaveProperty('enterXr');
   });
 
   test('knobs a and b sit on the aim plane where the placed frame puts them', () => {

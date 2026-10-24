@@ -5,7 +5,10 @@
 // Control Active" pill, the blue edge glow, and the manual emulator controls IWER
 // swaps in 30 s after the last remote command. Hiding the host, not the pill, covers
 // all of them; the devui canvas beside it (the emulated hands) stays. A host on
-// <body> holds the "Enter XR" pill, hidden in browser-view shots.
+// <body> holds the "Enter XR" pill, hidden in browser-view shots, and so is the
+// game's own DOM Enter XR fallback (#enter-xr, bottom centre, week 8 ticket 08).
+// In XR the game hides #enter-xr itself, so the preflight leaves it alone there
+// and the visibility check still catches one that shows in a session.
 import { sleep } from './lib.mjs';
 import noOverlay from './no-overlay.e2e.mjs';
 import { settingsAtDefaults } from './reset-settings.e2e.mjs';
@@ -26,6 +29,11 @@ const hideChrome = () => {
     if (!label) continue;
     host.style.display = 'none';
     hid.push(label);
+  }
+  const enterXr = document.getElementById('enter-xr');
+  if (!inSession && enterXr && enterXr.style.display !== 'none' && !enterXr.hidden) {
+    enterXr.style.display = 'none';
+    hid.push('#enter-xr');
   }
   return hid;
 };

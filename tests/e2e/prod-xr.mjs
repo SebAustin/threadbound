@@ -2,9 +2,11 @@
 // server and no test hook (the hook is DEV-only, src/index.ts:49-57). Run after
 // `NODE_ENV=production npm run build` as `npm run test:e2e:prod-xr`, or against a deployed build with
 // SMOKE_URL=<url>. It composes ticket 03's harness (serve/inject/record) and verdict, and adds only:
-//   1. Enter XR as a judge would: a real mouse click on the welcome panel's Enter XR, which must start
-//      an immersive-ar session within 5 s. On a FAIL it enters through grantOfferedSession() instead,
-//      so the rest of the run still produces evidence.
+//   1. Enter XR as a judge would: a real mouse click on the page's DOM Enter XR (#enter-xr, week 8
+//      ticket 08), once it shows, which must start an immersive-ar session within 5 s. It needs no
+//      canvas coordinates; the welcome card's own Enter XR stays proven on the dev server by
+//      tests/e2e/enter-xr.sh. On a FAIL it enters through grantOfferedSession() instead, so the rest
+//      of the run still produces evidence.
 //   2. Level 1 by hand pinch only: pinch-pull knob a to knob b, then pinch the chute. Ports pinch_pull
 //      and pinch_at (tests/e2e/xr-lib.sh) to direct IWER calls, aimed at the world points in
 //      tests/e2e/fixtures/prod-xr-w1-01.json (tests/unit/prodXrTargets.test.ts keeps them current).
@@ -18,7 +20,7 @@ import { readFileSync } from 'node:fs';
 import { directionTo, lookRotation } from 'iwer/lib/utils/control-math.js';
 import { DEVICE_GLOBAL, inject, record, serve } from '../smoke/harness.mjs';
 import { verdict } from '../smoke/verdict.mjs';
-import { click, sleep } from './lib.mjs';
+import { sleep } from './lib.mjs';
 
 const SCRIPT = 'prod-xr';
 const FIXTURE = JSON.parse(readFileSync(new URL('./fixtures/prod-xr-w1-01.json', import.meta.url), 'utf8'));
@@ -28,6 +30,8 @@ const LOAD_TIMEOUT_MS = 60_000;
 /** IWSDK offers a session once the world and its first level are up: the app is ready for a click. */
 const READY_TIMEOUT_MS = 20_000;
 const SESSION_START_TIMEOUT_MS = 5_000;
+/** The game offers #enter-xr once it has resolved the session mode, right after it is up. */
+const ENTER_XR_TIMEOUT_MS = 10_000;
 /** PlacementSystem's table search (SEARCH_TIMEOUT_SECONDS, src/features/placement/PlacementSystem.ts:15), plus two evaluations. */
 const PLACEMENT_WAIT_MS = 3_000 + 500;
 /** A level-1 drop takes a few seconds of physics; the save is written when it completes. */
@@ -137,16 +141,26 @@ async function readyCheck(page) {
 const waitForSession = (page) =>
   pollUntil(() => page.evaluate(sessionStatus, DEVICE_GLOBAL), (s) => s.active, SESSION_START_TIMEOUT_MS);
 
+/** A real mouse click on #enter-xr once it shows; false when it never does. */
+async function clickEnterXr(page) {
+  const button = page.locator('#enter-xr');
+  try {
+    await button.waitFor({ state: 'visible', timeout: ENTER_XR_TIMEOUT_MS });
+  } catch {
+    return false;
+  }
+  await button.click();
+  return true;
+}
+
 /** The Enter XR click, then the fallback when it starts no immersive-ar session. */
 async function enterChecks(page) {
   await page.evaluate(seatPlayer, { g: DEVICE_GLOBAL, head: FIXTURE.head });
   await page.evaluate(twoFrames);
-  const box = await page.locator('canvas').first().boundingBox();
-  const at = [box.x + FIXTURE.enterXr.x, box.y + FIXTURE.enterXr.y];
-  await click(page, at);
-  const s = await waitForSession(page);
-  const entered = s.active && s.mode === 'immersive-ar';
-  const where = `canvas (${FIXTURE.enterXr.x}, ${FIXTURE.enterXr.y})`;
+  const shown = await clickEnterXr(page);
+  const s = shown ? await waitForSession(page) : await page.evaluate(sessionStatus, DEVICE_GLOBAL);
+  const entered = shown && s.active && s.mode === 'immersive-ar';
+  const where = shown ? '#enter-xr' : `#enter-xr never showed within ${ENTER_XR_TIMEOUT_MS / 1000} s`;
   const clickCheck = {
     name: 'the Enter XR click starts an immersive-ar session',
     pass: entered,
