@@ -25,6 +25,7 @@ export const REQUIRED_FILES = [
   { label: 'scenes/main.iwsdk.scene.json', pattern: /\/scenes\/main\.iwsdk\.scene\.json$/ },
   { label: 'ui/welcome.uikitml', pattern: /\/ui\/welcome\.uikitml$/ },
   { label: 'ui/hud.uikitml', pattern: /\/ui\/hud\.uikitml$/ },
+  { label: 'ui/ledge.uikitml', pattern: /\/ui\/ledge\.uikitml$/ },
   // Created at node_modules/@iwsdk/core/dist/physics/physics-transport.js:105.
   { label: 'the physics worker (physics-worker-*.js)', pattern: /\/physics-worker-[^/]+\.js$/ },
   { label: 'HavokPhysics-*.wasm', pattern: /\/HavokPhysics-[^/]+\.wasm$/ },

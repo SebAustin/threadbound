@@ -25,7 +25,7 @@ const HINTS: Readonly<Record<OnboardingStep, string>> = {
   done: '',
 };
 
-/** Plaque copy for the step (plain ASCII: the panel font has no typographic glyphs). */
+/** Ledge copy for the step (plain ASCII: the panel font has no typographic glyphs). */
 export function onboardingHint(step: OnboardingStep): string {
   return HINTS[step];
 }

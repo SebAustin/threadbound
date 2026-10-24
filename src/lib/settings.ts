@@ -4,21 +4,43 @@ import { loadJson, saveJson, type StorageLike } from './storage';
 
 const SETTINGS_KEY = 'threadbound.settings.v1';
 
-/** Comfortable adjustment range, in steps (see OFFSET_STEP). */
-const OFFSET_LIMITS = { up: [-6, 6], near: [-2, 3] } as const;
+/**
+ * Comfortable adjustment range, in steps (see OFFSET_STEP). Nearer stops at +2:
+ * one step more puts the diorama past a 70-degree view (tests/unit/viewExtent.test.ts).
+ */
+export const OFFSET_LIMITS = { up: [-6, 6], near: [-2, 2] } as const;
 
-const SettingsSchema = z.object({
-  /** Marbles fall and release more slowly; every solution stays valid. */
-  slowMotion: z.boolean(),
-  /** Player adjustment of the diorama's height and distance, in whole steps. */
-  offset: z
-    .object({
-      up: z.number().int().min(OFFSET_LIMITS.up[0]).max(OFFSET_LIMITS.up[1]),
-      near: z.number().int().min(OFFSET_LIMITS.near[0]).max(OFFSET_LIMITS.near[1]),
-    })
-    // Settings saved before offsets existed still load (keeping their other choices).
-    .default({ up: 0, near: 0 }),
-});
+type Limits = readonly [number, number];
+
+/** A whole number of steps within `limits`; anything else is refused. */
+const strictAxis = ([min, max]: Limits) => z.number().int().min(min).max(max);
+
+/**
+ * A saved number of steps, clamped to `limits`: Nearer once reached +3, and a
+ * refused save falls back whole (storage.ts), which would lose slow motion too.
+ */
+const savedAxis = ([min, max]: Limits) =>
+  z
+    .number()
+    .int()
+    .transform((steps) => Math.min(max, Math.max(min, steps)));
+
+/** The settings shape; `limit` decides what an offset outside the range does. */
+const settingsSchema = (limit: (limits: Limits) => z.ZodType<number>) =>
+  z.object({
+    /** Marbles fall and release more slowly; every solution stays valid. */
+    slowMotion: z.boolean(),
+    /** Player adjustment of the diorama's height and distance, in whole steps. */
+    offset: z
+      .object({ up: limit(OFFSET_LIMITS.up), near: limit(OFFSET_LIMITS.near) })
+      // Settings saved before offsets existed still load (keeping their other choices).
+      .default({ up: 0, near: 0 }),
+  });
+
+/** What a settings change must satisfy: an out-of-range offset is refused. */
+const SettingsSchema = settingsSchema(strictAxis);
+/** What a save must satisfy: an out-of-range offset loads clamped. */
+const SavedSettingsSchema = settingsSchema(savedAxis);
 
 export type Settings = Readonly<z.infer<typeof SettingsSchema>>;
 
@@ -45,7 +67,7 @@ export function applySettingsPatch(settings: Settings, patch: Partial<Settings>)
 }
 
 export function loadSettings(storage: StorageLike): Settings {
-  return loadJson(storage, SETTINGS_KEY, SettingsSchema, DEFAULT_SETTINGS, 'settings');
+  return loadJson(storage, SETTINGS_KEY, SavedSettingsSchema, DEFAULT_SETTINGS, 'settings');
 }
 
 export function saveSettings(storage: StorageLike, settings: Settings): void {

@@ -25,28 +25,28 @@
 
 **Blocked by:** 01; 02 (merge after its step-4 log push)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Unit: new tests/unit/viewExtent.test.ts, written first. `viewSpan` returns 0 for one point, 70 for points 35 degrees either side, and centres on a pitched view.
-- [ ] Unit: across all 24 levels, the level face and the other essential points fit 70 x 66:
+- [x] Unit: new tests/unit/viewExtent.test.ts, written first. `viewSpan` returns 0 for one point, 70 for points 35 degrees either side, and centres on a pitched view.
+- [x] Unit: across all 24 levels, the level face and the other essential points fit 70 x 66:
   - in the Quest pose at the default offset, Raise +6, Lower -6 and Farther -2;
   - in the study pose at the same four offsets;
   - at Nearer +2 (Quest pose), the vertical span is at most 66, and the plaque and strip lie inside the cups' and pegs' horizontal extent.
 
   The test notes why Nearer +2 is a partial check: the diorama alone is about 70 degrees wide in the Quest pose, and about 77 x 62 in the study pose.
-- [ ] Unit: with the settings face up, the face plus the ledge's settings button fit 70 x 66 in both poses, at the default offset, Raise +6, Lower -6 and Farther -2.
-- [ ] Unit: at every tested pose, the segment from the head to each cup's floor centre passes above the strip, so the strip never hides a cup.
-- [ ] Unit (gap 56): in the Quest pose at the default offset, every knob, chute mouth, ledge button and the plaque stars are within 0.61 m (estimate 0.60 m, set by the end buttons). The Farther -2 figure (estimate 0.66 m) goes in Comments for ticket 06 and week 9's copy pass. There is one `reachAt` in src/lib/placement.ts (ticket 07's): whichever of 07 and 12 lands second uses the other's helper, and this test calls it with `headRelativePlacement` (and `offsetOrigin` for Farther -2).
-- [ ] Unit: tests/unit/settings.test.ts:48: Nearer stops at +2, and a save with `near: 3` loads as 2 and keeps `slowMotion: true`. tests/unit/hud.test.ts: every hint string (`REFUSAL_HINTS`, onboarding steps, level hints, the ending, the daily line) is at most `LEDGE_HINT_MAX_CHARS` = 48, exported from src/lib/hud.ts. Ticket 07's no-table line and ticket 14's new lines join this test.
-- [ ] E2E: plaque.e2e.mjs: the plaque has no threads, spool or hint element. The strip reads "Threads 1/N" after a thread, sits on the ledge 12 mm away from Daily and Next, and follows the diorama onto a table (`place`, :36-42). spool.e2e.mjs reads the spool from `ledge()` as well.
-- [ ] E2E: settings.e2e.mjs measures the rendered faces with real clicks:
+- [x] Unit: with the settings face up, the face plus the ledge's settings button fit 70 x 66 in both poses, at the default offset, Raise +6, Lower -6 and Farther -2.
+- [x] Unit: at every tested pose, the segment from the head to each cup's floor centre passes above the strip, so the strip never hides a cup.
+- [x] Unit (gap 56): in the Quest pose at the default offset, every knob, chute mouth, ledge button and the plaque stars are within 0.61 m (estimate 0.60 m, set by the end buttons). The Farther -2 figure (estimate 0.66 m) goes in Comments for ticket 06 and week 9's copy pass. There is one `reachAt` in src/lib/placement.ts (ticket 07's): whichever of 07 and 12 lands second uses the other's helper, and this test calls it with `headRelativePlacement` (and `offsetOrigin` for Farther -2).
+- [x] Unit: tests/unit/settings.test.ts:48: Nearer stops at +2, and a save with `near: 3` loads as 2 and keeps `slowMotion: true`. tests/unit/hud.test.ts: every hint string (`REFUSAL_HINTS`, onboarding steps, level hints, the ending, the daily line) is at most `LEDGE_HINT_MAX_CHARS` = 48, exported from src/lib/hud.ts. Ticket 07's no-table line and ticket 14's new lines join this test.
+- [x] E2E: plaque.e2e.mjs: the plaque has no threads, spool or hint element. The strip reads "Threads 1/N" after a thread, sits on the ledge 12 mm away from Daily and Next, and follows the diorama onto a table (`place`, :36-42). spool.e2e.mjs reads the spool from `ledge()` as well.
+- [x] E2E: settings.e2e.mjs measures the rendered faces with real clicks:
   - every neighbouring settings control, in a row and between rows, is at least 12 mm apart edge to edge;
   - every control is at least 2.2 cm tall;
   - both faces stay within `HUD.maxWidth` and their `HUD.*MaxHeight`, so the unit test's inputs are true.
-- [ ] E2E: raise-lower.e2e.mjs: three Nearer clicks from 0 stop at +2. level-select.e2e.mjs passes with `set-next`. The full `npm run test:e2e` chain passes.
-- [ ] E2E: `npm run test:e2e:levels` and `test:e2e:levels:slow` pass with no draw-call breach (levels.e2e.mjs:36-51) now that the strip is drawn.
-- [ ] Check: UIKit layout inspection, as week 7 ticket 07 did: the 47-character onboarding hint (src/lib/onboarding.ts:22) wraps to at most two lines, and w4-05's count line with its spool fits on one. Put the numbers in Comments.
-- [ ] XR: xr-controls.sh pinches the settings button, then Nearer three times; `offset.near` is 2. On entering XR, `probe fresh` resets progress (earlier hand scripts have solved level 1, so onboarding would read 'done'), and the `ledge` field then shows level 1's onboarding hint and "Threads 0/2". A runtime `browser_screenshot` taken in the session goes in Comments. Whichever of 07 and 12 lands second adds the strip to 07's hidden set (until placed, and during every new search), and 07's xr-placement.sh asserts that the `ledge` field's `visible` is false until the diorama is placed.
+- [x] E2E: raise-lower.e2e.mjs: three Nearer clicks from 0 stop at +2. level-select.e2e.mjs passes with `set-next`. The full `npm run test:e2e` chain passes.
+- [x] E2E: `npm run test:e2e:levels` and `test:e2e:levels:slow` pass with no draw-call breach (levels.e2e.mjs:36-51) now that the strip is drawn.
+- [x] Check: UIKit layout inspection, as week 7 ticket 07 did: the 47-character onboarding hint (src/lib/onboarding.ts:22) wraps to at most two lines, and w4-05's count line with its spool fits on one. Put the numbers in Comments.
+- [x] XR: xr-controls.sh pinches the settings button, then Nearer three times; `offset.near` is 2. On entering XR, `probe fresh` resets progress (earlier hand scripts have solved level 1, so onboarding would read 'done'), and the `ledge` field then shows level 1's onboarding hint and "Threads 0/2". A runtime `browser_screenshot` taken in the session goes in Comments. Whichever of 07 and 12 lands second adds the strip to 07's hidden set (until placed, and during every new search), and 07's xr-placement.sh asserts that the `ledge` field's `visible` is false until the diorama is placed.
 
 **Effort:** M (~2 days)
 
@@ -66,3 +66,33 @@
 ## Comments
 
 - **Oct 23, from ticket 05's review: the video lines in Risks have moved, and `offset` is already probed.** spool is now shot-list.md:54 and script.md:28-31, daily is shot-list.md:56 and script.md:38-41, and settings is shot-list.md:57 and script.md:43-46. Ticket 05 added the `offset` entry to `PROBE_FIELDS` (tests/e2e/xr-probe.e2e.mjs:77), so this ticket adds only `nearToggle` and `ledge`.
+- **Oct 24, agent: landed locally on main (not pushed).** Ticket 07 hasn't landed, so 12 lands first: `reachAt(placement, head, level)` is new in src/lib/placement.ts:297 (with `frameToWorld` at :267), and 07 uses it. 07 also owns, as the ticket that lands second, adding the strip to its hidden set, xr-placement.sh's `ledge.visible` check, the `noTable` hint and its line in the length test.
+  - **What landed:** src/lib/viewExtent.ts (`viewSpan` :24, `essentialParts` :113, `essentialPoints` :127); src/lib/ledge.ts (`ledgeButtonX` :18, `ledgeStripPose` :34, which buildDiorama now uses for the button positions too); `HUD.maxWidth` / `levelFaceMaxHeight` / `settingsFaceMaxHeight` and `LEDGE_STRIP` (src/config/constants.ts:104-129); public/ui/ledge.uikitml, registered as `'ledge-strip'` in src/assets.ts, and scene node `ledge-strip` (no RayInteractable; `scene render-file` is valid and lists it in `visibleNodeIds`); src/features/hud/ledgeStrip.ts, placed by HudSystem `follow()` (:77) and filled from the unchanged `hudModel` (:130). `OFFSET_LIMITS.near` is [-2, 2], exported, and a save loads through a clamping schema while a settings patch is still refused past a limit (src/lib/settings.ts:11-43, :70). The settings button is three merged slider rails with knobs (src/features/diorama/buildDiorama.ts:242). `ledge()` and the sized `plaqueElement()` are at src/features/debug/testHook.ts:240-287; xr-probe has `fresh` (:19), `nearToggle` (:89) and `ledge` (:95).
+  - **Field of view (worst level, h x v degrees), with the level face / with the settings face:** Quest pose default 57.7 x 56.9 / 56.2 x 58.8; Raise +6 56.0 x 61.5 / 52.5 x 62.3; Lower -6 54.0 x 46.9 / 54.5 x 49.1; Farther -2 49.1 x 50.1 / 47.8 x 51.6; Nearer +2 69.4 x 65.4 (not asserted for the settings face). Study pose default 61.8 x 62.7 / 59.3 x 64.4; Raise +6 60.3 x 64.9 / 53.6 x 65.2; Lower -6 59.1 x 52.5 / 59.2 x 54.9; Farther -2 52.1 x 54.3 / 50.1 x 55.7; Nearer +2 75.5 x 73.5 (not asserted). The test states both Meta figures and the URL (tests/unit/viewExtent.test.ts:18-27).
+  - **Two readings to check (where the model differs from the ticket's quick numbers):**
+    - The p90 view (58 x 54) can't be met in the study pose because the playfield alone (cups, chutes and knobs) is 58.9 degrees wide there at the default offset. The cups alone are only 44-48 degrees across the display, not 59-64: the view is pitched down, which narrows them.
+    - "The plaque and strip lie inside the cups' and pegs' horizontal extent" at Nearer +2 is checked against the campaign's cups and pegs (x 0.01-0.49 m), the 48 cm spread that `HUD.maxWidth` is "inside". Per level it fails on the one-cup levels w1-05, w4-01 and w4-02, by up to 6 degrees past their own leftmost peg. One row of title, world label and stars can't be narrow enough for that (it needs about 30 cm).
+  - **"Show what passes before you cut a control":** with the whole settings-button cap down to the ledge, the study pose at Raise +6 is 53.9 x 66.6, so it fails by 0.6 degrees. A face 0.7 cm shorter would pass, but three 2.2 cm rows 12 mm apart plus the border need at least 9.4 cm. The test counts the button as its cap's top face, where it is pressed (the point xr-probe aims at), which gives 65.2. No control was cut. Say if the whole cap should count.
+  - **Reach (gap 56), Quest pose:** 0.599 m at the default offset (end buttons), so within 0.61. **Farther -2: 0.658 m**, for ticket 06 and week 9's copy pass. The plaque stars are bounded by the level face's top corners.
+  - **Layout as rendered (settings.e2e, `ui inspect`):**
+    - The level face is 44 x 5.2 cm.
+    - The settings face is 44 x 9.95 cm: three rows of controls 2.25 cm tall, 12.5 mm apart edge to edge (closest pair set-slow / set-contrast), and the widest row is 41.9 of 43.0 cm.
+    - The four placeholders are laid out with `visibility: hidden`, so the face is sized with them showing. A hidden element takes no hover: the mouse over hidden set-play-all left `hovered` false, and over set-next it was true.
+    - Ticket 14: the face fits "Play all (24)" (13 characters, this ticket's 14). "Play all melodies (N)" doesn't fit row 2. Ticket 15's "High contrast: Off" is the placeholder and fits.
+  - **Ledge check:**
+    - The strip is 22.2 x 4.5 cm, 12.0 mm from the Daily and Next caps, its bottom edge at frame z 0.080 and lean 0.35 rad.
+    - The 47-character onboarding hint lays out 20.3 x 2.64 cm: two lines of 1.32 cm at 1.1 cm type.
+    - w4-05's count line is "Threads 0/2 - par 2" (10.23 cm) plus "Spool 44/44 cm" (8.5 cm) in a 20.3 cm row, both 1.32 cm tall at the same height: one line. "Threads 2/3 - par 2" after ticket 13 has the same character count.
+  - **XR screenshot:** `browser_screenshot` in the emulated AR session after `probe fresh`, head tilted to the ledge: .scratch/week8/fov-ledge/xr-session-ledge.jpg. It shows the one-row plaque, the slider icon and the strip reading the onboarding hint over "Threads 0/2 - par 1".
+  - **Regression on the final tree (logs in .scratch/week8/logs/ticket12-*.log, gitignored):**
+    - `npm run typecheck` exit 0. `npm test`: 39 files, 437 tests passed (viewExtent 34).
+    - `npm run test:e2e` exit 0: 26 scripts, 159 PASS, 0 FAIL.
+    - `test:e2e:levels` 24/24 and `:slow` 24/24, with no draw-call breach. The busiest flat-view level is w2-06 at 57 calls (the strip adds 2).
+    - `test:e2e:hands` exit 0: 6 scripts, 30 PASS. xr-controls passes 11/11, including the fresh-save ledge check and three Nearer pinches stopping at `{"up": 0, "near": 2}`. The XR busiest frame is 114 calls over 2 views, so 57 per view: README.md:70 and docs/submission.md:111 now say 57. gaze-pinch left iwsdk.config.json unchanged.
+    - `NODE_ENV=production npm run build` exit 0, then `npm run test:smoke` exit 0 with 19 PASS. tests/smoke/verdict.mjs now requires ui/ledge.uikitml (test first in tests/unit/smokeVerdict.test.ts). `npm run test:e2e:prod-xr` passes 15/15 locally.
+  - **Words:**
+    - "Thread budget" is gone from hud.uikitml, HudSystem, src/lib/hud.ts, plaque.e2e and the hud unit test name.
+    - The `buttonInset` comment now says reach was measured in the study pose.
+    - The refusal copy now says "the ledge" (README.md:45, docs/submission.md:112, :128-129).
+    - Test labels name the settings button (settings.e2e, xr-controls.sh), and hint checks say "ledge".
+    - docs/video/* is untouched (ticket 05).

@@ -8,19 +8,21 @@ import { currentStreak } from '../../lib/daily';
 import { dailyStarsOn } from '../../lib/progress';
 import { LEVELS } from '../../levels';
 import { puzzleStore, type PuzzleState } from '../puzzle/puzzleStore';
+import type { PlaqueFace } from '../../lib/viewExtent';
+import { LedgeStrip } from './ledgeStrip';
 import { SettingsFace } from './settingsFace';
 import { onTap } from '../input/onTap';
-
-export type PlaqueFace = 'level' | 'settings';
 
 const STAR_IDS = ['hud-star-1', 'hud-star-2', 'hud-star-3'] as const;
 
 /**
- * The plaque standing on top of the diorama: level title, place in the world,
- * best stars and thread budget. It follows the diorama wherever it is placed.
+ * The plaque standing on top of the diorama (level title, place in the world,
+ * best stars) and the strip on its ledge (the hint line, and the threads placed
+ * against the thread limit). Both follow the diorama wherever it is placed.
  */
 export class HudSystem extends createSystem({}) {
   private panel: UIKitMLAsset | undefined;
+  private ledge: LedgeStrip | undefined;
   private settingsFace: SettingsFace | undefined;
   private face: PlaqueFace = 'level';
   /**
@@ -32,6 +34,8 @@ export class HudSystem extends createSystem({}) {
   init(): void {
     this.panel = this.world.getSceneObject<UIKitMLAsset>('hud-plaque');
     if (!this.panel) return;
+    const strip = this.world.getSceneObject<UIKitMLAsset>('ledge-strip');
+    this.ledge = strip && new LedgeStrip(strip);
     // Grow upward from a fixed bottom edge, so a taller face never covers the playfield.
     this.panel.getElementById('plaque')?.setProperties({ anchorY: 'bottom' });
     this.settingsFace = new SettingsFace(this.panel);
@@ -63,13 +67,14 @@ export class HudSystem extends createSystem({}) {
     panel.getElementById('settings-face')?.setProperties({ display: face === 'settings' ? 'flex' : 'none' });
   }
 
-  /** Standing on the back panel's top edge, facing the player like the diorama does. */
+  /** The plaque stands on the back panel's top edge, facing the player like the diorama does; the strip lies on the ledge. */
   private follow(): void {
     const frame = puzzleStore.frame;
     const level = puzzleStore.get().level;
     if (!this.panel || !frame || !level) return;
     frame.localToWorld(level.size[0] / 2, level.size[1] + HUD.lift, HUD.depth, this.panel.position);
     this.panel.quaternion.copy(frame.anchor.quaternion);
+    this.ledge?.place(frame, level.size[0]);
   }
 
   private render(state: PuzzleState): void {
@@ -110,7 +115,7 @@ export class HudSystem extends createSystem({}) {
       last.progress !== state.progress ||
       last.daily !== state.daily ||
       last.refusal !== state.refusal ||
-      // Sliding a rail peg changes thread lengths, which only the spool readout shows.
+      // Sliding a rail peg changes thread lengths, which only the ledge's spool readout shows.
       (state.level?.spool !== undefined && last.pegPositions !== state.pegPositions)
     );
   }
@@ -122,11 +127,7 @@ export class HudSystem extends createSystem({}) {
     const text = (id: string, value: string) => panel.getElementById<UIKit.Text>(id)?.setProperties({ text: value });
     text('hud-title', hud.title);
     text('hud-world', hud.worldLabel);
-    text('hud-threads', hud.threadsLabel);
-    text('hud-spool', hud.spoolLabel);
-    panel.getElementById('hud-spool')?.setProperties({ display: hud.spoolLabel ? 'flex' : 'none' });
-    text('hud-hint', hud.hint);
-    panel.getElementById('hud-hint')?.setProperties({ display: hud.hint ? 'flex' : 'none' });
+    this.ledge?.render(hud);
     panel
       .getElementById('hud-header')
       ?.setProperties({ backgroundColor: hud.status === 'solved' ? HUD.solvedColor : HUD.playingColor });

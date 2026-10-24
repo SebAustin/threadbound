@@ -1,3 +1,6 @@
+import { AIM_PLANE_Z, CHUTE, CONTROLS, HUD } from '../config/constants';
+import { LEDGE_BUTTON_Z, LEDGE_BUTTONS, ledgeButtonX } from './ledge';
+import type { Level } from './levelSchema';
 import type { Vec3 } from './vec';
 
 /** A detected plane's own frame: its pose and its polygon's bounds in plane space. */
@@ -255,4 +258,48 @@ export interface DioramaOffset {
 export function offsetOrigin(origin: Vec3, yaw: number, offset: DioramaOffset): Vec3 {
   const near = offset.near * OFFSET_STEP.near;
   return [origin[0] + near * Math.sin(yaw), origin[1] + offset.up * OFFSET_STEP.up, origin[2] + near * Math.cos(yaw)];
+}
+
+/**
+ * World position of a frame-local point (x right, y up, z toward the player) for
+ * a frame at `origin` turned by `yaw`: what DioramaFrame.localToWorld does.
+ */
+export function frameToWorld(origin: Vec3, yaw: number, local: Vec3): Vec3 {
+  const c = Math.cos(yaw);
+  const s = Math.sin(yaw);
+  return [origin[0] + local[0] * c + local[2] * s, origin[1] + local[1], origin[2] - local[0] * s + local[2] * c];
+}
+
+/** The parts of a level that reach depends on. */
+export type ReachLevel = Pick<Level, 'size' | 'pegs' | 'chutes'>;
+
+/**
+ * Frame-local points a player touches: each peg's knob, each chute's funnel
+ * centre, the top of each ledge button's cap, and the plaque's stars. The stars
+ * sit in the level face, so its two top corners stand in for them: a bound.
+ */
+function touchedPoints(level: ReachLevel): Vec3[] {
+  const [w, h] = level.size;
+  const plaqueTop = h + HUD.lift + HUD.levelFaceMaxHeight;
+  return [
+    ...level.pegs.map((p): Vec3 => [p.x, p.y, AIM_PLANE_Z]),
+    ...level.chutes.map((c): Vec3 => [c.x, c.y + CHUTE.lift, 0]),
+    ...LEDGE_BUTTONS.map((b): Vec3 => [ledgeButtonX(b, w), CONTROLS.buttonHeight, LEDGE_BUTTON_Z]),
+    [w / 2 - HUD.maxWidth / 2, plaqueTop, HUD.depth],
+    [w / 2 + HUD.maxWidth / 2, plaqueTop, HUD.depth],
+  ];
+}
+
+/**
+ * How far the head must reach (meters) for the farthest thing a player touches
+ * on a level placed at `placement`: knobs, chutes, ledge buttons, plaque stars.
+ */
+export function reachAt(placement: Placement, head: Vec3, level: ReachLevel): number {
+  const origin = originFromCenter(placement.center, placement.yaw, level.size[0]);
+  let farthest = 0;
+  for (const local of touchedPoints(level)) {
+    const [x, y, z] = frameToWorld(origin, placement.yaw, local);
+    farthest = Math.max(farthest, Math.hypot(x - head[0], y - head[1], z - head[2]));
+  }
+  return farthest;
 }

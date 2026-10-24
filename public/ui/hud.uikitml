@@ -1,16 +1,19 @@
 <!--
-  Diorama plaque: level title, place in the world, best stars, thread budget.
-  Sized in centimetres (scale 1): about 30 cm wide above a 50 cm diorama.
-  HudSystem fills every #id below from the puzzle state.
+  Diorama plaque: level title, place in the world and best stars on its level
+  face; the settings on its other face. The hint line and the thread count live
+  on the ledge strip (ledge.uikitml). Sized in centimetres (scale 1): 44 cm wide
+  above a 50 cm diorama. Both faces stay within HUD.maxWidth and their
+  HUD.*MaxHeight (src/config/constants.ts), which settings.e2e measures.
+  HudSystem and SettingsFace fill every #id below from the puzzle state.
 -->
 <style>
   .plaque {
     flex-direction: column;
-    width: 30;
+    width: 44;
     border-radius: 1.4;
     background-color: #f4ead8;
     border-color: #8a6a3c;
-    border-width: 0.25;
+    border-width: 0.2;
   }
 
   .header {
@@ -20,15 +23,27 @@
     padding-top: 1;
     padding-bottom: 1;
     padding-left: 1.6;
-    padding-right: 1.6;
+    padding-right: 1.2;
     border-radius: 1.2;
     background-color: #3d2f2a;
+  }
+
+  .name {
+    flex-direction: row;
+    align-items: center;
+    gap: 1.6;
   }
 
   .title {
     font-size: 2.2;
     font-weight: 700;
     color: #fbf3e4;
+  }
+
+  .world {
+    font-size: 1.4;
+    font-weight: 500;
+    color: #e3d3b4;
   }
 
   .stars {
@@ -46,144 +61,114 @@
     background-color: #3d2f2a;
   }
 
-  .details {
-    flex-direction: row;
-    justify-content: space-between;
-    padding-top: 0.8;
-    padding-bottom: 1;
-    padding-left: 1.6;
-    padding-right: 1.6;
-  }
-
-  .hint {
-    display: none;
-    padding-bottom: 1;
-    padding-left: 1.6;
-    padding-right: 1.6;
-    font-size: 1.5;
-    font-weight: 700;
-    color: #8a4b12;
-  }
-
-  .spool {
-    display: none;
-    padding-bottom: 0.8;
-    padding-left: 1.6;
-    font-size: 1.4;
-    font-weight: 700;
-    color: #3d2f2a;
-  }
-
   .face {
     flex-direction: column;
   }
 
   .settings-face {
     display: none;
-    padding-bottom: 1;
+    gap: 1.25;
+    padding-top: 0.15;
+    padding-bottom: 0.15;
+    padding-left: 0.3;
+    padding-right: 0.3;
+  }
+
+  .row {
+    flex-direction: row;
+    align-items: center;
+    gap: 1.25;
+    height: 2.25;
+  }
+
+  .face-title {
+    flex-shrink: 0;
+    font-size: 1.3;
+    font-weight: 700;
+    color: #3d2f2a;
   }
 
   .toggle {
-    margin-top: 0.8;
-    margin-left: 1.6;
-    margin-right: 1.6;
-    padding-top: 0.8;
-    padding-bottom: 0.8;
-    padding-left: 1.2;
-    padding-right: 1.2;
-    border-radius: 0.8;
+    height: 2.25;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    padding-left: 0.45;
+    padding-right: 0.45;
+    border-radius: 0.6;
     background-color: #e3d3b4;
     border-color: #8a6a3c;
     border-width: 0.2;
-    font-size: 1.5;
+    font-size: 1.1;
     font-weight: 700;
     color: #3d2f2a;
     cursor: pointer;
   }
 
-  .pair {
-    flex-direction: row;
-    gap: 0.8;
-    margin-left: 1.6;
-    margin-right: 1.6;
-  }
-
-  .half {
-    flex-grow: 1;
-    margin-left: 0;
-    margin-right: 0;
-  }
-
-  .compact {
-    font-size: 1.3;
-  }
-
-  .quarter {
-    flex-grow: 1;
-    margin-left: 0;
-    margin-right: 0;
-    padding-left: 0.5;
-    padding-right: 0.5;
-    font-size: 1.3;
-  }
-
   .readout {
-    margin-top: 0.8;
-    padding-left: 1.6;
-    font-size: 1.4;
+    flex-shrink: 0;
+    font-size: 1.1;
     font-weight: 700;
     color: #3d2f2a;
+  }
+
+  .wide {
+    flex-grow: 1;
+  }
+
+  .placeholder {
+    visibility: hidden;
   }
 
   .toggle:hover {
     background-color: #f2c14e;
   }
-
-  .detail {
-    font-size: 1.4;
-    font-weight: 500;
-    color: #3d2f2a;
-  }
 </style>
 <div id="plaque" class="plaque">
   <div id="level-face" class="face">
-  <div id="hud-header" class="header">
-    <span id="hud-title" class="title">Threadbound</span>
-    <!-- Poke or pinch the stars to replay the level's melody; the padding makes a bigger target. -->
-    <div id="hud-stars" class="stars">
-      <div id="hud-star-1" class="star"></div>
-      <div id="hud-star-2" class="star"></div>
-      <div id="hud-star-3" class="star"></div>
+    <!-- One row: title and world label on the left, stars on the right. -->
+    <div id="hud-header" class="header">
+      <div class="name">
+        <span id="hud-title" class="title">Threadbound</span>
+        <span id="hud-world" class="world">World 1 - 1/6</span>
+      </div>
+      <!-- Pinch the stars to replay the level's melody; the padding makes a bigger target. -->
+      <div id="hud-stars" class="stars">
+        <div id="hud-star-1" class="star"></div>
+        <div id="hud-star-2" class="star"></div>
+        <div id="hud-star-3" class="star"></div>
+      </div>
     </div>
   </div>
-  <div class="details">
-    <span id="hud-world" class="detail">World 1 - 1/6</span>
-    <span id="hud-threads" class="detail">Threads 0/2 - par 1</span>
-  </div>
-  <span id="hud-spool" class="spool">Spool</span>
-  <!-- Spans need initial text: UIKit only lays out text that exists at parse time. -->
-  <span id="hud-hint" class="hint">Hint</span>
-  </div>
+  <!--
+    Three rows of controls, each 22.5 mm tall and 12.5 mm from its neighbours,
+    edge to edge (Meta's hands guidelines: 22 mm targets, 12 mm apart), so the
+    face stays under 10 cm. The four .placeholder controls are laid out but
+    hidden until tickets 13, 14 and 15 fill them: show them with visibility,
+    not display, so nothing moves. Spans need initial text: UIKit only lays out
+    text that exists at parse time.
+  -->
   <div id="settings-face" class="face settings-face">
-    <div class="header">
-      <span class="title">Settings</span>
+    <div class="row">
+      <span id="settings-title" class="face-title">Settings</span>
+      <span id="set-slow" class="toggle">Slow-mo: Off</span>
+      <span id="set-contrast" class="toggle placeholder">High contrast: Off</span>
+      <span id="set-reset" class="toggle">Reset progress</span>
     </div>
-    <!-- Wide, not tall: keeps every control low enough to reach below heart level. -->
-    <div class="pair">
-      <span id="set-slow" class="toggle half compact">Slow-mo: Off</span>
-      <span id="set-reset" class="toggle half compact">Reset progress</span>
+    <div class="row">
+      <span id="set-prev" class="toggle">Prev</span>
+      <span id="set-level" class="readout">Level 24 of 24</span>
+      <span id="set-next" class="toggle">Next</span>
+      <span id="set-skip" class="toggle placeholder">Skip level</span>
+      <span id="set-stars" class="readout placeholder">Stars 72/72</span>
+      <span id="set-play-all" class="toggle placeholder">Play all (24)</span>
     </div>
-    <span id="set-offset" class="readout">Height 0   Distance 0</span>
-    <div class="pair">
-      <span id="set-prev" class="toggle quarter">Prev</span>
-      <span id="set-level" class="readout half">Level 1 of 24</span>
-      <span id="set-skip" class="toggle quarter">Next</span>
-    </div>
-    <div class="pair">
-      <span id="set-up" class="toggle quarter">Raise</span>
-      <span id="set-down" class="toggle quarter">Lower</span>
-      <span id="set-near" class="toggle quarter">Nearer</span>
-      <span id="set-far" class="toggle quarter">Farther</span>
+    <div class="row">
+      <span id="set-offset" class="readout">Height +6   Distance -2</span>
+      <span id="set-up" class="toggle">Raise</span>
+      <span id="set-down" class="toggle">Lower</span>
+      <span id="set-near" class="toggle">Nearer</span>
+      <span id="set-far" class="toggle">Farther</span>
     </div>
   </div>
 </div>

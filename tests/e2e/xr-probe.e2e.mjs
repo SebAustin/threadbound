@@ -1,7 +1,8 @@
 // Helper for the XR shell tests: world positions of everything a hand can pinch,
 // plus puzzle state. Optional SETUP env names one of SETUP_MODES: 'load0' (level 1,
-// fresh), 'thread' (add a->b), 'busiest' (Three Cups with every marble in flight) or
-// 'solve' (solve and drop the current level, then wait out its melody). An empty
+// fresh), 'fresh' (reset progress, so level 1 teaches again), 'thread' (add a->b),
+// 'busiest' (Three Cups with every marble in flight) or 'solve' (solve and drop the
+// current level, then wait out its melody). An empty
 // SETUP runs no setup; an unknown one throws with its name.
 // To add a mode or a field, add a table entry and leave run() alone. Page functions
 // run inside the app frame, so each must be self-contained (see tests/e2e/lib.mjs:2).
@@ -13,6 +14,17 @@ const SETTLE_MS = 300;
 /** One page function per SETUP mode. */
 const SETUP_MODES = {
   load0: () => window.__threadbound.dispatch({ type: 'load', index: 0 }),
+  // Progress reset, waiting until it lands (tests/e2e/lib.mjs's freshSave): earlier hand
+  // scripts solved level 1, so without this its onboarding would read 'done'.
+  fresh: async () => {
+    const hook = window.__threadbound;
+    hook.dispatch({ type: 'resetProgress' });
+    const landed = () => {
+      const s = hook.state();
+      return s.levelIndex === 0 && Object.keys(s.progress.best).length === 0 && s.threads.length === 0;
+    };
+    for (let t = 0; t < 3000 && !landed(); t += 100) await new Promise((r) => setTimeout(r, 100));
+  },
   thread: () => window.__threadbound.dispatch({ type: 'addThread', from: 'a', to: 'b' }),
   // The heaviest frame in the campaign: Three Cups, solution hung, every marble in flight.
   busiest: async () => {
@@ -74,10 +86,13 @@ const PROBE_FIELDS = [
   ['slowToggle', () => window.__threadbound.plaqueElement('set-slow')?.world],
   ['slowMotion', () => window.__threadbound.state().settings.slowMotion],
   ['raiseToggle', () => window.__threadbound.plaqueElement('set-up')?.world],
+  ['nearToggle', () => window.__threadbound.plaqueElement('set-near')?.world],
   ['offset', () => window.__threadbound.state().settings.offset],
   // The plaque's details row: the world and place, or the daily and its streak.
   ['worldLabel', () => window.__threadbound.hud()?.model?.worldLabel],
   ['stars', () => window.__threadbound.plaqueElement('hud-stars')?.world],
+  // The ledge strip: its pose on the ledge, what it shows (hint, threads, spool) and whether it is drawn.
+  ['ledge', () => window.__threadbound.ledge()],
   ['placement', () => window.__threadbound.placement()],
   ['audio', () => window.__threadbound.audio()],
   ['frame', () => window.__threadbound.frameStats()],

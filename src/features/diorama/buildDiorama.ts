@@ -23,6 +23,7 @@ import { AIM_PLANE_Z, CHUTE, CONTROLS, DIORAMA, FRICTION, GLYPH, GOAL, PEG, SLID
 import type { SortingColor } from '../../lib/marbleColors';
 import type { Chute as ChuteSpec, Level } from '../../lib/levelSchema';
 import { handleOffset, type Rail } from '../../lib/rail';
+import { LEDGE_BUTTON_Z, ledgeButtonX } from '../../lib/ledge';
 import { Chute, ControlActions, ControlButton, Peg, SliderHandle, type ControlAction } from '../puzzle/components';
 import type { DioramaFrame } from './dioramaFrame';
 import { GEOMETRIES, glyphMesh, goalMaterial, MATERIALS, marbleMaterial } from './palette';
@@ -200,6 +201,21 @@ const SUN = {
   rayLength: 0.2,
   rayWidth: 0.08,
 } as const;
+/** Settings icon proportions (three slider rails, each with its knob), as fractions of the cap radius. */
+const SLIDERS = {
+  /** Each rail's z, and its knob's x along it. */
+  rails: [
+    [-0.32, -0.22],
+    [0, 0.2],
+    [0.32, -0.05],
+  ],
+  railLength: 0.9,
+  railWidth: 0.09,
+  thickness: 0.12,
+  knobRadius: 0.13,
+  knobHeight: 0.24,
+  knobSegments: 10,
+} as const;
 /** Cap icons lean about 30 degrees toward the player. */
 const ICON_TILT = 0.52;
 /** Raised by this fraction of the cap radius, so the tilted icon's back edge clears the cap. */
@@ -222,6 +238,16 @@ function sunGeometry(r: number): BufferGeometry {
   return mergeParts([{ geometry: disc }, ...rays]);
 }
 
+/** Settings: three slider rails with their knobs at different stops, merged into one draw call. */
+function slidersGeometry(r: number): BufferGeometry {
+  const { railLength, railWidth, thickness, knobRadius, knobHeight, knobSegments } = SLIDERS;
+  const parts: GeometryPart[] = SLIDERS.rails.flatMap(([z, knobX]): GeometryPart[] => [
+    { geometry: new BoxGeometry(r * railLength, r * thickness, r * railWidth), at: [0, 0, r * z] },
+    { geometry: new CylinderGeometry(r * knobRadius, r * knobRadius, r * knobHeight, knobSegments), at: [r * knobX, 0, r * z] },
+  ]);
+  return mergeParts(parts);
+}
+
 /** Walnut icon on each ledge button's cap, lying flat and readable from above. */
 const BUTTON_ICONS: Readonly<Record<ControlAction, (r: number) => Mesh>> = {
   next: (r) => {
@@ -235,12 +261,8 @@ const BUTTON_ICONS: Readonly<Record<ControlAction, (r: number) => Mesh>> = {
     return loop;
   },
   daily: (r) => new Mesh(sunGeometry(r), MATERIALS.walnut),
-  settings: (r) => {
-    // A hexagonal nut reads as "settings" without text.
-    const nut = new Mesh(new TorusGeometry(r * 0.42, r * 0.16, 6, 6), MATERIALS.walnut);
-    nut.rotation.x = -Math.PI / 2;
-    return nut;
-  },
+  // Three sliders read as "settings" without text.
+  settings: (r) => new Mesh(slidersGeometry(r), MATERIALS.walnut),
 };
 
 /** Pokeable (near) and pinchable (ray) button resting on the front ledge. */
@@ -250,8 +272,7 @@ function buildButton(
   x: number,
   action: ControlAction,
 ): Entity {
-  const { buttonRadius: r, buttonHeight: h, ledgeDepth } = CONTROLS;
-  const z = DIORAMA.channelHalfDepth + DIORAMA.slab + ledgeDepth / 2;
+  const { buttonRadius: r, buttonHeight: h } = CONTROLS;
   const group = new Group();
   group.name = `button-${action}`;
   const cap = new Mesh(new CylinderGeometry(r, r, h, 24), action === 'next' ? MATERIALS.goal : MATERIALS.cream);
@@ -262,7 +283,7 @@ function buildButton(
   iconMount.position.y = h + r * ICON_LIFT;
   iconMount.add(BUTTON_ICONS[action](r));
   group.add(cap, iconMount);
-  const entity = place(world, frame, group, [x, 0, z]);
+  const entity = place(world, frame, group, [x, 0, LEDGE_BUTTON_Z]);
   entity.addComponent(ControlButton, { action });
   entity.addComponent(RayInteractable);
   entity.addComponent(PokeInteractable);
@@ -307,8 +328,8 @@ function buildRail(world: World, frame: DioramaFrame, peg: Level['pegs'][number]
 
 export function buildDiorama(world: World, frame: DioramaFrame, level: Level): BuiltDiorama {
   const goals = level.goals.map((g) => buildGoal(world, frame, g));
-  const inset = CONTROLS.buttonInset;
-  const nextButton = buildButton(world, frame, level.size[0] - inset, ControlActions.Next);
+  const [w] = level.size;
+  const nextButton = buildButton(world, frame, ledgeButtonX('next', w), ControlActions.Next);
   return {
     entities: [
       buildContactShadow(world, frame, level),
@@ -319,9 +340,9 @@ export function buildDiorama(world: World, frame: DioramaFrame, level: Level): B
       ...goals.flatMap((g) => g.entities),
       ...level.chutes.map((c, i) => buildChute(world, frame, c, i)),
       ...buildLedge(world, frame, level),
-      buildButton(world, frame, inset, ControlActions.Restart),
-      buildButton(world, frame, inset + CONTROLS.buttonSpacing, ControlActions.Settings),
-      buildButton(world, frame, inset + 2 * CONTROLS.buttonSpacing, ControlActions.Daily),
+      buildButton(world, frame, ledgeButtonX('restart', w), ControlActions.Restart),
+      buildButton(world, frame, ledgeButtonX('settings', w), ControlActions.Settings),
+      buildButton(world, frame, ledgeButtonX('daily', w), ControlActions.Daily),
       nextButton,
     ],
     goals: goals.map((g) => g.range),

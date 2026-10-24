@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'vitest';
-import { hudModel, settingsModel } from '../../src/lib/hud';
+import { LEVELS } from '../../src/levels';
+import { hudModel, LEDGE_HINT_MAX_CHARS, REFUSAL_HINTS, settingsModel } from '../../src/lib/hud';
+import { onboardingHint, type OnboardingStep } from '../../src/lib/onboarding';
 
 const levels = [{ world: 1 }, { world: 1 }, { world: 2 }, { world: 2 }, { world: 2 }];
 const base = {
@@ -21,7 +23,7 @@ describe('hudModel: what the diorama plaque says', () => {
     expect(hud.worldLabel).toBe('World 2 - 2/3');
   });
 
-  test('shows the thread budget against par', () => {
+  test('shows the threads placed against the thread limit, and par', () => {
     expect(hudModel(base).threadsLabel).toBe('Threads 1/3 - par 2');
   });
 
@@ -94,5 +96,23 @@ describe('hint line: teaching each new mechanic, and an ending', () => {
     expect(hudModel({ ...base, levels: campaign, levelIndex: 23, campaignComplete: true }).hint).toBe(
       'All 24 solved - poke the sun for a daily',
     );
+  });
+});
+
+describe('hint line: every hint fits the ledge strip', () => {
+  const STEPS: readonly OnboardingStep[] = ['pinch-pull', 'drop', 'watch', 'done'];
+  const campaign = LEVELS.map((l) => ({ world: l.world }));
+  const hints: readonly [string, string][] = [
+    ...Object.entries(REFUSAL_HINTS).map(([reason, hint]): [string, string] => [`refusal ${reason}`, hint]),
+    ...STEPS.map((step): [string, string] => [`onboarding ${step}`, onboardingHint(step)]),
+    ...LEVELS.filter((l) => l.hint).map((l): [string, string] => [`level ${l.id}`, l.hint ?? '']),
+    ['the ending', hudModel({ ...base, levels: campaign, levelIndex: campaign.length - 1, campaignComplete: true }).hint],
+    ['the daily line', hudModel({ ...base, daily: { streak: 999 } }).hint],
+  ];
+
+  test.each(hints)('%s is at most LEDGE_HINT_MAX_CHARS (48) characters, in plain ASCII', (_name, hint) => {
+    expect(LEDGE_HINT_MAX_CHARS).toBe(48);
+    expect(hint.length).toBeLessThanOrEqual(LEDGE_HINT_MAX_CHARS);
+    expect(hint).toMatch(/^[\x20-\x7E]*$/);
   });
 });

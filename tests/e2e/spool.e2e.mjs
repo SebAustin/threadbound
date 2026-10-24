@@ -1,37 +1,47 @@
 // E2E (seam 2): World 4's spool refuses an overspending thread or slide, the
-// plaque says why, and it tracks what is left as threads are added and snipped.
+// ledge says why, and it tracks what is left as threads are added and snipped.
 import { checks, loadLevel, waitFor } from './lib.mjs';
 
-const plaque = () => window.__threadbound.hud()?.model?.spoolLabel;
+/** The spool readout as the model has it and as the ledge strip shows it, when they agree. */
+const spool = () => {
+  const model = window.__threadbound.hud()?.model?.spoolLabel;
+  return model === window.__threadbound.ledge()?.text.spool ? model : `model ${model} vs ledge ${window.__threadbound.ledge()?.text.spool}`;
+};
+/** The hint line, likewise. */
+const hint = () => {
+  const model = window.__threadbound.hud()?.model?.hint;
+  return model === window.__threadbound.ledge()?.text.hint ? model : `model ${model} vs ledge ${window.__threadbound.ledge()?.text.hint}`;
+};
 const threadCount = () => window.__threadbound.state().threads.length;
-const hint = () => window.__threadbound.hud()?.model?.hint;
 const pegB = () => window.__threadbound.state().pegPositions.b;
 /** No refusal is held, and the hint line is back to the level's own hint (or empty without one). */
 const refusalCleared = () => {
   const s = window.__threadbound.state();
-  return s.refusal === null && window.__threadbound.hud()?.model?.hint === (s.level.hint ?? '');
+  const shown = window.__threadbound.ledge()?.text.hint;
+  return s.refusal === null && window.__threadbound.hud()?.model?.hint === (s.level.hint ?? '') && shown === (s.level.hint ?? '');
 };
 
 export default async function run({ page, frame }) {
   const app = frame ?? page.mainFrame();
   const { results, check } = checks();
   await loadLevel(app, 'w4-01');
-  check('the plaque shows a full spool', (await app.evaluate(plaque)) === 'Spool 12/12 cm', await app.evaluate(plaque));
+  const full = await waitFor(app, () => window.__threadbound.ledge()?.text.spool === 'Spool 12/12 cm', 2000);
+  check('the ledge shows a full spool', full && (await app.evaluate(spool)) === 'Spool 12/12 cm', await app.evaluate(spool));
 
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'addThread', from: 'c', to: 'd' }));
   check('a thread longer than the spool is refused', (await app.evaluate(threadCount)) === 0);
-  const told = await waitFor(app, () => window.__threadbound.hud()?.model?.hint === 'Not enough spool for that thread', 2000);
-  check('the plaque says why, not only the thunk', told, await app.evaluate(hint));
+  const told = await waitFor(app, () => window.__threadbound.ledge()?.text.hint === 'Not enough spool for that thread', 2000);
+  check('the ledge says why, not only the thunk', told && (await app.evaluate(hint)) === 'Not enough spool for that thread', await app.evaluate(hint));
 
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'addThread', from: 'a', to: 'b' }));
-  const spent = await waitFor(app, () => window.__threadbound.hud()?.model?.spoolLabel === 'Spool 4/12 cm', 2000);
-  check('a short thread fits and the readout drops', spent, await app.evaluate(plaque));
-  // The refusal line gives way to whatever the plaque showed before it: here w4-01's own level hint.
+  const spent = await waitFor(app, () => window.__threadbound.ledge()?.text.spool === 'Spool 4/12 cm', 2000);
+  check('a short thread fits and the readout drops', spent && (await app.evaluate(spool)) === 'Spool 4/12 cm', await app.evaluate(spool));
+  // The refusal line gives way to whatever the ledge showed before it: here w4-01's own level hint.
   check('success clears the refusal', await waitFor(app, refusalCleared, 2000), await app.evaluate(hint));
 
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'snip', from: 'a', to: 'b' }));
-  const back = await waitFor(app, () => window.__threadbound.hud()?.model?.spoolLabel === 'Spool 12/12 cm', 2000);
-  check('snipping gives the spool back', back, await app.evaluate(plaque));
+  const back = await waitFor(app, () => window.__threadbound.ledge()?.text.spool === 'Spool 12/12 cm', 2000);
+  check('snipping gives the spool back', back && (await app.evaluate(spool)) === 'Spool 12/12 cm', await app.evaluate(spool));
 
   // Slide to Fit: a-b fits the 8 cm spool only once b slides in. Sliding b back
   // out would stretch the thread past the spool, so that slide is refused.
@@ -44,12 +54,12 @@ export default async function run({ page, frame }) {
   await app.evaluate(() => window.__threadbound.slide('b', 0.29));
   const stayed = await app.evaluate(pegB);
   check('a slide that would overspend the spool is refused', Math.abs(stayed.x - 0.16) < 1e-6, JSON.stringify(stayed));
-  check('the slide refusal is explained too', await waitFor(app, () => window.__threadbound.hud()?.model?.hint === 'Not enough spool for that thread', 2000), await app.evaluate(hint));
+  check('the slide refusal is explained too', await waitFor(app, () => window.__threadbound.ledge()?.text.hint === 'Not enough spool for that thread', 2000), await app.evaluate(hint));
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'addThread', from: 'a', to: 'c' }));
-  check('the thread limit is explained', await waitFor(app, () => window.__threadbound.hud()?.model?.hint === 'No threads left - snip one first', 2000), await app.evaluate(hint));
+  check('the thread limit is explained', await waitFor(app, () => window.__threadbound.ledge()?.text.hint === 'No threads left - snip one first', 2000), await app.evaluate(hint));
 
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'load', index: 0 }));
-  const plain = await waitFor(app, () => window.__threadbound.hud()?.model?.spoolLabel === '', 2000);
-  check('levels without a spool show no spool line', plain);
+  const plain = await waitFor(app, () => window.__threadbound.hud()?.model?.spoolLabel === '' && window.__threadbound.ledge()?.text.spool === '', 2000);
+  check('levels without a spool show no spool readout on the ledge', plain, await app.evaluate(spool));
   return results;
 }

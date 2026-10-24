@@ -7,6 +7,7 @@ const WORKER = `${BASE}assets/physics-worker-Xy9Zab.js`;
 const SCENE = `${BASE}scenes/main.iwsdk.scene.json`;
 const WELCOME = `${BASE}ui/welcome.uikitml`;
 const HUD = `${BASE}ui/hud.uikitml`;
+const LEDGE = `${BASE}ui/ledge.uikitml`;
 const HAND = 'https://cdn.jsdelivr.net/npm/@webxr-input-profiles/assets@1.0/dist/profiles/generic-hand/left.glb';
 
 const ok = (url: string, contentType: string) => ({ url, status: 200, contentType });
@@ -27,6 +28,7 @@ function cleanRecord() {
       ok(SCENE, 'application/json'),
       ok(WELCOME, 'application/octet-stream'),
       ok(HUD, 'application/octet-stream'),
+      ok(LEDGE, 'application/octet-stream'),
       ok(WORKER, 'text/javascript'),
       ok(WASM, 'application/wasm'),
     ],
@@ -52,6 +54,7 @@ describe('verdict: a production run becomes PASS, FAIL and NOTE lines', () => {
       '200 for scenes/main.iwsdk.scene.json',
       '200 for ui/welcome.uikitml',
       '200 for ui/hud.uikitml',
+      '200 for ui/ledge.uikitml',
       '200 for the physics worker (physics-worker-*.js)',
       '200 for HavokPhysics-*.wasm',
       'wasm served as application/wasm',
@@ -167,6 +170,7 @@ describe('verdict: each fault fails with exit code 1 and names the URL or messag
     ],
     ['a 404 for welcome.uikitml', (rec) => ({ ...rec, responses: rec.responses.map(withStatus(WELCOME, 404)) }), '200 for ui/welcome.uikitml', `${WELCOME} → 404`],
     ['a 404 for hud.uikitml', (rec) => ({ ...rec, responses: rec.responses.map(withStatus(HUD, 404)) }), '200 for ui/hud.uikitml', `${HUD} → 404`],
+    ['a 404 for ledge.uikitml', (rec) => ({ ...rec, responses: rec.responses.map(withStatus(LEDGE, 404)) }), '200 for ui/ledge.uikitml', `${LEDGE} → 404`],
     [
       'a 500 for the physics worker',
       (rec) => ({ ...rec, responses: rec.responses.map(withStatus(WORKER, 500)) }),

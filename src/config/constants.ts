@@ -83,7 +83,8 @@ export const CONTROLS = {
   buttonHeight: 0.012,
   /**
    * Distance of each button from its side of the diorama. 6 cm keeps the outer
-   * buttons within a seated 2 ft reach even at the Farther setting (reach.e2e).
+   * buttons within a seated 2 ft reach even at the Farther setting, measured in
+   * the study pose (reach.e2e); the Quest pose is in tests/unit/viewExtent.test.ts.
    */
   buttonInset: 0.06,
   /** Gap between neighbouring ledge buttons (centre to centre). */
@@ -100,6 +101,31 @@ export const HUD = {
   solvedColor: '#b8862f',
   starOn: '#f2c14e',
   starOff: '#3d2f2a',
+  /**
+   * The plaque's faces stay within these (public/ui/hud.uikitml; settings.e2e
+   * measures them), so the field-of-view test can rely on them. 44 cm is inside
+   * the cups' 48 cm spread, so the plaque adds no width to the view.
+   */
+  maxWidth: 0.44,
+  /** Title, world label and stars in one row. */
+  levelFaceMaxHeight: 0.07,
+  /** Three rows of controls at least 22 mm tall, 12 mm apart. */
+  settingsFaceMaxHeight: 0.1,
+} as const;
+
+/**
+ * The strip on the ledge, between Daily and Next, holding the hint line and the
+ * thread count (public/ui/ledge.uikitml). Frame meters and radians.
+ */
+export const LEDGE_STRIP = {
+  /** Edge-to-edge gap to the Daily and Next buttons (Meta's 12 mm between interactables). */
+  gap: 0.012,
+  /** From its bottom edge, at the ledge front, to its back edge, along its face. */
+  height: 0.045,
+  /** Raised about 20 degrees from lying flat, toward the player (the button icons lean 30). */
+  lean: 0.35,
+  /** Its bottom edge sits this far above the ledge top, so it never z-fights. */
+  lift: 0.001,
 } as const;
 
 /** Ghost-hand tutorial on level 1 (diorama-local meters). */

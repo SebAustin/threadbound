@@ -1,6 +1,7 @@
 // E2E (real input): one-handed Raise / Farther buttons on the settings face move
 // the diorama one step each, keep the player's threads, and the level still plays.
 // Moving never undoes a solve, and a move made mid-drop waits for the drop to end.
+// Nearer stops at +2.
 import { canvasMapper, checks, click, clickCanvas, isComplete, loadIndex, plaqueElementAt, waitFor } from './lib.mjs';
 
 const STEP_UP = 0.025;
@@ -27,6 +28,7 @@ export default async function run({ page, frame }) {
   await moveWaitsForDrop(ctx);
   await placementKeepsThreads(ctx);
   await placementWaitsForDrop(ctx);
+  await nearerStopsAtTwo(ctx);
 
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'settings', patch: { offset: { up: 0, near: 0 } } }));
   return results;
@@ -99,4 +101,25 @@ async function placementWaitsForDrop({ app, check }) {
   const after = await waitFor(app, () => Math.abs(window.__threadbound.frame().yaw - 0.3) < 1e-6 && window.__threadbound.state().status === 'complete', 3000);
   check('then the diorama moves to the table, still solved', after, JSON.stringify(await app.evaluate(() => ({ status: window.__threadbound.state().status, yaw: window.__threadbound.frame()?.yaw }))));
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'resetPlacement' }));
+}
+
+/** Three Nearer clicks from 0: two steps toward the player, then the third does nothing. */
+async function nearerStopsAtTwo({ page, app, at, check, start }) {
+  await app.evaluate(() => window.__threadbound.dispatch({ type: 'settings', patch: { offset: { up: 0, near: 0 } } }));
+  await waitFor(app, ([z]) => Math.abs(window.__threadbound.frame().origin[2] - z) < 1e-3, 3000, [start[2]]);
+  if ((await app.evaluate(() => window.__threadbound.plaque()?.face)) !== 'settings') {
+    await click(page, at(await app.evaluate(() => window.__threadbound.button('settings'))));
+    await waitFor(app, () => window.__threadbound.plaque()?.face === 'settings', 2000);
+  }
+  const near = () => window.__threadbound.state().settings.offset.near;
+  const steps = [];
+  for (const want of [1, 2]) {
+    await clickCanvas(page, app, at, await plaqueElementAt(app, 'set-near'));
+    steps.push((await waitFor(app, (w) => window.__threadbound.state().settings.offset.near === w, 3000, want)) ? want : await app.evaluate(near));
+  }
+  await clickCanvas(page, app, at, await plaqueElementAt(app, 'set-near'));
+  const third = await waitFor(app, () => window.__threadbound.state().settings.offset.near > 2, 1200);
+  const z = (await app.evaluate(origin))[2];
+  check('three Nearer clicks from 0 stop at +2', steps.join() === '1,2' && !third && (await app.evaluate(near)) === 2 && Math.abs(z - (start[2] + 2 * STEP_NEAR)) < 1e-3,
+    JSON.stringify({ steps, near: await app.evaluate(near), z }));
 }

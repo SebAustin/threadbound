@@ -22,6 +22,6 @@ export default async function run({ page, frame }) {
   }, 2000);
   const state = await app.evaluate(() => ({ ghost: window.__threadbound.ghost(), hint: window.__threadbound.hud()?.model?.hint }));
   check('snipping the only thread brings the pinch-pull demo back', back && state.ghost.visible, JSON.stringify(state.ghost));
-  check('the plaque hint follows', /pinch a glowing peg/i.test(state.hint ?? ''), state.hint);
+  check('the ledge hint follows', /pinch a glowing peg/i.test(state.hint ?? ''), state.hint);
   return results;
 }

@@ -28,7 +28,7 @@ export default async function run({ page, frame }) {
   const at = await canvasMapper(app);
 
   const hint = await app.evaluate(() => window.__threadbound.hud()?.model?.hint);
-  check('the plaque teaches the first gesture without a wall of text', typeof hint === 'string' && hint.length > 0 && hint.length <= 60, hint);
+  check('the ledge teaches the first gesture without a wall of text', typeof hint === 'string' && hint.length > 0 && hint.length <= 60, hint);
   const [a, b] = (await app.evaluate(() => window.__threadbound.pegs())).map((p) => at(p));
   await drag(page, a, b);
   await waitFor(app, () => window.__threadbound.state().threads.length === 1, 3000);

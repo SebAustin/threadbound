@@ -108,8 +108,8 @@ Sebastien Henry, solo developer (design, code, audio)
 |---|---|
 | **Innovation & Creativity** | Threads are both the puzzle and the instrument: every solution is a melody. <!-- true once week 8 ticket 10 lands; re-check in week 9's final copy pass --> One length, three effects: a thread's length sets its pitch, its bounce and its spool cost, across 24 levels in four worlds. |
 | **Experience Design** | Seated: everything you touch is within a seated 2 ft in the study pose and on any table it accepts (tested on every level in the study pose, and on level 1's table in an XR session). <!-- every accepted table: true once week 8 ticket 07's ACCEPT_REACH lands --> No floating menus: every control lives on the diorama. The ghost hand teaches the gesture in one line of text. The table is found automatically. |
-| **Technical Implementation** | Hand tracking (rays, near pinch, and a fingertip press on ledge buttons), gaze plus pinch, WebXR plane detection for table placement, Havok physics. A draw-call budget is checked on every level: the busiest frame is 55 draw calls per view, within 80. Frame rate on a Quest is not measured. |
-| **Polish & Presentation** | A cohesive walnut-and-brass art direction, a sound for every event, and a plaque that explains refusals. The video shows real emulator gameplay only. |
+| **Technical Implementation** | Hand tracking (rays, near pinch, and a fingertip press on ledge buttons), gaze plus pinch, WebXR plane detection for table placement, Havok physics. A draw-call budget is checked on every level: the busiest frame is 57 draw calls per view, within 80. Frame rate on a Quest is not measured. |
+| **Polish & Presentation** | A cohesive walnut-and-brass art direction, a sound for every event, and a line on the ledge that explains refusals. The video shows real emulator gameplay only. |
 
 **Special awards targeted:**
 - **Best First Five Minutes** (the headline): a ghost hand demonstrates the gesture on the diorama, with one short hint line. From a cold start, the first melody plays within seconds of the chute pinch (tested; 2.0 s in the test run).
@@ -126,7 +126,7 @@ Sebastien Henry, solo developer (design, code, audio)
   high-contrast mode; visual captions for events that only sound; slow motion
   that keeps solutions valid; one-handed height and distance adjustment;
   failure sounds low and dull, below the melody; refusals explained on the
-  plaque.
+  ledge.
 
 ## Accessibility notes
 

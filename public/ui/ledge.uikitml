@@ -1,0 +1,48 @@
+<!--
+  The ledge strip: up to two hint lines, then the threads placed against the
+  thread limit (with the spool on World 4), in plain ASCII. It lies on the ledge
+  between Daily and Next, raised toward the player (LEDGE_STRIP in
+  src/config/constants.ts); LedgeStrip sets its width from the ledge layout.
+  Sized in centimetres (scale 1). No RayInteractable: it never takes a pinch.
+  Spans need initial text: UIKit only lays out text that exists at parse time.
+-->
+<style>
+  .strip {
+    flex-direction: column;
+    justify-content: flex-end;
+    width: 22.2;
+    height: 4.5;
+    padding-top: 0.1;
+    padding-bottom: 0.1;
+    padding-left: 0.8;
+    padding-right: 0.8;
+    border-radius: 0.8;
+    background-color: #f4ead8;
+    border-color: #8a6a3c;
+    border-width: 0.15;
+  }
+
+  .hint {
+    font-size: 1.1;
+    font-weight: 700;
+    color: #8a4b12;
+  }
+
+  .count {
+    flex-direction: row;
+    justify-content: space-between;
+  }
+
+  .detail {
+    font-size: 1.1;
+    font-weight: 500;
+    color: #3d2f2a;
+  }
+</style>
+<div id="ledge" class="strip">
+  <span id="ledge-hint" class="hint">Pinch a glowing peg, pull, release on the other</span>
+  <div class="count">
+    <span id="ledge-threads" class="detail">Threads 0/2 - par 1</span>
+    <span id="ledge-spool" class="detail">Spool 44/44 cm</span>
+  </div>
+</div>

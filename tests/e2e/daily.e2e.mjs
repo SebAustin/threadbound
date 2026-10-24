@@ -28,7 +28,7 @@ export default async function run({ page, frame }) {
   const session = await app.evaluate(() => window.__threadbound.state().daily);
   const today = await app.evaluate(localDay);
   check('the daily belongs to the day it was opened, and remembers where the player was', session?.day === today && session?.returnTo === RETURN_TO, JSON.stringify(session));
-  check('the plaque says how to get back', (await app.evaluate(() => window.__threadbound.hud()?.model?.hint)) === 'Poke the sun to return');
+  check('the ledge says how to get back', (await app.evaluate(() => window.__threadbound.hud()?.model?.hint)) === 'Poke the sun to return');
 
   await app.evaluate(() => {
     window.__threadbound.solve();

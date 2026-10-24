@@ -1,5 +1,5 @@
 // E2E (real input): a first-time player is walked through thread -> drop -> melody
-// by the ghost hand and plaque hints, and is never shown it again after solving.
+// by the ghost hand and ledge hints, and is never shown it again after solving.
 import { canvasMapper, checks, drag, freshSave, isComplete, loadIndex, waitFor } from './lib.mjs';
 
 const ghost = () => window.__threadbound.ghost();
@@ -18,7 +18,7 @@ export default async function run({ page, frame }) {
     level: window.__threadbound.state().levelIndex,
   }));
   check('a fresh save starts on level 1 with the pinch-pull demo', first.level === 0 && first.ghost?.step === 'pinch-pull' && first.ghost.visible, JSON.stringify(first));
-  check('the plaque spells out the gesture', /pinch/i.test(first.hint ?? ''), first.hint);
+  check('the ledge spells out the gesture', /pinch/i.test(first.hint ?? ''), first.hint);
 
   const at = await canvasMapper(app);
   const [from, to] = await app.evaluate(() => {

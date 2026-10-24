@@ -42,7 +42,7 @@ into the cups. Every thread is a string tuned by its length, so every solution p
   - one-handed height and distance adjustment;
   - slow motion that keeps every solution valid;
   - a sound for every event (cup chime, wrong-cup thud, refusal);
-  - refusals explained on the plaque;
+  - refusals explained on the ledge;
   - no floating menus: every control lives on the diorama.
 - **Content and privacy:** for ages 10+ (Meta Content Guidelines). No accounts,
   analytics, ads, purchases or chat, and your progress stays in this browser. In
@@ -67,7 +67,7 @@ There's no headset in the loop, so the emulator (IWER) and automated tests carry
   - gaze plus pinch on an eye-tracked headset;
   - level 1 placed on the emulator's detected table, with everything touchable within 2 ft of the head (0.569 m);
   - every outside host a session with hands contacts: only jsDelivr, for the hand and controller models (the emulator's own room aside).
-- **Budget:** a draw-call budget is checked on every level. The busiest frame in an XR session is 55 draw calls and about 16k triangles per view, tracked hands included (budget: 80 calls, 100k triangles). Frame rate on a Quest is not measured.
+- **Budget:** a draw-call budget is checked on every level. The busiest frame in an XR session is 57 draw calls and about 16k triangles per view, tracked hands included (budget: 80 calls, 100k triangles). Frame rate on a Quest is not measured.
 
 ## Develop
 

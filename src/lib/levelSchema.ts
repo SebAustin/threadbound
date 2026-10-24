@@ -10,7 +10,7 @@ const link = z.object({ from: z.string().min(1), to: z.string().min(1) });
 const color = z.enum(MARBLE_COLORS);
 const rail = z.object({ axis: z.enum(['x', 'y']), min: z.number(), max: z.number() });
 
-/** The longest hint that fits one plaque line. */
+/** The longest level hint: short enough for the ledge strip (LEDGE_HINT_MAX_CHARS in hud.ts). */
 const LEVEL_HINT_MAX = 40;
 
 const LevelObject = z.object({
@@ -24,7 +24,7 @@ const LevelObject = z.object({
     .array(z.object({ ...point, color: color.default('teal'), count: z.number().int().min(1).max(6) }))
     .min(1),
   maxThreads: z.number().int().min(1).max(8),
-  /** One plaque line teaching the mechanic this level introduces (plain ASCII: the plaque font). */
+  /** One ledge line teaching the mechanic this level introduces (plain ASCII: the panel font). */
   hint: z
     .string()
     .max(LEVEL_HINT_MAX)

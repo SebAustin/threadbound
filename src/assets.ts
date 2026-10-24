@@ -21,4 +21,9 @@ export default defineAssets({
     type: AssetType.UIKitML,
     name: 'HUD Plaque',
   },
+  'ledge-strip': {
+    url: publicAssetUrl('ui/ledge.uikitml'),
+    type: AssetType.UIKitML,
+    name: 'Ledge Strip',
+  },
 });

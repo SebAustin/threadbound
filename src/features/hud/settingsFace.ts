@@ -39,7 +39,7 @@ export class SettingsFace {
       control('set-reset', () => this.pokeReset()),
       // Revisit any level reached so far (its stars and melody), never skipping ahead.
       control('set-prev', () => this.stepLevel(-1)),
-      control('set-skip', () => this.stepLevel(1)),
+      control('set-next', () => this.stepLevel(1)),
       ...(
         [
           ['set-up', 'up', 1],

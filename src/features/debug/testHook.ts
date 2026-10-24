@@ -1,4 +1,4 @@
-import { Object3D, Vector3, type UIKitMLAsset, type World } from '@iwsdk/core';
+import { Object3D, Quaternion, Vector3, type UIKitMLAsset, type World } from '@iwsdk/core';
 import { AIM_PLANE_Z, CHUTE, PERF_BUDGET } from '../../config/constants';
 import { LEVELS } from '../../levels';
 import { budgetBreaches, type FrameStats } from '../../lib/perfBudget';
@@ -24,6 +24,23 @@ interface WorldPoint {
 
 /** Where something is on screen (for real clicks) and in the world (for aiming emulated hands). */
 type Located = ScreenPoint & { world: WorldPoint };
+
+/** A UIKit element: where it is, plus its rendered width and height in meters. */
+type Sized = Located & { width: number; height: number };
+
+/** The ledge strip as drawn (src/features/hud/ledgeStrip.ts). */
+interface LedgeProbe {
+  /** Diorama-local position of the panel's origin: the middle of its bottom edge. */
+  local: WorldPoint;
+  /** Radians its face is raised from lying flat on the ledge, toward the player. */
+  lean: number;
+  /** Rendered size in meters, along its face. */
+  width: number;
+  height: number;
+  /** What it shows ('' for a hidden line). */
+  text: { hint: string; threads: string; spool: string };
+  visible: boolean;
+}
 
 export interface ThreadboundTestHook {
   /** Canvas-relative CSS pixel position of a diorama-local point. */
@@ -54,7 +71,9 @@ export interface ThreadboundTestHook {
   hud(): { model: unknown; local: WorldPoint } | null;
   /** Which plaque face is showing, and where a plaque element is. */
   plaque(): { face: string; resetLabel: string } | null;
-  plaqueElement(id: string): Located | null;
+  plaqueElement(id: string): Sized | null;
+  /** The ledge strip: its pose on the ledge, its size, what it shows and whether it is drawn. */
+  ledge(): LedgeProbe | null;
   /**
    * The welcome card: the entryView it last rendered (panel.userData.entry), whether it is
    * shown, and where its elements are on screen (null for an element it doesn't have).
@@ -214,7 +233,41 @@ function welcomeProbes(world: World, probe: Probe): Hook<'welcome'> {
   };
 }
 
-function plaqueProbes(world: World, probe: Probe): Hook<'hud' | 'plaque' | 'plaqueElement'> {
+/** Meters per UIKit unit (centimetres) in a panel placed at scale 1. */
+const M_PER_UNIT = 0.01;
+
+/** A UIKit element's laid-out size (border box) in meters, scaled like its panel. */
+function elementSize(panel: UIKitMLAsset, element: unknown): { width: number; height: number } {
+  const size = (element as { size?: { value?: readonly [number, number] } } | undefined)?.size?.value ?? [0, 0];
+  const scale = panel.getWorldScale(new Vector3()).x * M_PER_UNIT;
+  return { width: size[0] * scale, height: size[1] * scale };
+}
+
+/** Where a plaque element is, and how big it is drawn. */
+function sizedElement(probe: Probe, panel: UIKitMLAsset | undefined, id: string): Sized | null {
+  const located = locateElement(probe, panel, id);
+  return panel && located ? { ...located, ...elementSize(panel, panel.getElementById(id)) } : null;
+}
+
+function ledgeProbe(world: World): LedgeProbe | null {
+  const panel = world.getSceneObject<UIKitMLAsset>('ledge-strip');
+  const frame = puzzleStore.frame;
+  if (!panel || !frame) return null;
+  const local = frame.worldToLocal(panel.getWorldPosition(new Vector3()), new Vector3());
+  // The face's up axis rises from the ledge front toward the back: its angle above the ledge is the lean.
+  const up = new Vector3(0, 1, 0).applyQuaternion(panel.getWorldQuaternion(new Quaternion()));
+  const upLocal = frame.directionToLocal(up, new Vector3());
+  const text = (panel.userData.ledge as LedgeProbe['text'] | undefined) ?? { hint: '', threads: '', spool: '' };
+  return {
+    local: plain(local),
+    lean: Math.atan2(upLocal.y, -upLocal.z),
+    ...elementSize(panel, panel.getElementById('ledge')),
+    text: { ...text },
+    visible: visibleInScene(panel),
+  };
+}
+
+function plaqueProbes(world: World, probe: Probe): Hook<'hud' | 'plaque' | 'plaqueElement' | 'ledge'> {
   const plaque = () => world.getSceneObject<UIKitMLAsset>('hud-plaque');
   return {
     hud: () => {
@@ -230,7 +283,8 @@ function plaqueProbes(world: World, probe: Probe): Hook<'hud' | 'plaque' | 'plaq
         ? { face: String(panel.userData.face ?? ''), resetLabel: String(panel.userData.resetLabel ?? 'Reset progress') }
         : null;
     },
-    plaqueElement: (id) => locateElement(probe, plaque(), id),
+    plaqueElement: (id) => sizedElement(probe, plaque(), id),
+    ledge: () => ledgeProbe(world),
   };
 }
 

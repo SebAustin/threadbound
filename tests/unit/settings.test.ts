@@ -1,5 +1,13 @@
 import { describe, expect, test } from 'vitest';
-import { applySettingsPatch, DEFAULT_SETTINGS, loadSettings, saveSettings, stepOffset, timeScale } from '../../src/lib/settings';
+import {
+  applySettingsPatch,
+  DEFAULT_SETTINGS,
+  loadSettings,
+  OFFSET_LIMITS,
+  saveSettings,
+  stepOffset,
+  timeScale,
+} from '../../src/lib/settings';
 import { memoryStorage } from '../../src/lib/storage';
 
 describe('settings', () => {
@@ -45,9 +53,28 @@ describe('diorama offset', () => {
   test('steps clamp to a comfortable range', () => {
     expect(stepOffset({ up: 6, near: 0 }, 'up', 1)).toEqual({ up: 6, near: 0 });
     expect(stepOffset({ up: -6, near: 0 }, 'up', -1)).toEqual({ up: -6, near: 0 });
-    expect(stepOffset({ up: 0, near: 3 }, 'near', 1)).toEqual({ up: 0, near: 3 });
+    expect(stepOffset({ up: 0, near: 2 }, 'near', 1)).toEqual({ up: 0, near: 2 });
     expect(stepOffset({ up: 0, near: -2 }, 'near', -1)).toEqual({ up: 0, near: -2 });
     expect(stepOffset({ up: 0, near: 0 }, 'up', 1)).toEqual({ up: 1, near: 0 });
+  });
+});
+
+describe('Nearer stops at +2 (gap 56)', () => {
+  test('three Nearer steps from 0 stop at +2', () => {
+    let offset = { up: 0, near: 0 };
+    for (let i = 0; i < 3; i++) offset = stepOffset(offset, 'near', 1);
+    expect(offset.near).toBe(2);
+    expect(OFFSET_LIMITS.near).toEqual([-2, 2]);
+  });
+
+  test('a save from when Nearer reached +3 loads as +2 and keeps slow motion', () => {
+    const storage = memoryStorage();
+    storage.setItem('threadbound.settings.v1', '{"slowMotion":true,"offset":{"up":1,"near":3}}');
+    expect(loadSettings(storage)).toEqual({ slowMotion: true, offset: { up: 1, near: 2 } });
+  });
+
+  test('a patch past the limit is still ignored', () => {
+    expect(applySettingsPatch(DEFAULT_SETTINGS, { offset: { up: 0, near: 3 } })).toBe(DEFAULT_SETTINGS);
   });
 });
 

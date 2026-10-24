@@ -38,7 +38,7 @@ export interface HudModel {
   readonly spoolLabel: string;
 }
 
-/** Short enough to share the details row with the thread budget. */
+/** Short enough to share the plaque's one row with the title and the stars. */
 const dailyLabel = (streak: number) => (streak > 0 ? `Daily - streak ${streak}` : 'Daily puzzle');
 
 const wholeCm = (meters: number) => Math.round(toCm(meters));
@@ -47,8 +47,14 @@ function spoolLabel(used: number, total: number): string {
   return `Spool ${Math.max(0, wholeCm(total) - wholeCm(used))}/${wholeCm(total)} cm`;
 }
 
+/**
+ * The longest hint the ledge strip shows in two lines (public/ui/ledge.uikitml):
+ * every hint line must fit it (tests/unit/hud.test.ts).
+ */
+export const LEDGE_HINT_MAX_CHARS = 48;
+
 /** Same-peg is how a player cancels a thread, so it needs no explanation. */
-const REFUSAL_HINTS: Readonly<Record<RefusalReason, string>> = {
+export const REFUSAL_HINTS: Readonly<Record<RefusalReason, string>> = {
   'same-peg': '',
   duplicate: 'Those pegs are already joined',
   limit: 'No threads left - snip one first',
@@ -69,7 +75,7 @@ function hintFor(input: HudInput): string {
   return refusal || input.hint || input.levelHint || ending || (input.daily ? DAILY_HINT : '');
 }
 
-/** Plaque copy: plain ASCII, because the panel font has no typographic glyphs. */
+/** Plaque and ledge copy: plain ASCII, because the panel font has no typographic glyphs. */
 export function hudModel(input: HudInput): HudModel {
   const world = input.levels[input.levelIndex]?.world ?? 1;
   const inWorld = input.levels.filter((l) => l.world === world).length;
