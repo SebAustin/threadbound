@@ -1,4 +1,4 @@
-# 18: A stored solution's outcome depends on where the diorama is placed (priority set at triage)
+# 18: A stored solution's outcome depends on where the diorama is placed (P1, triaged Oct 25: first in batch 2)
 
 **What was found:** ticket 05's video-kit work (Oct 23) found that the same hung solution solves or fails depending on the diorama's placement pose. A player whose table puts the diorama at that angle would see a solution that solves elsewhere end with the marbles at rest and the level unsolved. The level and daily proofs (`test:e2e:levels`, `test:e2e:dailies`) run only in the browser view's study pose (yaw 0), so nothing checks solvability anywhere else.
 
@@ -25,16 +25,16 @@
 - The `place` command (src/features/puzzle/PuzzleSystem.ts:81-84) takes an origin and a yaw. If it relocates the diorama in the browser view too, a browser-only repro, and a cheap proof over all 31 boards, is possible without XR.
 - Ticket 07 changes the table pose (the frame lifted by `DIORAMA.slab`, a new near-edge inset). Re-run the sweep after 07 lands, because outcomes can shift again.
 
-**Blocked by:** none (triage decides whether this joins ticket 07 or stays separate)
+**Blocked by:** none
 
-**Status:** needs-triage
+**Status:** ready-for-agent
 
 Candidate boxes, for triage to keep, change or drop:
 - [ ] E2E (write first): every stored solution, the 24 campaign levels and the 7 dailies, solves at yaw 0 and at yaw pi/2 on a table pose, as it does in the study pose. Red today on w1-04, daily-w1-04, daily-w2-02 and daily-w3-04.
 - [ ] XR: in shot.sh's seated pose, `probe solve` completes on w1-04 and on daily pools 1, 3 and 6.
 - [ ] `test:e2e:levels`, `test:e2e:levels:slow` and `test:e2e:dailies` outcomes are unchanged.
 
-**Effort:** unknown until triage (a cause in the levels' margins and a cause in the placement code are very different sizes).
+**Effort:** S if the cause is a frame-versus-world bug in code; M if levels need more clearance (re-proven at both turns and both speeds).
 
 ## Comments
 
@@ -54,3 +54,7 @@ Candidate boxes, for triage to keep, change or drop:
 
   - 07's pose change moves no outcome: the same four levels end `idle` at yaw 90 degrees, so the defect and the candidate boxes stand as written.
   - Ticket 05's `daily` shot (pool 4) still works at the new pose (`ticket18-daily-shot-after-07.log`). `zsh tests/e2e/shot.sh daily` staged it ("start recording": audio running, no emulator chrome, no Vite overlay). `zsh tests/e2e/take.sh daily` then solved it with the live chute pinch: the plaque read "Daily - streak 7", status `complete`, on daily-w2-04 at yaw 1.5705 rad.
+- **Triage (user, Oct 25, Q48):** P1, first in batch 2, ahead of ticket 13, because 13 re-proves every level and should prove them at both turns. Keep all three candidate boxes.
+  - Write the 0° and 90° table-pose proof first, and see it fail on w1-04 and daily pools 1, 3 and 6.
+  - Find the cause before changing anything. A world-axis bug (spawn, collider orientation, release velocity, nudges) gets a code fix. Rounding sensitivity in the physics gets the smallest level-geometry change that gives the marginal contacts room, keeping each level's par and its idea.
+  - Make the turned-pose proof a permanent part of `test:e2e:levels` and `test:e2e:dailies`, so tickets 13 and 14 re-prove at both turns.

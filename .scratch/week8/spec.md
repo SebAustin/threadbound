@@ -107,7 +107,7 @@ Every decision below was made by the user in the Oct 22 grilling session. Where 
   - while the level is idle with no threads, the search continues for 15-20 s;
   - the reference-space `reset` event places the board again;
   - the board stays hidden until its final pose, then fades in;
-  - a table is accepted only while every control stays within 0.61 m (2 ft) of the seated head (Q41), so "within a seated 2 ft" holds on every accepted table;
+  - a table is accepted only while every control stays within about 0.68 m of the seated head (Q47 on Oct 25, revising Q41's 0.61 m: at 0.61 m only desks within about 0.41 m qualified). The copy says every control works from your chair by pinch or touch, and keeps "within 2 ft" for the default spot (ticket 19);
   - the contact shadow hides while the board floats;
   - a relocation waits while a drag is in progress.
 

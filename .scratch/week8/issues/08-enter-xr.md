@@ -23,7 +23,7 @@
 
 **Blocked by:** 02 (merge after its step-4 log push; also for the prod-xr change). The rest can start at once on a branch in its own worktree (02).
 
-**Status:** done except: the Manual box (user)
+**Status:** done
 
 - [x] Unit: in `tests/unit/xrMode.test.ts`, `entryView`:
   - shows the button and no note for either immersive mode;
@@ -53,7 +53,7 @@
 - [x] E2E: whichever of 05 and 08 lands second makes ticket 05's `tests/e2e/shot-preflight.e2e.mjs` hide `#enter-xr` in browser-view shots, and `npm run test:e2e:shots` fails while it shows.
 - [x] In `package.json`, add `no-xr` and `boot-screen` to `test:e2e`, and `enter-xr.sh` to `test:e2e:hands`.
 - [x] XR: after `NODE_ENV=production npm run build`, `npm run test:e2e:prod-xr` passes on the local preview. It enters AR through the click on `#enter-xr`, without the `grantOfferedSession()` fallback, and `tests/unit/prodXrTargets.test.ts` stays green (it checks only the knob and chute points).
-- [ ] Manual: run `npm run build && npm run preview` in desktop Chrome with no headset and no emulator. Expect the loading line, then the Quest Browser line, and a clean console. (user: see Comments for a headless stand-in run)
+- [x] Manual: run `npm run build && npm run preview` in desktop Chrome with no headset and no emulator. Expect the loading line, then the Quest Browser line, and a clean console. (user: see Comments for a headless stand-in run)
 
 **Effort:** M (~1.5 days)
 
@@ -106,3 +106,4 @@
 - **Open for the user: the Manual box.** Run `npm run build && npm run preview` in desktop Chrome with no headset and no emulator. Expect "Loading Threadbound..." on walnut, then "Open in Quest Browser to play in mixed reality" at the bottom centre with no Enter XR, and a clean console.
   - A headless stand-in (plain Chromium, no IWER, against the production preview, not committed) saw exactly that: "Loading Threadbound..." over `rgb(61, 47, 42)` with the cover up, then the Quest Browser line with #enter-xr hidden. The console held only IWSDK's banner and Chromium's "GPU stall due to ReadPixels" warnings from its screenshot. It doesn't replace the headed check.
 - **Not proven here:** a real long hand pinch on Quest Browser's 2D page (the ticket's risk). Confirm it on the production XR smoke or a tester's device; the forum post already asks testers for a long pinch on Enter XR.
+- **Manual check (user, Oct 25):** the user ran `npm run build && npm run preview` in desktop Chrome with no headset and no emulator, opened https://localhost:4173/, and confirmed the expected result ("yes"): the loading line, then the Quest Browser line, and a clean console. The build included ticket 11's work in progress, which doesn't affect this check.
