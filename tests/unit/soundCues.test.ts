@@ -3,9 +3,9 @@ import { AMBIENCE_INTERVAL_SECONDS, ambienceHz, ambienceRests, CUE_CEILING, CUES
 import { CADENCE_HZ } from '../../src/lib/melody';
 import { PENTATONIC_HZ } from '../../src/lib/threadTuning';
 
-const ALL: readonly CueName[] = ['cupCorrect', 'cupWrong', 'button', 'pegGrab', 'refused', 'settle', 'snip', 'ambience', 'melody', 'thread', 'bounce', 'cadence'];
+const ALL: readonly CueName[] = ['cupCorrect', 'cupWrong', 'button', 'pegGrab', 'refused', 'settle', 'snip', 'ambience', 'melody', 'thread', 'bounce', 'cadence', 'dragMiss'];
 /** Cues that mean "that didn't work": deliberately outside the music. */
-const DULL: readonly CueName[] = ['cupWrong', 'refused'];
+const DULL: readonly CueName[] = ['cupWrong', 'refused', 'dragMiss'];
 const C4 = PENTATONIC_HZ[0];
 const A5 = PENTATONIC_HZ[PENTATONIC_HZ.length - 1];
 /** Semitones above the nearest C at or below `hz` (0 = C), so octaves compare equal. */
@@ -37,6 +37,12 @@ describe('sound cues: every event the player causes has its own sound', () => {
   test('failure cues sit below the scale and differ from each other', () => {
     for (const name of DULL) expect(CUES[name].hz).toBeLessThan(Math.min(...PENTATONIC_HZ));
     expect(CUES.cupWrong.hz).not.toBe(CUES.refused.hz);
+    expect(CUES.dragMiss.hz).not.toBe(CUES.refused.hz);
+    expect(CUES.dragMiss.hz).not.toBe(CUES.cupWrong.hz);
+  });
+
+  test('a pull released on bare panel is softer than a refusal: nothing was turned down', () => {
+    expect(CUES.dragMiss.volume).toBeLessThan(CUES.refused.volume);
   });
 
   test('a scored marble and a wrong cup are told apart', () => {

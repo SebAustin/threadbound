@@ -1,7 +1,6 @@
 import {
   createSystem,
   Group,
-  Hovered,
   Mesh,
   PhysicsBody,
   PhysicsShape,
@@ -15,15 +14,19 @@ import {
   type Object3D,
 } from '@iwsdk/core';
 import { PEG, THREAD_TUNING } from '../../config/constants';
+import { THREAD_HIT_DIAMETER } from '../../lib/hitArea';
+import { createTrail, push, reset, stableRelease } from '../../lib/releaseTrail';
 import { segmentTransform } from '../../lib/threadGeometry';
-import { checkNewThread, findSnapPeg, sameThread, spoolUsed, type PegPoint } from '../../lib/threadRules';
+import { checkNewThread, findSnapPeg, landingPeg, presetOnlyPegs, sameThread, spoolUsed, type PegPoint } from '../../lib/threadRules';
 import { PENTATONIC_HZ, restitutionForLength, rootIndex } from '../../lib/threadTuning';
+import { HIT_ORDER } from '../../lib/touchFeedback';
 import { stringSynth } from '../audio/stringSynth';
 import { devLog } from '../debug/devLog';
-import { GEOMETRIES, MATERIALS } from '../diorama/palette';
-import { Peg, tagRelease, TapReleased, Thread } from '../puzzle/components';
+import { GEOMETRIES, hitAreaMesh, MATERIALS } from '../diorama/palette';
+import { Peg, SnapTarget, tagRelease, TapReleased, Thread, Touchable, TouchKinds } from '../puzzle/components';
 import { puzzleStore, type PuzzleCommand } from '../puzzle/puzzleStore';
 import { refuse } from '../puzzle/refuse';
+import { setHitOrder } from '../input/hitOrder';
 import { pointerToDiorama } from '../input/pointerToDiorama';
 import {
   capturePointer,
@@ -35,6 +38,8 @@ import {
 const UP = new Vector3(0, 1, 0);
 /** The drag preview is drawn thinner than a real thread. */
 const PREVIEW_RADIUS = THREAD_TUNING.radius * 0.7;
+/** Radius of the invisible cylinder around a thread (lib/hitArea). */
+const HIT_RADIUS = THREAD_HIT_DIAMETER / 2;
 
 /** The bus hears every pull start and end, so a relocation waits for the release. */
 const DRAG_START: PuzzleCommand = { type: 'drag', active: true };
@@ -60,7 +65,8 @@ interface Drag {
  */
 export class ThreadSystem extends createSystem({
   pegs: { required: [Peg] },
-  hoveredPegs: { required: [Peg, Hovered] },
+  /** Pegs that take a pinch: every peg but the preset-only ones (built without RayInteractable). */
+  pinchablePegs: { required: [Peg, RayInteractable] },
   threads: { required: [Thread] },
   /** A thread pinched, poked or clicked is snipped on release (works for every input kind). */
   pressedThreads: { required: [Thread, Pressed] },
@@ -73,6 +79,15 @@ export class ThreadSystem extends createSystem({
   private dragPoint = { x: 0, y: 0 };
   private tmpDir = new Vector3();
   private tmpQuat = new Quaternion();
+  /** Pegs a pull may attach to, listed once when it starts (and again if a rail peg settles). */
+  private snapPegs: readonly PegPoint[] = [];
+  /** The peg a release would attach to right now, tagged SnapTarget; null for none. */
+  private snapTargetId: string | null = null;
+  /** Reused on every pointer move: the pull's point, for findSnapPeg. */
+  private readonly snapPoint: [number, number] = [0, 0];
+  /** The pull's last samples, so a release that jumps off a held peg keeps the peg. */
+  private readonly trail = createTrail();
+  private readonly releasePoint = { x: 0, y: 0 };
 
   init(): void {
     this.preview = new Mesh(GEOMETRIES.unitCylinder, MATERIALS.threadPreview);
@@ -81,16 +96,14 @@ export class ThreadSystem extends createSystem({
     this.world.createTransformEntity(this.preview);
 
     this.cleanupFuncs.push(
-      this.queries.pegs.subscribe('qualify', (e) => this.attachPeg(e)),
-      this.queries.hoveredPegs.subscribe('qualify', (e) => this.setKnob(e, true)),
-      this.queries.hoveredPegs.subscribe('disqualify', (e) => this.setKnob(e, false)),
+      this.queries.pinchablePegs.subscribe('qualify', (e) => this.attachPeg(e)),
       // Snip after release, next frame: disposing a thread while a hand still holds it
       // leaves that pointer captured on a dead object and swallows its next pinch.
       this.queries.pressedThreads.subscribe('disqualify', tagRelease),
       puzzleStore.onCommand((command) => this.handleCommand(command)),
     );
     // 'qualify' only fires for future matches; pegs built earlier need wiring now.
-    for (const peg of this.queries.pegs.entities) this.attachPeg(peg);
+    for (const peg of this.queries.pinchablePegs.entities) this.attachPeg(peg);
   }
 
   /**
@@ -109,9 +122,17 @@ export class ThreadSystem extends createSystem({
     return peg && { id, ...(pegPositions[id] ?? peg) };
   }
 
+  /** Pegs a pull from `fromId` may attach to: every peg but itself and the preset-only ones. */
+  private snapCandidates(fromId: string): readonly PegPoint[] {
+    const level = puzzleStore.get().level;
+    const presetOnly = level ? presetOnlyPegs(level) : [];
+    return this.pegPoints.filter((p) => p.id !== fromId && !presetOnly.includes(p.id));
+  }
+
   /**
    * Pointer listeners live on the peg's own meshes, which are discarded when the
-   * level is torn down, so they need no explicit unsubscribe.
+   * level is torn down, so they need no explicit unsubscribe. A preset-only peg
+   * takes no pinch, so it gets none (it never joins pinchablePegs).
    */
   private attachPeg(entity: Entity): void {
     const object = entity.object3D;
@@ -127,9 +148,17 @@ export class ThreadSystem extends createSystem({
     });
   }
 
-  private setKnob(entity: Entity, hot: boolean): void {
-    const knob = entity.object3D?.getObjectByName('peg-body') as Mesh | undefined;
-    if (knob) knob.material = hot ? MATERIALS.brassHot : MATERIALS.brass;
+  /** Tags the peg a release would attach to (TouchFeedbackSystem lights it); only when it changes. */
+  private markSnapTarget(pegId: string | null): void {
+    if (pegId === this.snapTargetId) return;
+    const before = this.snapTargetId;
+    this.snapTargetId = pegId;
+    for (const peg of this.queries.pegs.entities) {
+      if (!peg.active) continue;
+      const id = peg.getValue(Peg, 'pegId');
+      if (id === before) peg.removeComponent(SnapTarget);
+      else if (id === pegId) peg.addComponent(SnapTarget);
+    }
   }
 
   private startDrag(source: Entity, target: Object3D, e: SpatialPointerEvent): void {
@@ -140,19 +169,16 @@ export class ThreadSystem extends createSystem({
     e.stopPropagation();
     const x = source.getValue(Peg, 'x') ?? 0;
     const y = source.getValue(Peg, 'y') ?? 0;
-    this.drag = {
-      pegId: source.getValue(Peg, 'pegId') ?? '',
-      pointerId: e.pointerId,
-      fromX: x,
-      fromY: y,
-      endX: x,
-      endY: y,
-      captureTarget: target,
-    };
+    const pegId = source.getValue(Peg, 'pegId') ?? '';
+    this.drag = { pegId, pointerId: e.pointerId, fromX: x, fromY: y, endX: x, endY: y, captureTarget: target };
+    this.snapPegs = this.snapCandidates(pegId);
+    reset(this.trail);
+    push(this.trail, x, y, performance.now());
     capturePointer(target, e.pointerId);
     puzzleStore.dispatch(DRAG_START);
   }
 
+  /** Allocation-free: runs on every pointer move of a pull. */
   private moveDrag(e: SpatialPointerEvent): void {
     const drag = this.drag;
     const frame = puzzleStore.frame;
@@ -160,32 +186,43 @@ export class ThreadSystem extends createSystem({
     pointerToDiorama(e, frame, this.dragPoint);
     drag.endX = this.dragPoint.x;
     drag.endY = this.dragPoint.y;
+    push(this.trail, drag.endX, drag.endY, performance.now());
+    this.snapPoint[0] = drag.endX;
+    this.snapPoint[1] = drag.endY;
+    this.markSnapTarget(findSnapPeg(this.snapPoint, this.snapPegs, drag.pegId, PEG.snapRadius));
   }
 
   private endDrag(e: SpatialPointerEvent): void {
     const drag = this.drag;
     if (!drag || e.pointerId !== drag.pointerId) return;
     this.moveDrag(e);
-    this.drag = null;
-    this.dragEnded = true;
-    this.preview.visible = false;
-    releasePointer(drag.captureTarget, drag.pointerId);
-
-    const targetId = findSnapPeg([drag.endX, drag.endY], this.pegPoints, drag.pegId, PEG.snapRadius);
-    if (!targetId) {
-      devLog(`released at (${drag.endX.toFixed(3)}, ${drag.endY.toFixed(3)}) — no peg in reach`);
+    this.finishDrag(drag);
+    // A release that jumped off a held peg keeps the peg (lib/releaseTrail); once per release, so it may allocate.
+    const { x, y } = stableRelease(this.trail, this.releasePoint);
+    const targetId = landingPeg([x, y], [drag.endX, drag.endY], this.snapPegs, drag.pegId, PEG.snapRadius);
+    if (targetId) {
+      this.tryAddThread(drag.pegId, targetId);
       return;
     }
-    this.tryAddThread(drag.pegId, targetId);
+    // Let go on (or beside) the peg it started from: a tap, not a miss, so no sound.
+    const onOwnPeg = (px: number, py: number) => Math.hypot(px - drag.fromX, py - drag.fromY) <= PEG.snapRadius;
+    if (!onOwnPeg(x, y) && !onOwnPeg(drag.endX, drag.endY)) stringSynth.play('dragMiss');
+    devLog(`released at (${x.toFixed(3)}, ${y.toFixed(3)}) — no peg in reach`);
   }
 
   /** The input went away mid-pull (tracking lost, mode switch): drop the drag, make nothing. */
   private cancelDrag(e: SpatialPointerEvent): void {
     const drag = this.drag;
     if (!drag || e.pointerId !== drag.pointerId) return;
+    this.finishDrag(drag);
+  }
+
+  /** A pull is over: no preview, no snap target, the pointer free; the bus hears it next frame. */
+  private finishDrag(drag: Drag): void {
     this.drag = null;
     this.dragEnded = true;
     this.preview.visible = false;
+    this.markSnapTarget(null);
     releasePointer(drag.captureTarget, drag.pointerId);
   }
 
@@ -227,6 +264,8 @@ export class ThreadSystem extends createSystem({
       this.drag = null;
       this.dragEnded = false;
       this.preview.visible = false;
+      // The tagged peg went with the old build.
+      this.snapTargetId = null;
       this.createPresetThreads();
     } else if (command.type === 'addThread') {
       this.tryAddThread(command.from, command.to);
@@ -239,10 +278,14 @@ export class ThreadSystem extends createSystem({
       this.previewPeg(command.pegId, command.x, command.y);
     } else if (command.type === 'pegMoved') {
       this.rebuildThreadsAt(command.pegId);
+      if (this.drag) this.snapPegs = this.snapCandidates(this.drag.pegId);
     }
   }
 
-  /** Positions a thread's group and stretches its child mesh between two local points. */
+  /**
+   * Positions a thread's group and stretches its children between two local points:
+   * the visible mesh first (ThreadVibrationSystem scales children[0]), then its hit area.
+   */
   private layoutThread(group: Object3D, ax: number, ay: number, bx: number, by: number): void {
     const frame = puzzleStore.frame;
     if (!frame) return;
@@ -253,6 +296,7 @@ export class ThreadSystem extends createSystem({
     this.tmpQuat.setFromUnitVectors(UP, this.tmpDir.divideScalar(len));
     frame.worldQuaternion(this.tmpQuat, group.quaternion);
     group.children[0]?.scale.set(THREAD_TUNING.radius, len, THREAD_TUNING.radius);
+    group.children[1]?.scale.set(HIT_RADIUS, len, HIT_RADIUS);
   }
 
   /** Live drag preview: re-lay out attached threads (colliders follow on release). Allocation-free. */
@@ -301,7 +345,9 @@ export class ThreadSystem extends createSystem({
     const group = new Group();
     group.name = `thread-${from.id}-${to.id}`;
     const mesh = new Mesh(GEOMETRIES.unitCylinder, preset ? MATERIALS.threadPreset : MATERIALS.thread);
-    group.add(mesh);
+    // Second, after the visible mesh: a thicker invisible cylinder that is easier to aim at.
+    group.add(mesh, hitAreaMesh(GEOMETRIES.unitCylinder));
+    setHitOrder(group, HIT_ORDER.thread);
     this.layoutThread(group, from.x, from.y, to.x, to.y);
 
     const root = rootIndex(seg.length);
@@ -318,7 +364,10 @@ export class ThreadSystem extends createSystem({
       root,
       preset,
     });
+    // Pinch only, never poke: a fingertip resting near the glass would snip.
     entity.addComponent(RayInteractable);
+    entity.addComponent(Touchable, { kind: TouchKinds.thread });
+    // The collider keeps the visible radius: the hit area is for aiming only.
     entity.addComponent(PhysicsShape, {
       shape: PhysicsShapeType.Capsules,
       dimensions: [THREAD_TUNING.radius, seg.length, 0],

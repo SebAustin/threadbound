@@ -1,5 +1,5 @@
-// E2E (real input): wiping progress from the settings face takes two pokes;
-// one poke only arms it. A reset brings back level 1 and the ghost hand.
+// E2E (real input): wiping progress from the settings face takes two pinches;
+// one pinch only arms it. A reset brings back level 1 and the ghost hand.
 import { canvasMapper, checks, click, clickCanvas, isComplete, loadIndex, plaqueElementAt, waitFor } from './lib.mjs';
 
 const bestCount = () => Object.keys(window.__threadbound.state().progress.best).length;
@@ -25,7 +25,7 @@ export default async function run({ page, frame }) {
 
   await clickCanvas(page, app, at, reset);
   const armed = await waitFor(app, () => window.__threadbound.plaque()?.resetLabel === 'Confirm reset', 2000);
-  check('one poke only arms the reset', armed && (await app.evaluate(bestCount)) > 0, await app.evaluate(() => window.__threadbound.plaque()?.resetLabel));
+  check('one pinch only arms the reset', armed && (await app.evaluate(bestCount)) > 0, await app.evaluate(() => window.__threadbound.plaque()?.resetLabel));
 
   await clickCanvas(page, app, at, reset);
   const wiped = await waitFor(app, () => {
@@ -33,7 +33,7 @@ export default async function run({ page, frame }) {
     const g = window.__threadbound.ghost();
     return Object.keys(s.progress.best).length === 0 && s.levelIndex === 0 && g?.step === 'pinch-pull' && g.visible;
   }, 3000);
-  check('a second poke wipes progress and brings the tutorial back', wiped);
+  check('a second pinch wipes progress and brings the tutorial back', wiped);
   check('the plaque returns to the level face', (await app.evaluate(() => window.__threadbound.plaque()?.face)) === 'level');
   return results;
 }

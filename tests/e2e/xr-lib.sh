@@ -43,8 +43,8 @@ lerp_point() { python3 -c "import json;a=json.loads('$1');b=json.loads('$2');pri
 rest_hand_for() {
   python3 -c "import json,math;t=json.loads('$1');a=${REST_YAW:-0};print(json.dumps({'x':t['x']+0.1*math.cos(a)+0.35*math.sin(a),'y':t['y']-0.3,'z':t['z']-0.1*math.sin(a)+0.35*math.cos(a)}))"
 }
-# pinch_pull <from json> <to json>: pinch at one point, sweep the ray to another, release (a thread).
-pinch_pull() {
+# pinch_sweep <from json> <to json>: pinch at one point and sweep the ray to another, still pinching.
+pinch_sweep() {
   local t
   # Hold the hand where a seated player would: below and in front of the pegs.
   local hand=$(python3 -c "import json;a=json.loads('$1');b=json.loads('$2');print(json.dumps({'x':(a['x']+b['x'])/2+0.1,'y':(a['y']+b['y'])/2-0.25,'z':(a['z']+b['z'])/2+0.3}))")
@@ -54,7 +54,15 @@ pinch_pull() {
   for t in 0.25 0.5 0.75 1.0; do
     iw xr look-at --input-json "{\"device\":\"hand-right\",\"target\":$(lerp_point "$1" "$2" "$t")}" >/dev/null 2>&1; sleep 0.3
   done
+}
+# pinch_release: open the right hand's pinch where its ray now points.
+pinch_release() {
   iw xr set-select-value --input-json '{"device":"hand-right","value":0}' >/dev/null 2>&1; sleep 0.5
+}
+# pinch_pull <from json> <to json>: pinch at one point, sweep the ray to another, release (a thread).
+pinch_pull() {
+  pinch_sweep "$1" "$2"
+  pinch_release
 }
 # pinch_at <target json>: aim the right-hand ray at the target, pinch, release.
 # The short sleeps are gesture timing (how long a hand aims and holds), not waits for state.

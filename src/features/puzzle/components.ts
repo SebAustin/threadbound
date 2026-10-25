@@ -1,5 +1,6 @@
 import { createComponent, Types, type Entity } from '@iwsdk/core';
 import { MARBLE_COLORS, type MarbleColor } from '../../lib/marbleColors';
+import { TOUCH_KINDS, type TouchKind } from '../../lib/touchFeedback';
 import { DEFAULT_PITCH_HZ, DEFAULT_ROOT } from '../../lib/threadTuning';
 
 // System-free declarations: the editor imports this module via src/components.ts.
@@ -73,3 +74,17 @@ export const ControlButton = createComponent('ControlButton', {
 export const SliderHandle = createComponent('SliderHandle', {
   pegId: { type: Types.String, default: '' },
 });
+
+/** ECS enum view of TOUCH_KINDS (value -> value). */
+export const TouchKinds = Object.fromEntries(TOUCH_KINDS.map((k) => [k, k])) as { readonly [K in TouchKind]: K };
+
+/**
+ * A part that shows it is being touched: it lights under a ray, gaze or fingertip
+ * and moves when pressed (TouchFeedbackSystem, lib/touchFeedback).
+ */
+export const Touchable = createComponent('Touchable', {
+  kind: { type: Types.Enum, enum: TouchKinds, default: TouchKinds.peg },
+});
+
+/** Tag: the peg a pull would attach to if released now. */
+export const SnapTarget = createComponent('SnapTarget', {});

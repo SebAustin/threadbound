@@ -10,6 +10,7 @@ import projectOptions from 'virtual:iwsdk-project';
 import { AmbienceSystem } from './features/audio/AmbienceSystem.js';
 import { AudioUnlockSystem } from './features/audio/AudioUnlockSystem.js';
 import { ControlsSystem } from './features/controls/ControlsSystem.js';
+import { TouchFeedbackSystem } from './features/input/TouchFeedbackSystem.js';
 import { EnvironmentSystem } from './features/environment/EnvironmentSystem.js';
 import { MarbleSystem } from './features/marbles/MarbleSystem.js';
 import { PlacementSystem } from './features/placement/PlacementSystem.js';
@@ -39,6 +40,8 @@ World.create(
   world.registerSystem(ThreadVibrationSystem);
   world.registerSystem(MarbleSystem);
   world.registerSystem(ControlsSystem);
+  // Lights and moves whatever a ray, gaze or fingertip touches: buttons, chutes, tabs, pegs, threads.
+  world.registerSystem(TouchFeedbackSystem);
   world.registerSystem(SliderSystem);
   world.registerSystem(PlacementSystem);
   // After placement: a placement's rebuild starts its fade, which waits while the diorama is hidden.

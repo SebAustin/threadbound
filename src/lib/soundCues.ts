@@ -28,7 +28,9 @@ export type CueName =
   /** A marble bounces off a thread (pitch from the thread's climb, gain from the impact). */
   | 'bounce'
   /** One note of the chord that closes a solve (CADENCE_HZ in lib/melody), strummed or replayed. */
-  | 'cadence';
+  | 'cadence'
+  /** A pull released away from every peg it could attach to: no thread. */
+  | 'dragMiss';
 
 export interface Cue {
   readonly hz: number;
@@ -54,6 +56,8 @@ export const CUES: Readonly<Record<CueName, Cue>> = {
   bounce: { hz: 440.0, volume: 0.8 },
   // C5, the cadence's first note; each strummed note passes its own pitch.
   cadence: { hz: 523.25, volume: 0.6 },
+  // B2: below the scale like the refusal, and softer, because nothing was turned down.
+  dragMiss: { hz: 123.47, volume: 0.25 },
 };
 
 /** Every distinct pitch a cue can ask for (the synth renders each once). */

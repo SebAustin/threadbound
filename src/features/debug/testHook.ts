@@ -1,4 +1,4 @@
-import { Box3, Object3D, Quaternion, Vector3, type UIKitMLAsset, type World } from '@iwsdk/core';
+import { Box3, Object3D, PokeInteractable, Quaternion, Vector3, type UIKitMLAsset, type World } from '@iwsdk/core';
 import { AIM_PLANE_Z, CHUTE, PERF_BUDGET } from '../../config/constants';
 import { LEVELS } from '../../levels';
 import { budgetBreaches, type FrameStats } from '../../lib/perfBudget';
@@ -12,6 +12,7 @@ import { MarbleSystem } from '../marbles/MarbleSystem';
 import { PlacementSystem } from '../placement/PlacementSystem';
 import { RevealSystem } from '../placement/RevealSystem';
 import { Thread } from '../puzzle/components';
+import { TouchFeedbackSystem, type TouchMirror } from '../input/TouchFeedbackSystem';
 import { PerfProbeSystem } from './PerfProbeSystem';
 
 interface ScreenPoint {
@@ -45,6 +46,9 @@ interface LedgeProbe {
   visible: boolean;
 }
 
+/** A touchable part as TouchFeedbackSystem shows it, and whether a fingertip can poke it. */
+type TouchProbe = Omit<TouchMirror, 'kind'> & { kind: string; pokeInteractable: boolean };
+
 export interface ThreadboundTestHook {
   /** Canvas-relative CSS pixel position of a diorama-local point. */
   project(x: number, y: number, z?: number): ScreenPoint;
@@ -56,6 +60,12 @@ export interface ThreadboundTestHook {
   dispatch(command: PuzzleCommand): void;
   /** A ledge button ('restart' | 'next' | 'settings' | 'daily'), null if absent. */
   button(action: string): (Located & { visible: boolean }) | null;
+  /**
+   * Every touchable part by its root's name ('button-restart', 'chute', 'peg-a', 'handle-a',
+   * 'thread-a-b'): its kind, what it shows ('rest' | 'hover' | 'target' | 'press'), how far it
+   * is pressed in (meters) and whether it is pokeable; plus 'hud-plaque' (pokeable or not only).
+   */
+  touch(): Record<string, TouchProbe | { pokeInteractable: boolean }>;
   /** Canvas position of a rail peg's slider tab, null if the peg has no rail. */
   handle(pegId: string): ScreenPoint | null;
   /** Where that tab would be on screen with its peg at `along` on the rail. */
@@ -115,7 +125,7 @@ export interface ThreadboundTestHook {
    * whether a cadence or replay is still playing, and each thread's vibration energy.
    */
   celebration(): { starsShown: number; replaying: boolean; threadEnergy: number[] };
-  /** Visible meshes (about one draw call each) grouped by what they belong to. */
+  /** Visible meshes the camera draws (about one draw call each) grouped by what they belong to. */
   meshBreakdown(): Record<string, number>;
   /** Cost of the next rendered frame, and any performance-budget breaches. */
   frameStats(): Promise<FrameStats & { breaches: string[]; multiview: boolean; views: number }>;
@@ -196,6 +206,23 @@ function levelProbes(
     worldOf: (x, y, z = 0) => {
       const frame = puzzleStore.frame;
       return frame ? plain(frame.localToWorld(x, y, z, new Vector3())) : { x: 0, y: 0, z: 0 };
+    },
+  };
+}
+
+function touchProbe(world: World): Hook<'touch'> {
+  return {
+    touch: () => {
+      const parts: Record<string, TouchProbe | { pokeInteractable: boolean }> = {};
+      for (const entity of world.getSystem(TouchFeedbackSystem)?.queries.touchables.entities ?? []) {
+        const root = entity.object3D;
+        const mirror = root?.userData.touch as TouchMirror | undefined;
+        if (!root || !mirror) continue;
+        parts[root.name] = { ...mirror, pokeInteractable: entity.hasComponent(PokeInteractable) };
+      }
+      const plaque = world.getSceneEntity('hud-plaque');
+      parts['hud-plaque'] = { pokeInteractable: plaque?.hasComponent(PokeInteractable) ?? false };
+      return parts;
     },
   };
 }
@@ -392,7 +419,8 @@ function sessionProbes(world: World): Hook<'gazeAvailable' | 'room' | 'frameStat
     meshBreakdown: () => {
       const counts: Record<string, number> = {};
       world.scene.traverse((o) => {
-        if (!(o as { isMesh?: boolean }).isMesh || !visibleInScene(o)) return;
+        // A mesh on a layer the camera doesn't draw (a hit area) costs no draw call.
+        if (!(o as { isMesh?: boolean }).isMesh || !visibleInScene(o) || !o.layers.test(world.camera.layers)) return;
         const owner = ownerOf(o);
         counts[owner] = (counts[owner] ?? 0) + 1;
       });
@@ -439,6 +467,7 @@ export function installTestHook(world: World): void {
   window.__threadbound = {
     ...levelProbes(probe),
     ...sceneProbes(world, probe),
+    ...touchProbe(world),
     ...plaqueProbes(world, probe),
     ...welcomeProbes(world, probe),
     ...sessionProbes(world),

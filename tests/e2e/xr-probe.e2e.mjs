@@ -95,6 +95,19 @@ const PROBE_FIELDS = [
     const { a, b } = hook.state().pegPositions;
     return a && b ? hook.worldOf((a.x + b.x) / 2, (a.y + b.y) / 2) : null;
   }],
+  // A bare world point 1.1 cm off thread a-b's axis at its midpoint: outside the thread's
+  // 6 mm radius, inside its invisible hit area (src/lib/hitArea.ts).
+  ['threadEdge', () => {
+    const hook = window.__threadbound;
+    const { a, b } = hook.state().pegPositions;
+    if (!a || !b) return null;
+    const off = 0.011;
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    return hook.worldOf((a.x + b.x) / 2 - ((b.y - a.y) / len) * off, (a.y + b.y) / 2 + ((b.x - a.x) / len) * off);
+  }],
+  // Every touchable part by name: its kind, what it shows (rest, hover, target, press), its
+  // travel and whether it is pokeable; plus 'hud-plaque' (pokeable or not).
+  ['touch', () => window.__threadbound.touch()],
   ['threads', () => window.__threadbound.state().threads],
   // The notes the last solve played (empty until a solve).
   ['melodyNotes', () => window.__threadbound.state().melody.notes],
@@ -151,6 +164,8 @@ const CUE_FIELDS = [
   ['buttonCuesDrained', (records) => records.filter((c) => c.name === 'button').length],
   // Cadence notes since the last probe: a solve strums exactly 3.
   ['cadenceDrained', (records) => records.filter((c) => c.name === 'cadence').length],
+  // Pulls released away from every peg they could attach to, since the last probe.
+  ['dragMissDrained', (records) => records.filter((c) => c.name === 'dragMiss').length],
 ];
 
 export default async function run({ page, frame }) {

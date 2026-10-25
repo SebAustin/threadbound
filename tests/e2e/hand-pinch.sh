@@ -1,15 +1,29 @@
 #!/bin/zsh
 # Hand pinch-pull E2E in an emulated Quest 3 session (no eye tracking, so hand
-# far rays target): aim the right hand at knob a, pinch, sweep to knob b, release.
-# Exit 1 unless exactly the thread a->b is made. The last block checks the video
-# takes' glide helpers (xr-lib.sh): glide pinch-pull a->b, then a glide chute pinch solves.
+# far rays target): aim the right hand at knob a, pinch, sweep to knob b (which
+# then reads 'target'), release. Exit 1 unless exactly the thread a->b is made and
+# nothing reads 'target' after. A pull released on bare panel makes no thread and
+# sounds one miss. The last block checks the video takes' glide helpers (xr-lib.sh):
+# glide pinch-pull a->b, then a glide chute pinch solves.
 cd "$(dirname "$0")/../.."
 source tests/e2e/xr-lib.sh
 xr_start
 P=$(probe load0)
-pinch_pull "$(field "$P" "['knobs']['a']")" "$(field "$P" "['knobs']['b']")"
-T=$(field "$(probe)" "['threads']")
+pinch_sweep "$(field "$P" "['knobs']['a']")" "$(field "$P" "['knobs']['b']")"
+B=$(field "$(probe)" "['touch']['peg-b']['state']")
+[ "$B" = "target" ] && pass "with the pinch swept onto b, peg b reads target" || fail "with the pinch swept onto b, peg b reads target ($B)"
+pinch_release
+Q=$(probe); T=$(field "$Q" "['threads']")
+TARGETS=$(field "$Q" "['touch']" | python3 -c "import sys,json;print([n for n,t in json.load(sys.stdin).items() if t.get('state')=='target'])")
 echo "$T" | grep -q '"from": "a", "to": "b"' && pass "hand pinch-pull makes the thread a->b" || fail "hand pinch-pull makes the thread a->b ($T)"
+[ "$TARGETS" = "[]" ] && pass "after the release nothing reads target" || fail "after the release nothing reads target ($TARGETS)"
+
+# A pull from a released on bare panel (8 cm below a, far from every peg): no thread, one soft miss.
+P=$(probe load0); A=$(field "$P" "['knobs']['a']")
+BARE=$(python3 -c "import json;a=json.loads('$A');print(json.dumps({'x':a['x'],'y':a['y']-0.08,'z':a['z']}))")
+pinch_pull "$A" "$BARE"
+Q=$(probe); N=$(field "$Q" "['threads']" | python3 -c "import sys,json;print(len(json.load(sys.stdin)))"); MISS=$(field "$Q" "['dragMissDrained']")
+[ "$N" = "0" ] && [ "$MISS" = "1" ] && pass "a pull released on bare panel makes no thread and sounds one miss" || fail "a pull released on bare panel makes no thread and sounds one miss (threads=$N, misses=$MISS)"
 
 # Near pinch, the ghost hand's gesture: the hand rests a few cm in front of the knob
 # and moves (not just the ray rotating) to the other peg.

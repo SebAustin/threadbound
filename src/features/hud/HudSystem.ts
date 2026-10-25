@@ -53,7 +53,7 @@ export class HudSystem extends createSystem({}) {
     this.settingsFace = new SettingsFace(this.panel);
     this.cleanupFuncs.push(
       this.settingsFace.bind(),
-      // The melody book: poking the stars replays the level's saved tune.
+      // The melody book: pinching the stars replays the level's saved tune.
       onTap(this.panel.getElementById('hud-stars'), () => puzzleStore.dispatch({ type: 'playMelody' })),
       puzzleStore.onCommand((command) => {
         if (command.type === 'levelBuilt') {

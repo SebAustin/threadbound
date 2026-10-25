@@ -1,7 +1,9 @@
 #!/bin/zsh
 # Hand-ray pinches in an emulated Quest 3 session operate the chute, the ledge
 # buttons, the settings face and thread snipping (taps, not drags), and the ledge
-# strip teaches level 1 from a fresh save. Exit 1 on any failure.
+# strip teaches level 1 from a fresh save. A ray resting on Restart lights it, a
+# pinch presses it in, and a pinch beside a thread (inside its hit area) snips it.
+# Exit 1 on any failure.
 cd "$(dirname "$0")/../.."
 source tests/e2e/xr-lib.sh
 xr_start
@@ -31,10 +33,26 @@ pinch_at "$(field "$P" "['buttons']['restart']")"
 N=$(field "$(probe)" "['threads']" | python3 -c "import sys,json;print(len(json.load(sys.stdin)))")
 [ "$N" = "0" ] && pass "pinching Restart clears the threads" || fail "pinching Restart clears the threads (threads=$N)"
 
+# The hand ray resting on Restart, no pinch, lights it; a pinch presses it in 4-7 mm; the release lights it again.
+touch_of() { field "$(probe)" "['touch']['button-restart']" | python3 -c "import sys,json;t=json.load(sys.stdin);print(t['state'], 4 <= round(t['travel']*1000, 3) <= 7)"; }
+P=$(probe load0)
+aim_hand "$(field "$P" "['buttons']['restart']")"; sleep 0.5
+TOUCH=$(touch_of); [ "$TOUCH" = "hover False" ] && pass "the hand ray resting on Restart reads hover" || fail "the hand ray resting on Restart reads hover ($TOUCH)"
+iw xr set-select-value --input-json '{"device":"hand-right","value":1}' >/dev/null 2>&1; sleep 0.3
+TOUCH=$(touch_of); [ "$TOUCH" = "press True" ] && pass "pinching Restart reads press with 4-7 mm of travel" || fail "pinching Restart reads press with 4-7 mm of travel ($TOUCH)"
+iw xr set-select-value --input-json '{"device":"hand-right","value":0}' >/dev/null 2>&1; sleep 0.8
+TOUCH=$(touch_of); [ "$TOUCH" = "hover False" ] && pass "releasing Restart reads hover again" || fail "releasing Restart reads hover again ($TOUCH)"
+
 P=$(probe thread)
 pinch_at "$(field "$P" "['threadMid']")"
 N=$(field "$(probe)" "['threads']" | python3 -c "import sys,json;print(len(json.load(sys.stdin)))")
 [ "$N" = "0" ] && pass "pinching a thread snips it" || fail "pinching a thread snips it (threads=$N)"
+
+# 1.1 cm off the thread's axis: past its 6 mm radius, inside its invisible hit area.
+P=$(probe thread)
+pinch_at "$(field "$P" "['threadEdge']")"
+N=$(field "$(probe)" "['threads']" | python3 -c "import sys,json;print(len(json.load(sys.stdin)))")
+[ "$N" = "0" ] && pass "a pinch at the thread's edge snips a-b" || fail "a pinch at the thread's edge snips a-b (threads=$N)"
 
 # Right after a snip with the same hand: the next pinch must not be swallowed.
 P=$(probe load0)

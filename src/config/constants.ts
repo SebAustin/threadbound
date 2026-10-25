@@ -69,6 +69,21 @@ export const THREAD_TUNING = {
   vibrationGain: 0.9,
 } as const;
 
+/**
+ * Invisible hit areas around thin parts (threads, tabs), so each is at least
+ * as easy to aim at as a target of `minDegrees` (src/lib/hitArea.ts).
+ */
+export const HIT_AREA = {
+  /** The smallest angle a ray target should subtend at the eye. */
+  minDegrees: 2.5,
+  /**
+   * Meters from a seated head to the farthest point it aims at: the diorama's
+   * far bottom corner, floated in front of the head and moved to Farther -2
+   * (0.721 m, tests/unit/hitArea.test.ts), rounded up.
+   */
+  worstDistance: 0.73,
+} as const;
+
 /** Shape glyphs paired with sorting colors (colorblind-safe). */
 export const GLYPH = {
   radius: 0.011,

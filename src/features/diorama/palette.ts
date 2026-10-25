@@ -1,4 +1,5 @@
 import {
+  BoxGeometry,
   CanvasTexture,
   CircleGeometry,
   CylinderGeometry,
@@ -9,6 +10,7 @@ import {
   SphereGeometry,
   SRGBColorSpace,
   type BufferGeometry,
+  type Material,
   type Texture,
 } from '@iwsdk/core';
 import { DIORAMA, GLYPH, MARBLE, PEG } from '../../config/constants';
@@ -30,17 +32,24 @@ export const COLORS = {
   /** The frame is a shade darker than the back panel it holds, so the case reads as layered. */
   walnutFrame: 0x4a2e20,
   cream: 0xefe3cf,
+  /** Lit forms of touchable parts (TouchFeedbackSystem): the same hue, brighter and glowing. */
+  creamHot: 0xfff4dc,
   brass: 0xc9a14a,
   brassHot: 0xffd479,
+  /** The peg a pull would attach to: brighter than a hovered peg. */
+  brassTarget: 0xfff0b8,
   thread: 0xff6b5a,
+  threadHot: 0xff9a86,
   threadPreview: 0xffb3a8,
   /** Authored "snip me" threads read differently from the player's coral strings. */
   threadPreset: 0x9b7fd1,
+  threadPresetHot: 0xc4aaf5,
   marble: 0x3fb7c6,
   /** World 2 sorting colors: amber vs azure stay distinct under common color-vision deficiencies. */
   amber: 0xff6f1a,
   azure: 0x3f7fd6,
   goal: 0x8fd694,
+  goalHot: 0xb8f2bc,
   goalDone: 0xfff1a8,
 } as const;
 
@@ -135,30 +144,32 @@ function shadowTexture(): Texture | null {
   return new CanvasTexture(canvas);
 }
 
+/** A lit form of a touchable part: its colour glowing, so it reads under any light. */
+const hotMaterial = (color: number, emissiveIntensity: number) =>
+  new MeshStandardMaterial({ color, emissive: color, emissiveIntensity, metalness: 0.4, roughness: 0.3 });
+
 export const MATERIALS = {
   walnut: new MeshStandardMaterial({ color: COLORS.walnut, map: WOOD_GRAIN, roughness: 0.62 }),
   walnutFrame: new MeshStandardMaterial({ color: COLORS.walnutFrame, map: WOOD_GRAIN, roughness: 0.55 }),
   cream: new MeshStandardMaterial({ color: COLORS.cream, roughness: 0.9 }),
+  creamHot: hotMaterial(COLORS.creamHot, 0.35),
   brass: new MeshStandardMaterial({ color: COLORS.brass, metalness: 0.85, roughness: 0.28 }),
-  brassHot: new MeshStandardMaterial({
-    color: COLORS.brassHot,
-    emissive: COLORS.brassHot,
-    emissiveIntensity: 0.6,
-    metalness: 0.4,
-    roughness: 0.3,
-  }),
+  brassHot: hotMaterial(COLORS.brassHot, 0.6),
+  brassTarget: hotMaterial(COLORS.brassTarget, 1),
   thread: new MeshStandardMaterial({
     color: COLORS.thread,
     emissive: COLORS.thread,
     emissiveIntensity: 0.25,
     roughness: 0.5,
   }),
+  threadHot: hotMaterial(COLORS.threadHot, 0.6),
   threadPreset: new MeshStandardMaterial({
     color: COLORS.threadPreset,
     emissive: COLORS.threadPreset,
     emissiveIntensity: 0.3,
     roughness: 0.5,
   }),
+  threadPresetHot: hotMaterial(COLORS.threadPresetHot, 0.6),
   threadPreview: new MeshStandardMaterial({
     color: COLORS.threadPreview,
     transparent: true,
@@ -166,6 +177,7 @@ export const MATERIALS = {
   }),
   marble: new MeshStandardMaterial({ color: COLORS.marble, metalness: 0.1, roughness: 0.15 }),
   goal: new MeshStandardMaterial({ color: COLORS.goal, roughness: 0.8 }),
+  goalHot: hotMaterial(COLORS.goalHot, 0.4),
   /** Unlit and never writes depth, so it only darkens what is under the diorama. */
   contactShadow: new MeshBasicMaterial({
     map: shadowTexture(),
@@ -186,6 +198,8 @@ export const MATERIALS = {
 export const GEOMETRIES = {
   /** Unit cylinder; threads scale a child mesh so physics entities stay unscaled. */
   unitCylinder: new CylinderGeometry(1, 1, 1, 10, 1),
+  /** Unit box, scaled into a tab's hit area. */
+  unitBox: new BoxGeometry(1, 1, 1),
   marble: new SphereGeometry(MARBLE.radius, 20, 14),
   /** Unit plane lying flat (+Y up), scaled to each diorama's footprint. */
   shadowPlane: new PlaneGeometry(1, 1).rotateX(-Math.PI / 2),
@@ -262,6 +276,45 @@ export const SHARED_GEOMETRIES: ReadonlySet<BufferGeometry> = new Set<BufferGeom
   ...Object.values(GEOMETRIES),
   ...Object.values(GLYPH_GEOMETRIES),
 ]);
+
+/**
+ * What a touched part lights up as (TouchFeedbackSystem): its rest material's lit
+ * form. A material missing here (the walnut icons, rims, glyphs) stays as it is.
+ */
+export const HOT_MATERIALS: ReadonlyMap<Material, Material> = new Map<Material, Material>([
+  [MATERIALS.brass, MATERIALS.brassHot],
+  [MATERIALS.cream, MATERIALS.creamHot],
+  [MATERIALS.goal, MATERIALS.goalHot],
+  [MATERIALS.thread, MATERIALS.threadHot],
+  [MATERIALS.threadPreset, MATERIALS.threadPresetHot],
+]);
+
+/** What the peg a pull would attach to lights up as. */
+export const TARGET_MATERIALS: ReadonlyMap<Material, Material> = new Map<Material, Material>([
+  [MATERIALS.brass, MATERIALS.brassTarget],
+]);
+
+/**
+ * The render layer hit areas live on. No camera renders it (a camera draws layer 0,
+ * and an XR view also its own index), so a hit area costs no draw call. It stays
+ * `visible`: IWSDK's pointers skip hidden objects, but they raycast every layer.
+ */
+export const HIT_AREA_LAYER = 31;
+
+/** Never drawn, so it needs no fade; it writes nothing even if a debug camera draws every layer. */
+const HIT_AREA_MATERIAL = new MeshBasicMaterial({ colorWrite: false, depthWrite: false });
+
+/**
+ * An invisible target that rays and fingertips hit: a mesh of a shared geometry on
+ * HIT_AREA_LAYER, scaled by its owner, marked so touch feedback never lights or moves it.
+ */
+export function hitAreaMesh(geometry: BufferGeometry): Mesh {
+  const mesh = new Mesh(geometry, HIT_AREA_MATERIAL);
+  mesh.name = 'hit-area';
+  mesh.layers.set(HIT_AREA_LAYER);
+  mesh.userData.hitArea = true;
+  return mesh;
+}
 
 /** A flat, player-facing shape for a sorting color, or null for colors without one. */
 export function glyphMesh(color: MarbleColor): Mesh | null {

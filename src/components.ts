@@ -6,6 +6,16 @@
  */
 
 import { defineComponents } from '@iwsdk/core';
-import { Chute, ControlButton, Marble, Peg, SliderHandle, TapReleased, Thread } from './features/puzzle/components.js';
+import {
+  Chute,
+  ControlButton,
+  Marble,
+  Peg,
+  SliderHandle,
+  SnapTarget,
+  TapReleased,
+  Thread,
+  Touchable,
+} from './features/puzzle/components.js';
 
-export default defineComponents([Peg, Thread, Marble, Chute, ControlButton, SliderHandle, TapReleased]);
+export default defineComponents([Peg, Thread, Marble, Chute, ControlButton, SliderHandle, TapReleased, Touchable, SnapTarget]);

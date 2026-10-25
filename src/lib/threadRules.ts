@@ -85,6 +85,43 @@ export function findSnapPeg(
   return bestId;
 }
 
+/**
+ * The peg a released pull attaches to. The held point (lib/releaseTrail) wins when it
+ * lands on a peg; one that lands on none doesn't, so the release frame gets its chance:
+ * a pull that paused on bare panel, then landed on a peg, still lands there.
+ */
+export function landingPeg(
+  held: Vec2,
+  release: Vec2,
+  pegs: readonly PegPoint[],
+  excludeId: string,
+  radius: number,
+): string | null {
+  return findSnapPeg(held, pegs, excludeId, radius) ?? findSnapPeg(release, pegs, excludeId, radius);
+}
+
+/** The parts of a level that say which threads it starts with and which its solution keeps. */
+export interface PresetLevel {
+  readonly pegs: readonly { readonly id: string }[];
+  readonly presetThreads: readonly ThreadLink[];
+  /** Threads a known-good solution has: the presets it keeps, plus the player's. */
+  readonly solution: readonly ThreadLink[];
+}
+
+/**
+ * Pegs that only snipped preset threads touch: the presets the solution doesn't
+ * keep. They anchor a thread to snip and are never a thread's end, so they are no
+ * snap target (a pull released beside one lands on its neighbour).
+ */
+export function presetOnlyPegs(level: PresetLevel): readonly string[] {
+  const kept = (link: ThreadLink) => level.solution.some((s) => sameThread(s, link));
+  const touches = (links: readonly ThreadLink[], id: string) => links.some((l) => l.from === id || l.to === id);
+  const snipped = level.presetThreads.filter((link) => !kept(link));
+  return level.pegs
+    .map((p) => p.id)
+    .filter((id) => touches(snipped, id) && !touches(level.solution, id));
+}
+
 export function checkNewThread(
   existing: readonly ThreadLink[],
   from: string,

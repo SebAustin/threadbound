@@ -1,7 +1,7 @@
 // E2E: every player-visible event plays its own cue (accessibility: follow the
 // puzzle by ear). Audio can't be heard in automation, so the dev-only cue log
 // records which cue each event asked for.
-import { canvasMapper, checks, click, drag, isComplete, loadLevel, waitFor } from './lib.mjs';
+import { canvasMapper, checks, click, drag, frames, isComplete, loadLevel, waitFor } from './lib.mjs';
 
 const drain = () => window.__threadbound.cues();
 const count = (cues, name) => cues.filter((c) => c === name).length;
@@ -25,6 +25,7 @@ export default async function run({ page, frame }) {
   await cupsChimeOrThud(ctx);
   await ledgeButtonClicks(ctx);
   await pegCues(ctx);
+  await pullMisses(ctx);
   await slidSettles(ctx);
   await ambienceStopsWhenPaused(ctx);
   return results;
@@ -74,6 +75,29 @@ async function pegCues({ page, app, at, check }) {
 
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'snip', from: 'a', to: 'b' }));
   check('a snip is heard', (await app.evaluate(drain)).includes('snip'));
+}
+
+/** A pull released on bare panel misses, softly; a press and release on a peg is a tap, and silent. */
+async function pullMisses({ page, app, at, check }) {
+  await loadLevel(app, 'w1-01');
+  const pegs = await app.evaluate(() => window.__threadbound.pegs());
+  const a = at(pegs.find((p) => p.id === 'a'));
+  // Bare back panel on the knobs' plane (AIM_PLANE_Z), clear of every peg's snap radius.
+  const bare = at(await app.evaluate(() => window.__threadbound.project(0.25, 0.3, 0.029)));
+  await app.evaluate(drain);
+  await drag(page, a, bare);
+  await frames(app, 2);
+  const missed = await app.evaluate(drain);
+  const threads = await app.evaluate(() => window.__threadbound.state().threads.length);
+  check(
+    'a pull released on bare panel logs one dragMiss and no thread',
+    count(missed, 'dragMiss') === 1 && count(missed, 'thread') === 0 && threads === 0,
+    JSON.stringify({ missed, threads }),
+  );
+  await click(page, a);
+  await frames(app, 2);
+  const tapped = await app.evaluate(drain);
+  check('a press and release on a peg logs no dragMiss', tapped.includes('pegGrab') && count(tapped, 'dragMiss') === 0, JSON.stringify(tapped));
 }
 
 /** A peg slid along its rail settles audibly. */

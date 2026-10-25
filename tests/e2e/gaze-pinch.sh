@@ -1,7 +1,8 @@
 #!/bin/zsh
 # Gaze + pinch E2E (eye-tracked headsets): look at peg a, pinch, move the pinching
-# hand toward peg b, release -> one thread. Then look at the chute and pinch -> the
-# drop starts. Only IWER's Quest Pro preset grants gaze-tracking (Quest 3 and the
+# hand toward peg b, release -> one thread. Gazing at the chute without a pinch
+# lights it, and gazing at bare panel lets it rest. Then look at the chute and
+# pinch -> the drop starts. Only IWER's Quest Pro preset grants gaze-tracking (Quest 3 and the
 # VR Glasses preset have no eye tracking), so this run switches the emulated device
 # and always switches it back. Exit 1 on any failure.
 cd "$(dirname "$0")/../.."
@@ -36,8 +37,17 @@ pinch 0; sleep 0.5
 T=$(field "$(probe)" "['threads']")
 echo "$T" | grep -q '"from": "a", "to": "b"' && pass "gaze + pinch-pull makes a thread" || fail "gaze + pinch-pull makes a thread ($T)"
 
+# Gaze alone, no pinch, lights the chute; bare panel (12 cm below the chute, clear of every peg) lets it rest.
+chute_state() { field "$(probe)" "['touch']['chute']['state']"; }
+C=$(field "$P" "['chute']")
+BARE=$(python3 -c "import json;c=json.loads('$C');print(json.dumps({'x':c['x']+0.05,'y':c['y']-0.12,'z':c['z']}))")
+gaze_at "$C"; S=$(chute_state)
+[ "$S" = "hover" ] && pass "gazing at the chute without a pinch reads hover" || fail "gazing at the chute without a pinch reads hover ($S)"
+gaze_at "$BARE"; S=$(chute_state)
+[ "$S" = "rest" ] && pass "gazing at bare panel lets the chute rest" || fail "gazing at bare panel lets the chute rest ($S)"
+
 # The pinching hand rests wherever it likes; gaze alone picks the chute.
-gaze_at "$(field "$P" "['chute']")"; pinch 1; pinch 0; sleep 0.5
+gaze_at "$C"; pinch 1; pinch 0; sleep 0.5
 S=$(field "$(probe)" "['status']"); [ "$S" != "idle" ] && pass "gaze at the chute + pinch starts a drop ($S)" || fail "gaze at the chute + pinch starts a drop ($S)"
 xr_stop
 exit $FAIL

@@ -2,7 +2,7 @@ import type { UIKit, UIKitMLAsset } from '@iwsdk/core';
 import { LEVELS } from '../../levels';
 import { settingsModel } from '../../lib/hud';
 import { levelSelectLabel, stepLevel } from '../../lib/levelSelect';
-import { DISARMED, RESET_WINDOW_SECONDS, resetLabel, resetPoke, type ResetGuard } from '../../lib/resetGuard';
+import { DISARMED, RESET_WINDOW_SECONDS, resetLabel, resetPinch, type ResetGuard } from '../../lib/resetGuard';
 import type { DioramaOffset } from '../../lib/placement';
 import { stepOffset, type Settings } from '../../lib/settings';
 import { stringSynth } from '../audio/stringSynth';
@@ -36,7 +36,7 @@ export class SettingsFace {
         const { slowMotion } = puzzleStore.get().settings;
         puzzleStore.dispatch({ type: 'settings', patch: { slowMotion: !slowMotion } });
       }),
-      control('set-reset', () => this.pokeReset()),
+      control('set-reset', () => this.pinchReset()),
       // Revisit any level reached so far (its stars and melody), never skipping ahead.
       control('set-prev', () => this.stepLevel(-1)),
       control('set-next', () => this.stepLevel(1)),
@@ -69,15 +69,15 @@ export class SettingsFace {
     this.panel.getElementById<UIKit.Text>('set-level')?.setProperties({ text });
   }
 
-  /** One-handed diorama adjustment: each poke is one clamped step. */
+  /** One-handed diorama adjustment: each pinch is one clamped step. */
   private move(axis: keyof DioramaOffset, direction: 1 | -1): void {
     const offset = stepOffset(puzzleStore.get().settings.offset, axis, direction);
     puzzleStore.dispatch({ type: 'settings', patch: { offset } });
   }
 
-  /** First poke arms, a second within the window wipes progress (and brings the tutorial back). */
-  private pokeReset(): void {
-    const { guard, reset } = resetPoke(this.resetGuard, now());
+  /** First pinch arms, a second within the window wipes progress (and brings the tutorial back). */
+  private pinchReset(): void {
+    const { guard, reset } = resetPinch(this.resetGuard, now());
     this.resetGuard = guard;
     if (reset) puzzleStore.dispatch({ type: 'resetProgress' });
     this.showResetLabel();

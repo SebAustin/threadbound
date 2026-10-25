@@ -23,11 +23,15 @@ import { AIM_PLANE_Z, CHUTE, CONTROLS, DIORAMA, FRICTION, GLYPH, GOAL, PEG, SLID
 import type { SortingColor } from '../../lib/marbleColors';
 import type { Chute as ChuteSpec, Level } from '../../lib/levelSchema';
 import { handleOffset, type Rail } from '../../lib/rail';
+import { TAB_HIT_SIZE } from '../../lib/hitArea';
+import { presetOnlyPegs } from '../../lib/threadRules';
+import { HIT_ORDER } from '../../lib/touchFeedback';
 import { LEDGE_BUTTON_Z, LEDGE_FRONT_Z, ledgeButtonX } from '../../lib/ledge';
-import { Chute, ControlActions, ControlButton, Peg, SliderHandle, type ControlAction } from '../puzzle/components';
+import { Chute, ControlActions, ControlButton, Peg, SliderHandle, Touchable, TouchKinds, type ControlAction } from '../puzzle/components';
 import type { DioramaFrame } from './dioramaFrame';
-import { GEOMETRIES, glyphMesh, goalMaterial, MATERIALS, marbleMaterial } from './palette';
+import { GEOMETRIES, glyphMesh, goalMaterial, hitAreaMesh, MATERIALS, marbleMaterial } from './palette';
 import { mergeParts, type GeometryPart } from '../geometry/mergeParts';
+import { setHitOrder } from '../input/hitOrder';
 
 export interface GoalRange {
   readonly minX: number;
@@ -116,7 +120,12 @@ function buildCase(world: World, frame: DioramaFrame, level: Level): Entity[] {
   ];
 }
 
-function buildPeg(world: World, frame: DioramaFrame, peg: Level['pegs'][number]): Entity {
+/**
+ * A peg. A preset-only peg (it only anchors a preset thread the solution snips) is
+ * never a thread's end, so it takes no pinch: no RayInteractable, no listeners, and
+ * a ray or a pull released beside it lands on its neighbour.
+ */
+function buildPeg(world: World, frame: DioramaFrame, peg: Level['pegs'][number], presetOnly: boolean): Entity {
   const depth = DIORAMA.channelHalfDepth * 2;
   const group = new Group();
   // Pin and knob share one geometry (one draw call); the whole peg glows when hot.
@@ -124,10 +133,14 @@ function buildPeg(world: World, frame: DioramaFrame, peg: Level['pegs'][number])
   body.name = 'peg-body';
   group.add(body);
   group.name = `peg-${peg.id}`;
+  setHitOrder(group, HIT_ORDER.knob);
 
   const entity = place(world, frame, group, [peg.x, peg.y, 0], PEG_ROTATION);
   entity.addComponent(Peg, { pegId: peg.id, x: peg.x, y: peg.y });
-  entity.addComponent(RayInteractable);
+  if (!presetOnly) {
+    entity.addComponent(RayInteractable);
+    entity.addComponent(Touchable, { kind: TouchKinds.peg });
+  }
   entity.addComponent(PhysicsShape, {
     shape: PhysicsShapeType.Cylinder,
     dimensions: [PEG.radius, depth, 0],
@@ -168,7 +181,10 @@ function buildGoal(
 function buildChute(world: World, frame: DioramaFrame, chute: ChuteSpec, index: number): Entity {
   const funnelGeometry = new CylinderGeometry(CHUTE.topRadius, CHUTE.bottomRadius, CHUTE.height, CHUTE.segments, 1, true);
   const funnel = new Mesh(funnelGeometry, MATERIALS.brass);
-  funnel.name = index === 0 ? 'chute' : `chute-${index}`;
+  // The root holds the funnel, so a press can dip the funnel inside it (TouchFeedbackSystem).
+  const root = new Group();
+  root.name = index === 0 ? 'chute' : `chute-${index}`;
+  root.add(funnel);
   // A rim in the marble color tells the player what this chute releases.
   const rim = new Mesh(new TorusGeometry(CHUTE.topRadius, CHUTE.rimTube, 6, 24), marbleMaterial(chute.color));
   rim.rotation.x = Math.PI / 2;
@@ -180,9 +196,10 @@ function buildChute(world: World, frame: DioramaFrame, chute: ChuteSpec, index: 
     glyph.position.set(0, 0, CHUTE.topRadius + GLYPH.standoff);
     funnel.add(glyph);
   }
-  const entity = place(world, frame, funnel, [chute.x, chute.y + CHUTE.lift, 0]);
+  const entity = place(world, frame, root, [chute.x, chute.y + CHUTE.lift, 0]);
   entity.addComponent(Chute);
   entity.addComponent(RayInteractable);
+  entity.addComponent(Touchable, { kind: TouchKinds.chute });
   return entity;
 }
 
@@ -267,7 +284,11 @@ const BUTTON_ICONS: Readonly<Record<ControlAction, (r: number) => Mesh>> = {
   settings: (r) => new Mesh(settingsIconGeometry(r), MATERIALS.walnut),
 };
 
-/** Pokeable (near) and pinchable (ray) button resting on the front ledge. */
+/**
+ * Pokeable (near) and pinchable (ray) button resting on the front ledge. Pressed,
+ * its cap and icon sink; an invisible cylinder at the cap's rest size stays put, so
+ * a fingertip keeps contact with a sinking cap.
+ */
 function buildButton(
   world: World,
   frame: DioramaFrame,
@@ -284,11 +305,16 @@ function buildButton(
   iconMount.rotation.x = ICON_TILT;
   iconMount.position.y = h + r * ICON_LIFT;
   iconMount.add(BUTTON_ICONS[action](r));
-  group.add(cap, iconMount);
+  const hit = hitAreaMesh(GEOMETRIES.unitCylinder);
+  hit.scale.set(r, h, r);
+  hit.position.y = h / 2;
+  group.add(cap, iconMount, hit);
   const entity = place(world, frame, group, [x, 0, LEDGE_BUTTON_Z]);
   entity.addComponent(ControlButton, { action });
   entity.addComponent(RayInteractable);
+  // The only pokeable parts: threads, pegs, tabs and the plaque take a pinch only.
   entity.addComponent(PokeInteractable);
+  entity.addComponent(Touchable, { kind: TouchKinds.button });
   return entity;
 }
 
@@ -320,17 +346,23 @@ function buildRail(world: World, frame: DioramaFrame, peg: Level['pegs'][number]
   const body = new Mesh(new BoxGeometry(w, h, d), MATERIALS.brass);
   const [gw, gh, gd] = SLIDER.gripScale;
   const grip = new Mesh(new BoxGeometry(w * gw, h * gh, d * gd), MATERIALS.walnut);
-  tab.add(body, grip);
+  // A bigger invisible box around the small tab (lib/hitArea); its peg's knob still wins (HIT_ORDER).
+  const hit = hitAreaMesh(GEOMETRIES.unitBox);
+  hit.scale.set(...TAB_HIT_SIZE);
+  tab.add(body, grip, hit);
+  setHitOrder(tab, HIT_ORDER.tab);
   // The tab sits on the knobs' plane, the surface players aim at.
   const handleZ = AIM_PLANE_Z;
   const handle = place(world, frame, tab, [peg.x + ox, peg.y + oy, handleZ]);
   handle.addComponent(SliderHandle, { pegId: peg.id });
   handle.addComponent(RayInteractable);
+  handle.addComponent(Touchable, { kind: TouchKinds.tab });
   return [railEntity, handle];
 }
 
 export function buildDiorama(world: World, frame: DioramaFrame, level: Level): BuiltDiorama {
   const goals = level.goals.map((g) => buildGoal(world, frame, g));
+  const presetOnly = presetOnlyPegs(level);
   const [w] = level.size;
   const nextButton = buildButton(world, frame, ledgeButtonX('next', w), ControlActions.Next);
   const contactShadow = buildContactShadow(world, frame, level);
@@ -339,7 +371,7 @@ export function buildDiorama(world: World, frame: DioramaFrame, level: Level): B
       contactShadow,
       ...buildCase(world, frame, level),
       ...buildWalls(world, frame, level),
-      ...level.pegs.map((p) => buildPeg(world, frame, p)),
+      ...level.pegs.map((p) => buildPeg(world, frame, p, presetOnly.includes(p.id))),
       ...level.pegs.flatMap((p) => (p.rail ? buildRail(world, frame, p, p.rail) : [])),
       ...goals.flatMap((g) => g.entities),
       ...level.chutes.map((c, i) => buildChute(world, frame, c, i)),
