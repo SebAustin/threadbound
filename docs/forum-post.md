@@ -10,7 +10,7 @@ Hi all! I'm entering Threadbound in the Gaming track. I built it without a heads
 
 Link (Quest Browser, nothing to install): https://sebaustin.github.io/threadbound/
 
-[Enable once week 8 ticket 09's deployed guest-play check passes] Played on this headset before? https://sebaustin.github.io/threadbound/?fresh=1 starts from level 1 and leaves your save alone.
+Played on this headset before? https://sebaustin.github.io/threadbound/?fresh=1 starts from level 1 and leaves your save alone.
 
 Try it:
 1. Open the link in Quest Browser and pinch Enter XR.

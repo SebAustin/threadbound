@@ -23,7 +23,7 @@
 
 **Blocked by:** 01, 02 and 03 (merge after 02's step-4 push)
 
-**Status:** done except: the push box and the deployed-build box (main session: push the regressed SHA, watch the deploy, run the guest prod-xr against the live URL; exact commands in Comments)
+**Status:** done
 
 - [x] Unit (new tests/unit/storage.test.ts): `isGuestPlay` is true for `?fresh=1` and `?x=2&fresh=1`, and false for `''`, `?fresh=0`, `?fresh` and `?refresh=1`.
 - [x] Unit (storage.test.ts): stub `localStorage` with `vi.stubGlobal` and put a save in it. `browserStorage('?fresh=1')` reads null, and its writes never reach the stub. Two guest calls return the same object, and `browserStorage('')` returns the stub.
@@ -48,8 +48,8 @@
   - The first probe, taken without `load0`, shows level 1 with the ghost visible on 'pinch-pull'.
   - Solve level 1 with `pinch_pull` and `pinch_at` (tests/e2e/xr-lib.sh:42-61). The saved values are unchanged. Navigate back to the plain URL.
   - `tests/e2e/xr-probe.e2e.mjs` gains `PROBE_FIELDS` entries (ticket 01's table) for `levelIndex`, `ghost` and the two saved values; `run()` stays as it is.
-- [ ] Push (main session; the regression part is done, see Comments): once every box above is ticked, run README "Develop"'s full pre-push regression on main's head and keep its log as `.scratch/week8/regression-09.log`. From the start of the regression until the push, 02's rule for a running regression holds and nothing merges into main. Push only if every step is green, and push exactly the SHA that was regressed (`git push origin <sha>:main`). `gh run list --workflow deploy.yml -L 1` then shows that SHA's run green, smoke step included.
-- [ ] XR (deployed build; main session for the live run, the local-preview run is done, see Comments): `PROD_XR_GUEST=1 npm run test:e2e:prod-xr` passes on the local preview before the push (after `NODE_ENV=production npm run build`) and, after that deploy, with `SMOKE_URL=https://sebaustin.github.io/threadbound/`. Its screenshots, checked by eye, show the ghost hand on level 1 and the lit stars. Record the deployed commit in Comments. This check lets ticket 04 drop the brackets around its guest link.
+- [x] Push (main session; the regression part is done, see Comments): once every box above is ticked, run README "Develop"'s full pre-push regression on main's head and keep its log as `.scratch/week8/regression-09.log`. From the start of the regression until the push, 02's rule for a running regression holds and nothing merges into main. Push only if every step is green, and push exactly the SHA that was regressed (`git push origin <sha>:main`). `gh run list --workflow deploy.yml -L 1` then shows that SHA's run green, smoke step included.
+- [x] XR (deployed build; main session for the live run, the local-preview run is done, see Comments): `PROD_XR_GUEST=1 npm run test:e2e:prod-xr` passes on the local preview before the push (after `NODE_ENV=production npm run build`) and, after that deploy, with `SMOKE_URL=https://sebaustin.github.io/threadbound/`. Its screenshots, checked by eye, show the ghost hand on level 1 and the lit stars. Record the deployed commit in Comments. This check lets ticket 04 drop the brackets around its guest link.
 
 **Effort:** S (~1.5 days, including the pre-push regression)
 
@@ -128,3 +128,10 @@
   3. `gh run list --workflow deploy.yml -L 1`, then `gh run watch <id>`: 3c47e44's run must be green with `npm run test:smoke` before `upload-pages-artifact`. Record the run URL here (push box).
   4. Once it deploys: `curl -s https://sebaustin.github.io/threadbound/ | grep -o 'assets/index-[^"]*\.js'` should name `assets/index-Ce8HK3Za.js`. Then run `PROD_XR_GUEST=1 SMOKE_URL=https://sebaustin.github.io/threadbound/ npm run test:e2e:prod-xr` (and the plain run with the same `SMOKE_URL`). Check `.tmp/prod-xr/guest-ghost.png` and `guest-stars.png` by eye, copy them to `.scratch/week8/prod-xr/live-guest-*.png`, and record the deployed commit (3c47e44) here (deployed-build box). Ticket 04 can then drop the brackets around its guest link.
   5. `git push origin main` for the commits above 3c47e44: the docs commit and the review-fix commit. The fix commit touches tests/e2e/, which deploy.yml's `paths-ignore` (`docs/**`, `**/*.md`, `.scratch/**`) does not cover. So this push starts one deploy of unchanged src: check that it is green and that the bundle is still `assets/index-Ce8HK3Za.js`.
+- **Push and live guest run (main session, Oct 25):**
+  - The full pre-deploy regression on 3810c26 was all green: typecheck; 611 unit tests; `test:e2e` 31 scripts, 236 PASS; levels 24/24 at normal and slow speed; dailies 7/7; hands 8 scripts, 59 PASS; shots 43 PASS; production build; smoke 19 PASS; prod-xr 15 PASS. Log: `.scratch/week8/regression-predeploy.log`.
+  - `git push origin main` took origin from 7423a18 to 3810c26. Deploy run https://github.com/SebAustin/threadbound/actions/runs/40217523245 succeeded, and the live site serves `assets/index-Cmc3kJye.js`, the regressed bundle.
+  - `PROD_XR_GUEST=1 SMOKE_URL=https://sebaustin.github.io/threadbound/ npm run test:e2e:prod-xr`: 16 PASS, 0 FAIL, 7 NOTE in 23.0 s. The save stayed byte-identical to the seed (185 bytes), and one guest `console.info` was logged.
+  - Screenshots `.scratch/week8/prod-xr/live-guest-*.png`, checked by eye: level 1 with the ghost's target rings on a and b and the hint on the ledge strip; after the solve, the thread, the marbles in the cup and 3 lit stars.
+  - The live smoke (19 PASS) and the plain prod-xr run (15 PASS) passed too.
+  - Ticket 04's `?fresh=1` line is unbracketed in `docs/forum-post.md`; the user adds it to the posted text.
