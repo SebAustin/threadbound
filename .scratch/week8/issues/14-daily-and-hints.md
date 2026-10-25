@@ -28,6 +28,7 @@
   - Fill ticket 12's hidden `set-play-all` control; this ticket changes no settings-face layout or ids. It reads "Play all melodies (N)" or "Stop", and hides while the book is empty. It is bound with `onTap`, like the other plaque controls (src/features/hud/settingsFace.ts:29-33).
   - Pure `bookPlaylist(levels, melodies, restSeconds)` goes in new `src/lib/melodyBook.ts`. In campaign order, skipping levels with no entry, it joins ticket 10's `replaySchedule` for each entry, keeping each item's `cue` and `note`, and each next tune starts 0.8 s after the previous tune's cadence. Each tune keeps its cadence, so the book plays every tune exactly as its stars replay it, and the cadence marks where one tune ends. It has no timing of its own: timed entries keep their real offsets and old bare-array entries keep the 0.22 s step, both from `replaySchedule`.
   - New bus commands `playBook` and `stopBook`. MarbleSystem walks the playlist through the stars' replay path (`playMelody`/`replayDue`, :315-328, as ticket 10 rewrites them). A drop or a build stops it, and it doesn't start during a drop.
+- **The thread-limit refusal says how to snip (added Oct 25, Q46).** The user found a trap on the live build on level 3. With one thread allowed, a wrong first thread makes every new link fail with "No threads left - snip one first" (`src/lib/hud.ts:62`), and nothing says how to snip, because snipping isn't taught until w1-05. Change the line to "No threads left - pinch one to snip it" (39 characters, within 12's ledge-hint limit). Keep it in the refusal slot of the hint order.
 
 **Blocked by:** 10, 12, 13
 
@@ -49,6 +50,8 @@
 - [ ] Unit: tests/unit/dailyVariant.test.ts:12-13 expects the given name. Daily names are unique, ASCII, at most 14 characters, never a campaign name, and never "challenge". tests/unit/levels.test.ts: w4-03 keeps its id under its new name, and no campaign or daily name contains "budget" or "challenge".
 - [ ] Unit: new tests/unit/signposts.test.ts. `sunPulses` is off before a campaign solve and on after one, off inside a daily, and off once today's daily has stars. `sunPulseScale` stays in [1, 1.15] and repeats.
 - [ ] Unit: new tests/unit/melodyBook.test.ts. The playlist equals each entry's `replaySchedule` in campaign order, `cue` and `note` included, offset so each tune starts 0.8 s after the previous tune's cadence. Each tune ends on its cadence, levels with no entry are skipped, a bare-array entry keeps the 0.22 s step, and an empty book gives an empty playlist.
+- [ ] Unit: hud.test.ts: the `limit` refusal reads "No threads left - pinch one to snip it" and fits the ledge hint length.
+- [ ] E2E (Q46, written first, red today): new tests/e2e/wrong-first-thread.e2e.mjs, with real mouse drags from a fresh save on w1-03 (one thread allowed until ticket 13, two after it). Fill the limit with wrong threads (c-d first). A further link is refused and the ledge shows the new line. A real click on a wrong thread snips it. Then a-b links, the chute drop solves, and the level is complete. Add it to `test:e2e`.
 - [ ] E2E: extend tests/e2e/missed-drop.e2e.mjs:
   - the empty case keeps its checks, and its hint isn't the missed line;
   - on level 1 with thread b-c (the marbles fall past it), a real chute click gives the missed line once idle, not "Now pinch the chute...". A real click that snips b-c removes the line;

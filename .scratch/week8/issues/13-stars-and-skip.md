@@ -19,6 +19,8 @@
 
   `SettingsFace` renders both from state the way `renderLevel` does (settingsFace.ts:65-70), and mirrors `{ starsLabel, skipOffered }` on `panel.userData` for the hook's `plaque()` (src/features/debug/testHook.ts:193-197).
 
+- **This also eases the level 3 trap (Q46).** w1-03 Trampoline goes from 1 thread to 2 (par 1 + 1), so a wrong first thread no longer blocks the right one. Ticket 14 owns the refusal wording and its wrong-first-thread E2E.
+
 **Blocked by:** 12, 09
 
 **Status:** ready-for-agent
@@ -37,6 +39,7 @@
 
   `resume-insert.e2e.mjs` (an old save with no `skipped`) passes unchanged.
 - [ ] E2E: this ticket doesn't edit `level-select.e2e.mjs`: ticket 12 moves it to `set-next` (:36-37) and ticket 09 rewrites its last-level check (:44-46). Add first-drop, skip and skip-resume to `test:e2e` (package.json:18).
+- [ ] E2E: w1-03 allows 2 threads: a wrong first thread (c-d) leaves room for a-b, which then solves at 2 threads for 2 stars (solve and first drop), or 3 stars after a Restart and a-b alone (Q46).
 - [ ] E2E: level proofs. `levels.e2e.mjs` also requires 3 stars from the stored solution on the first drop after a load. It runs after the no-thread drop (:21-24), so this also proves a load resets the count. It reports `par` and `maxThreads`; `daily-proof.e2e.mjs` checks the same 3 stars. `npm run test:e2e:levels` and `test:e2e:levels:slow` (24/24 each) and `test:e2e:dailies` (7/7) pass; paste the summary lines in Comments.
 - [ ] XR: new `tests/e2e/xr-skip.sh` in `test:e2e:hands` (package.json:19), from a fresh save: pinch the chute three times, waiting out each drop. Skip appears only after the third. Pinch the settings button, then Skip, and expect `w1-02` with `skipped: ['w1-01']`. `xr-probe.e2e.mjs` reuses ticket 12's `fresh` and gains only the `SETUP_MODES` entry `settle` (wait while dropping), plus `PROBE_FIELDS` entries `skipToggle`, `skipOffered` and `skipped` (ticket 01's tables).
 - [ ] Check: `npm run --if-present typecheck`, `npm test`, `npm run test:e2e` and `npm run test:e2e:hands` pass.
