@@ -4,11 +4,11 @@
 # solved by hand pinches only, and the saved progress and settings stay byte-identical. xr_start's
 # reload (location.reload()) keeps the query. The plain URL is restored on any exit, because run.sh's
 # fresh_page keeps the query too and a guest page left behind would break every later persistence
-# check; the last check is that it was. Exit 1 on any failure.
+# check; the last check is that it was, with the seeded save and settings cleaned up. Exit 1 on any failure.
 cd "$(dirname "$0")/../.."
 source tests/e2e/xr-lib.sh
 
-# guest_nav <search> [SEED=1] [CLEAN=1]: tests/e2e/guest-nav.e2e.mjs -> { search, savedProgress, savedSettings }.
+# guest_nav <search> [SEED=1] [CLEAN=1]: tests/e2e/guest-nav.e2e.mjs -> { search, cleaned, savedProgress, savedSettings }.
 guest_nav() { SEARCH=$1 iw browser run tests/e2e/guest-nav.e2e.mjs 2>/dev/null | python3 -c "import sys,json;print(json.dumps(json.load(sys.stdin)['data']['result']))"; }
 # same_save <seed json> <probe json>: exit 0 when both saved values match the seed byte for byte; prints them.
 same_save() {
@@ -47,6 +47,8 @@ V=$(same_save "$S" "$(probe)") && pass "the saved progress and settings stay byt
 
 back_to_plain
 SEARCH_NOW=$(field "$PLAIN" "['search']" 2>/dev/null)
-[ "$SEARCH_NOW" = "" ] && echo "$PLAIN" | grep -q '"search": ""' && pass "the page is back on the plain URL" ||
-  fail "the page is back on the plain URL ($PLAIN)"
+CLEANED=$(field "$PLAIN" "['cleaned']" 2>/dev/null)
+[ "$SEARCH_NOW" = "" ] && echo "$PLAIN" | grep -q '"search": ""' && [ "$CLEANED" = "true" ] &&
+  pass "the page is back on the plain URL with a fresh save, slow motion off and offset 0/0" ||
+  fail "the page is back on the plain URL with a fresh save, slow motion off and offset 0/0 ($PLAIN)"
 exit $FAIL
