@@ -6,7 +6,7 @@ import { offsetOrigin, originFromCenter, type DioramaOffset } from '../../lib/pl
 import { INITIAL_PROGRESS, loadProgress, recordCompletion, recordDaily, saveProgress } from '../../lib/progress';
 import { browserStorage } from '../../lib/storage';
 import { starsFor } from '../../lib/scoring';
-import { resumeIndex } from '../../lib/resume';
+import { resumeTarget } from '../../lib/resume';
 import { restoreSteps } from '../../lib/solutionSteps';
 import { playerThreadCount } from '../../lib/threadRules';
 import type { Vec3 } from '../../lib/vec';
@@ -53,7 +53,10 @@ export class PuzzleSystem extends createSystem({
       puzzleStore.subscribe((state) => this.onStateChange(state)),
     );
     // Resume by solved level ids, not a stored index: adding levels never misplaces a save.
-    this.loadLevel(resumeIndex(LEVELS, progress.best));
+    // A finished campaign reopens on today's daily (solved or not), whose sun returns to the last level.
+    const target = resumeTarget(LEVELS, progress.best);
+    if (target.daily) this.openDaily(undefined, target.returnTo);
+    else this.loadLevel(target.index);
   }
 
   private handle(command: PuzzleCommand): void {
@@ -108,12 +111,16 @@ export class PuzzleSystem extends createSystem({
     }
   }
 
-  /** Today's daily (or pool entry `index`), remembering which campaign level to return to. */
-  private openDaily(index?: number): void {
+  /**
+   * Today's daily (or pool entry `index`), remembering which campaign level to return to:
+   * `returnTo` when given (a reopened finished campaign has no level of its own yet),
+   * else the open daily's, else the current level.
+   */
+  private openDaily(index?: number, returnTo?: number): void {
     const { daily, levelIndex } = puzzleStore.get();
     const day = today();
     const pick = index ?? dailyIndex(day, DAILY_LEVELS.length);
-    this.build(LEVELS.length + pick, { day, returnTo: daily?.returnTo ?? levelIndex }, 'fresh');
+    this.build(LEVELS.length + pick, { day, returnTo: returnTo ?? daily?.returnTo ?? levelIndex }, 'fresh');
   }
 
   /** Load a level fresh. Restarting a daily keeps its session; any campaign level ends it. */

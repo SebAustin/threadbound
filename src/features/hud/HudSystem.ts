@@ -6,6 +6,7 @@ import { onboardingStepOf } from '../onboarding/onboardingState';
 import { playerThreadCount, spoolUsed } from '../../lib/threadRules';
 import { currentStreak } from '../../lib/daily';
 import { dailyStarsOn } from '../../lib/progress';
+import { campaignComplete } from '../../lib/resume';
 import { LEVELS } from '../../levels';
 import { puzzleStore, type PuzzleState } from '../puzzle/puzzleStore';
 import type { PlaqueFace } from '../../lib/viewExtent';
@@ -154,7 +155,8 @@ export class HudSystem extends createSystem({}) {
       daily: state.daily ? { streak: currentStreak(state.progress.streak, state.daily.day) } : undefined,
       refusal: state.refusal,
       levelHint: state.status === 'complete' ? undefined : level.hint,
-      campaignComplete: !state.daily && state.levelIndex === LEVELS.length - 1 && state.status === 'complete',
+      // From the save, so the ending survives a reload and shows on any campaign level once all are solved.
+      campaignComplete: !state.daily && campaignComplete(LEVELS, state.progress.best),
       noTable: state.surface === 'floating',
     });
     this.apply(hud);

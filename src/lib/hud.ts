@@ -23,7 +23,7 @@ export interface HudInput {
   readonly refusal?: RefusalReason | null;
   /** One line teaching the mechanic this level introduces (shown until it is solved). */
   readonly levelHint?: string;
-  /** The last campaign level is solved. */
+  /** Every campaign level has a real solve in the save (lib/resume's campaignComplete), outside a daily. */
   readonly campaignComplete?: boolean;
   /** Passthrough found no table, so the diorama floats in front of the player. */
   readonly noTable?: boolean;

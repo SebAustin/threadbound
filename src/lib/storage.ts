@@ -39,8 +39,32 @@ export function memoryStorage(): StorageLike {
   };
 }
 
-/** Browser localStorage when accessible, otherwise an in-memory stand-in. */
-export function browserStorage(): StorageLike {
+/**
+ * Guest play: the page was opened with `?fresh=1` (only that value; `?fresh=0` or a
+ * bare `?fresh` is ordinary play). For judges on a shared headset.
+ */
+export function isGuestPlay(search: string): boolean {
+  return new URLSearchParams(search).get('fresh') === '1';
+}
+
+/** Guest play's one store for the page load, shared by progress and settings; made on first use. */
+let guestStorage: StorageLike | null = null;
+
+function guestPlayStorage(): StorageLike {
+  if (!guestStorage) {
+    guestStorage = memoryStorage();
+    console.info('[Threadbound] guest play (?fresh=1): progress is neither read nor saved');
+  }
+  return guestStorage;
+}
+
+/**
+ * Browser localStorage when accessible, otherwise an in-memory stand-in. In guest
+ * play the saved progress and settings are never read or written: everything lives
+ * in memory until the page closes.
+ */
+export function browserStorage(search: string = globalThis.location?.search ?? ''): StorageLike {
+  if (isGuestPlay(search)) return guestPlayStorage();
   try {
     const storage = globalThis.localStorage;
     if (storage) return storage;

@@ -1,6 +1,6 @@
 // E2E (real input): the settings face's Prev/Next revisit any level reached so far
-// and never skip ahead; new mechanics are taught on the ledge; the last level ends
-// the campaign with a pointer to the daily.
+// and never skip ahead; new mechanics are taught on the ledge; solving the last level
+// with earlier levels unsolved ends nothing (finished-campaign.e2e.mjs proves the ending).
 import { canvasMapper, checks, click, clickCanvas, freshSave, isComplete, loadIndex, loadLevel, plaqueElementAt, waitFor } from './lib.mjs';
 
 const index = () => window.__threadbound.state().levelIndex;
@@ -44,6 +44,7 @@ export default async function run({ page, frame }) {
 
   const last = await app.evaluate(() => window.__threadbound.levels().length - 1);
   await solveIndex(app, last);
-  check('solving the last level ends the campaign and points to the daily', /^All \d+ solved - poke the sun for a daily$/.test(await app.evaluate(hint)), await app.evaluate(hint));
+  const end = await app.evaluate(() => ({ status: window.__threadbound.state().status, hint: window.__threadbound.ledge()?.text.hint }));
+  check('solving the last level with earlier levels unsolved shows no ending', end.status === 'complete' && !/All \d+ solved/.test(end.hint ?? ''), JSON.stringify(end));
   return results;
 }

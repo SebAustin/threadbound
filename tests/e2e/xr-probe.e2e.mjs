@@ -109,6 +109,13 @@ const PROBE_FIELDS = [
   // this still shows a drop happened after its status has gone back to 'idle'.
   ['marbleCount', () => window.__threadbound.marbles().length],
   ['levelId', () => window.__threadbound.state().level.id],
+  // The loaded level's place in play order (past the campaign's end: a daily).
+  ['levelIndex', () => window.__threadbound.state().levelIndex],
+  // The ghost hand: its onboarding step and whether it is drawn.
+  ['ghost', () => window.__threadbound.ghost()],
+  // The saved progress and settings exactly as stored (guest play must leave them byte-identical).
+  ['savedProgress', () => localStorage.getItem('threadbound.progress.v1')],
+  ['savedSettings', () => localStorage.getItem('threadbound.settings.v1')],
   ['face', () => window.__threadbound.plaque()?.face],
   ['slowToggle', () => window.__threadbound.plaqueElement('set-slow')?.world],
   ['slowMotion', () => window.__threadbound.state().settings.slowMotion],

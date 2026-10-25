@@ -35,6 +35,24 @@ export async function loadLevel(app, id) {
   return index;
 }
 
+/**
+ * Reloads the app's own frame (`search` null), or navigates it to `search` on the same path ('' is
+ * the plain URL), then waits for the new page's game. The managed window hosts the app in an iframe
+ * whose handle survives navigation; a marker on the old page tells it apart from the new one
+ * (resume-insert.e2e.mjs). Resolves the new page's `location.search`, or null if it never came up.
+ */
+export async function navigateApp(app, search = null, timeoutMs = 15000) {
+  await app
+    .evaluate((s) => {
+      window.__beforeNavigation = true;
+      if (s === null) location.reload();
+      else location.href = location.pathname + s;
+    }, search)
+    .catch(() => {});
+  const up = await waitFor(app, () => !window.__beforeNavigation && Boolean(window.__threadbound?.state().level), timeoutMs);
+  return up ? app.evaluate(() => location.search) : null;
+}
+
 /** Frames the ECS needs after a build to create physics bodies and wire pointer listeners. */
 const SETTLE_FRAMES = 4;
 

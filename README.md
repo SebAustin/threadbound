@@ -78,7 +78,7 @@ npm test                  # unit tests (vitest)
 npm run coverage          # unit tests with coverage
 npm run test:e2e          # real-input E2E suite (needs the dev server, see below)
 npm run test:e2e:levels   # every level solvable, not self-solving, within budget
-npm run test:e2e:hands    # emulated XR: hands-only level, ledge/plaque pinches, gaze + pinch, outside hosts, placement and recenter
+npm run test:e2e:hands    # emulated XR: hands-only level, ledge/plaque pinches, gaze + pinch, outside hosts, placement and recenter, guest play
 npm run build             # production build to dist/
 npm run test:smoke        # production smoke on dist/: headless Chromium + IWER, flat view and an AR session
 npm run test:e2e:prod-xr  # production bundle in AR: the Enter XR click, then level 1 by hand pinch only
@@ -94,6 +94,8 @@ doesn't start and hold for 5 s. Build first: `NODE_ENV=production npm run build 
 Its log and screenshots go to `.tmp/prod-smoke/`. `npm run test:e2e:prod-xr` (`tests/e2e/prod-xr.mjs`) uses the
 same harness and target: it clicks Enter XR, solves level 1 with emulated hand pinches aimed at
 `tests/e2e/fixtures/prod-xr-w1-01.json`, and reads the solve from the save; output in `.tmp/prod-xr/`.
+With `PROD_XR_GUEST=1` it plays as a guest instead (`?fresh=1` over a seeded solved save): it passes when
+the save stays byte-identical and the guest line is logged, and its screenshots show the ghost hand and the stars.
 
 **Before any push to `main` that deploys** (one that touches any path outside `docs/**`, `**/*.md` and
 `.scratch/**`), run the full local regression and keep its log in `.scratch/<week>/`:

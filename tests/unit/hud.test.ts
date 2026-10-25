@@ -105,6 +105,14 @@ describe('hint line: teaching each new mechanic, and an ending', () => {
       'All 24 solved - poke the sun for a daily',
     );
   });
+
+  test('a finished campaign shows the ending on any campaign level, not only the last', () => {
+    const campaign = Array.from({ length: 24 }, () => ({ world: 4 }));
+    expect(hudModel({ ...base, levels: campaign, levelIndex: 5, campaignComplete: true }).hint).toBe(
+      'All 24 solved - poke the sun for a daily',
+    );
+    expect(hudModel({ ...base, levels: campaign, levelIndex: 5 }).hint).toBe('');
+  });
 });
 
 describe('hint line: no table found in passthrough', () => {

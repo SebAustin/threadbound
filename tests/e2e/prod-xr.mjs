@@ -13,6 +13,11 @@
 //   3. The solve, read from the save (localStorage), since the bundle has no hook.
 //   4. A NOTE with the AudioContext state after the first pinch (headless autoplay differs from Quest's).
 //   5. Screenshots entered.png, thread.png and solved.png in .tmp/prod-xr/.
+// With PROD_XR_GUEST=1 it runs guest play instead (week 8 ticket 09): an init script seeds a solved save,
+// the page opens with ?fresh=1, and the same entry and pinches play level 1. It screenshots the ghost hand
+// (guest-ghost.png), the thread (guest-thread.png) and the lit stars (guest-stars.png), and passes when the
+// stored save is byte-identical to the seed and the guest console.info was logged. It skips step 3: a
+// guest's solve is never saved.
 // Output: PASS/FAIL/NOTE lines (tests/smoke/verdict.mjs), exit code 1 on any FAIL.
 
 import { readFileSync } from 'node:fs';
@@ -41,6 +46,25 @@ const PLACEMENT_WAIT_MS = 3_000 + 300 + 500;
 /** A level-1 drop takes a few seconds of physics; the save is written when it completes. */
 const SOLVE_TIMEOUT_MS = 20_000;
 const POLL_MS = 100;
+
+const GUEST = process.env.PROD_XR_GUEST === '1';
+/** Guest play's seed: level 1 solved, with its stars and its melody, as the game saves it. */
+const GUEST_SEED = JSON.stringify({
+  unlocked: 1,
+  best: { 'w1-01': 3 },
+  streak: { lastDay: null, count: 0 },
+  dailyBest: { day: null, stars: 0 },
+  melodies: { 'w1-01': { notes: [329.63, 392, 440, 523.25], times: [0, 0.31, 0.6, 0.94] } },
+});
+/** What src/lib/storage.ts logs once in guest play. */
+const GUEST_INFO = 'progress is neither read nor saved';
+/**
+ * A guest's solve can't be read from the save, so the stars are photographed this long after the chute
+ * pinch: the plain run reads its solve about 1 s after the pinch ends (its solved detail prints it), then
+ * the stars light one by one over 0.75 s (STAR_STAGGER_SECONDS, src/lib/hud.ts) and stay lit. The rest is
+ * room for a slower machine (CI's SwiftShader) or the live site.
+ */
+const GUEST_SOLVE_WAIT_MS = 9_000;
 
 /** Gesture timing from tests/e2e/xr-lib.sh: how long a hand aims and holds, not waits for state. */
 const GESTURE = { aimMs: 800, pressMs: 400, sweepStepMs: 300, releaseMs: 500, tapHoldMs: 300, tapReleaseMs: 800 };
@@ -119,6 +143,15 @@ function pinchRightHand({ g, value }) {
 const twoFrames = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 const audioStates = () => (window.__prodXrAudio ?? []).map((ctx) => ctx.state);
 const readSave = (key) => localStorage.getItem(key);
+
+/** Init script for guest play: the solved save is on the device before any app script runs. */
+function seedSave([key, value]) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // A document without storage (about:blank) has nothing to seed.
+  }
+}
 
 // ---- steps --------------------------------------------------------------------------------------------
 
@@ -238,25 +271,57 @@ async function audioNote(page) {
   return { name: 'audio after the first pinch', note: `${note} (headless autoplay rules differ from Quest Browser's)` };
 }
 
-/** Level 1 by hand pinch only, then the solve read from the save. */
-async function playChecks(page, rec) {
-  const before = await saveState(page);
+/**
+ * Level 1 by hand pinch only, once the diorama is placed: a thread knob a to knob b, then the chute.
+ * Screenshots `shots.placed` and `shots.thread`; resolves the AudioContext NOTE.
+ */
+async function pinchLevelOne(page, rec, shots) {
   await sleep(PLACEMENT_WAIT_MS);
-  await rec.shot('entered');
+  await rec.shot(shots.placed);
   const { a, b } = FIXTURE.knobs;
   const global = await page.evaluate(toGlobal, { g: DEVICE_GLOBAL, points: { a, b, chute: FIXTURE.chute } });
   await pinchPull(page, a, b, { from: global.a, to: global.b });
   const audio = await audioNote(page);
-  await rec.shot('thread');
+  await rec.shot(shots.thread);
   await pinchAt(page, FIXTURE.chute, global.chute);
+  return audio;
+}
+
+/** Level 1 by hand pinch only, then the solve read from the save. */
+async function playChecks(page, rec) {
+  const before = await saveState(page);
+  const audio = await pinchLevelOne(page, rec, { placed: 'entered', thread: 'thread' });
+  const pinchedAt = Date.now();
   const after = await pollUntil(() => saveState(page), (s) => s.solved, SOLVE_TIMEOUT_MS);
+  const seconds = ((Date.now() - pinchedAt) / 1000).toFixed(1);
   await rec.shot('solved');
   const solved = {
     name: 'level 1 solved by hand pinch only, read from the save',
     pass: !before.solved && after.solved,
-    detail: `before: ${before.detail}; after: ${after.detail}`,
+    detail: `before: ${before.detail}; after: ${after.detail} (${seconds} s after the chute pinch)`,
   };
   return [audio, solved, { name: 'screenshots', note: `entered.png, thread.png, solved.png in ${rec.outDir}` }];
+}
+
+/** Guest play: the same level 1, then the seeded save must be untouched and the guest line logged. */
+async function guestChecks(page, rec) {
+  const before = await page.evaluate(readSave, SAVE_KEY);
+  const audio = await pinchLevelOne(page, rec, { placed: 'guest-ghost', thread: 'guest-thread' });
+  await sleep(GUEST_SOLVE_WAIT_MS);
+  await rec.shot('guest-stars');
+  const after = await page.evaluate(readSave, SAVE_KEY);
+  const infos = rec.result().console.filter((m) => m.type === 'info' && m.text.includes(GUEST_INFO));
+  const untouched = before === GUEST_SEED && after === GUEST_SEED;
+  return [
+    audio,
+    {
+      name: 'guest play leaves the stored save byte-identical to the seed',
+      pass: untouched,
+      detail: untouched ? `${after.length} bytes, unchanged` : `seed ${GUEST_SEED}; before ${before}; after ${after}`,
+    },
+    { name: 'guest play logs one console.info', pass: infos.length === 1, detail: infos.map((m) => m.text).join(' | ') || 'none' },
+    { name: 'screenshots', note: `guest-ghost.png, guest-thread.png, guest-stars.png in ${rec.outDir}` },
+  ];
 }
 
 async function runChecks(page, rec, url) {
@@ -266,7 +331,14 @@ async function runChecks(page, rec, url) {
   if (!ready.pass) return [load, ready];
   const enter = await enterChecks(page);
   if (!enter.inSession) return [load, ready, ...enter.checks];
-  return [load, ready, ...enter.checks, ...(await playChecks(page, rec))];
+  return [load, ready, ...enter.checks, ...(await (GUEST ? guestChecks : playChecks)(page, rec))];
+}
+
+/** The target with ?fresh=1: guest play. */
+function guestUrl(url) {
+  const guest = new URL(url);
+  guest.searchParams.set('fresh', '1');
+  return guest.href;
 }
 
 const emptyRecord = (url) => ({
@@ -285,6 +357,7 @@ async function main() {
   const target = await serve();
   const where = target.previewed ? `vite preview of dist/ at ${target.url}` : `SMOKE_URL ${target.url} (no preview started)`;
   const checks = [{ name: 'target', note: where }];
+  if (GUEST) checks.push({ name: 'guest play', note: 'PROD_XR_GUEST=1: a solved save seeded, the page opened with ?fresh=1' });
   let browser;
   let rec;
   let result = emptyRecord(target.url);
@@ -292,8 +365,9 @@ async function main() {
     const injected = await inject();
     browser = injected.browser;
     await injected.context.addInitScript(watchAudioContexts);
+    if (GUEST) await injected.context.addInitScript(seedSave, [SAVE_KEY, GUEST_SEED]);
     rec = record(injected.context, injected.page, { script: SCRIPT, url: target.url });
-    checks.push(...(await runChecks(injected.page, rec, target.url)));
+    checks.push(...(await runChecks(injected.page, rec, GUEST ? guestUrl(target.url) : target.url)));
   } catch (err) {
     checks.push({ name: 'prod-xr ran to the end', pass: false, detail: firstLine(err) });
   } finally {
