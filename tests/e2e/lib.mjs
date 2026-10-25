@@ -93,6 +93,58 @@ export async function frames(app, n) {
   );
 }
 
+/**
+ * Ticket 18: where shot.sh's seated passthrough pose stands the diorama, the emulator's dining
+ * table (frame centre, world meters), and the turns every stored solution is proven at there:
+ * 0, and the seated pose's own turn of about 90 degrees (1.5705 rad). At yaw 0 every body sits
+ * exactly in one channel plane, so no marble ever leaves it. At any other turn rounding tips
+ * marbles off a thread's crest against the glass, as on a player's own table. Exactly pi/2
+ * rounds almost as cleanly as 0 (its cosine is 6e-17), so it would hide the defect.
+ */
+export const TABLE_CENTER = [-1.242, 0.801, 0.2];
+export const TABLE_YAWS = [0, 1.5705];
+
+/**
+ * Stands the open level on the table at `yaw` through passthrough's own `place` command (the
+ * frame origin is the base's left end, half the level's width from the centre), then rebuilds
+ * it fresh there with `reopen` (a page function), and waits for its physics bodies.
+ */
+export async function placeOnTable(app, yaw, reopen, arg) {
+  await app.evaluate(
+    ({ center, yaw }) => {
+      const hook = window.__threadbound;
+      const half = hook.state().level.size[0] / 2;
+      const origin = [center[0] - half * Math.cos(yaw), center[1], center[2] + half * Math.sin(yaw)];
+      hook.dispatch({ type: 'place', origin, yaw, surface: 'table' });
+    },
+    { center: TABLE_CENTER, yaw },
+  );
+  if (!(await waitFor(app, (y) => Math.abs(window.__threadbound.frame().yaw - y) < 1e-6, 3000, yaw))) {
+    throw new Error(`the diorama did not turn to yaw ${yaw}`);
+  }
+  await app.evaluate(reopen, arg);
+  await frames(app, SETTLE_FRAMES);
+}
+
+/** Back to the study pose (the default spot on the virtual study's table, yaw 0). */
+export async function leaveTable(app) {
+  await app.evaluate(() => window.__threadbound.dispatch({ type: 'resetPlacement' }));
+  await waitFor(app, () => window.__threadbound.frame().yaw === 0, 3000);
+}
+
+/** True once a drop is over, solved or not (page function). */
+export const dropEnded = () => window.__threadbound.state().status !== 'dropping';
+
+/** Hangs the open level's stored solution, drops, and reports whether it solved within `timeoutMs`. */
+export async function solveAndDrop(app, timeoutMs) {
+  await app.evaluate(() => {
+    window.__threadbound.solve();
+    window.__threadbound.dispatch({ type: 'drop' });
+  });
+  await waitFor(app, dropEnded, timeoutMs);
+  return app.evaluate(isComplete);
+}
+
 /** Page-coordinate converter for canvas-relative points from the test hook. */
 export async function canvasMapper(app) {
   const el = await app.frameElement().catch(() => null);

@@ -2,7 +2,8 @@
 // no level solves itself untouched. Levels are driven through the same command
 // bus the player's buttons use; physics and scoring are fully live. The busiest
 // frame (solution hung, every marble in flight) must fit the performance budget.
-import { hookReady, isComplete, loadIndex, waitFor } from './lib.mjs';
+// Ticket 18: the same solution also solves on a passthrough table, turned 0 and 90 degrees.
+import { hookReady, isComplete, leaveTable, loadIndex, placeOnTable, solveAndDrop, TABLE_YAWS, waitFor } from './lib.mjs';
 
 const setSlowMotion = (app, slow) =>
   app.evaluate((s) => window.__threadbound.dispatch({ type: 'settings', patch: { slowMotion: s } }), slow);
@@ -39,17 +40,30 @@ async function proveLevel(app, i, { id, name }, slowMotion) {
     return { scored: s.scored, marbles: s.level.marbles, stars: s.stars, threads: s.threads.length, notes: new Set(s.melody.notes).size };
   });
   const marbles = solved ? [] : await app.evaluate(() => window.__threadbound.marbles());
+  const turned = await solvesTurned(app, i, slowMotion);
   return {
     index: i,
     level: `${id} ${name}${slowMotion ? ' (slow motion)' : ''}`,
-    pass: solved && !selfSolved && frameStats.breaches.length === 0,
+    pass: solved && !selfSolved && frameStats.breaches.length === 0 && Object.values(turned).every(Boolean),
     solved,
+    turned,
     selfSolved,
     ...state,
     cost: `${frameStats.drawCalls} calls, ${frameStats.triangles} tris, ${frameStats.physicsBodies} bodies`,
     ...(frameStats.breaches.length ? { breaches: frameStats.breaches } : {}),
     ...(solved ? {} : { marbles }),
   };
+}
+
+/** Ticket 18: the stored solution on the passthrough table at each turn, keyed by the turn in degrees. */
+async function solvesTurned(app, i, slowMotion) {
+  const turned = {};
+  for (const yaw of TABLE_YAWS) {
+    await placeOnTable(app, yaw, (index) => window.__threadbound.dispatch({ type: 'load', index }), i);
+    turned[`${Math.round((yaw * 180) / Math.PI)} degrees`] = await solveAndDrop(app, slowMotion ? 25000 : 15000);
+  }
+  await leaveTable(app);
+  return turned;
 }
 
 /** Negative control: presets untouched, no player threads. */

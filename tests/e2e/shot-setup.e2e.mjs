@@ -26,8 +26,7 @@ export const SHOTS = {
   // Melody book: a solved level with its stars lit, ready to pinch.
   'melody-book': { level: 'w1-04', solveAndDrop: true, xr: true },
   // A daily on a 6-day streak that ended yesterday, solution hung: the chute pinch makes it 7.
-  // A fixed board (pool index 4, src/levels/index.ts DAILY_BASES), so every take is the same:
-  // pool 1 (Relay), 3 and 6 don't solve on the emulator's table at yaw 90° (week 8 ticket 05 Comments).
+  // A fixed board (pool index 4, src/levels/index.ts DAILY_BASES), so every take is the same.
   daily: { daily: { index: 4, id: 'daily-w2-04' }, streak: 6, solve: true, xr: true },
   // Settings face open over a hung solution: Slow motion on, a slower drop, then Raise.
   settings: { level: 'w1-02', solve: true, face: 'settings', xr: true },
