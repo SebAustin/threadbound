@@ -172,8 +172,11 @@ export class ThreadSystem extends createSystem({
     const pegId = source.getValue(Peg, 'pegId') ?? '';
     this.drag = { pegId, pointerId: e.pointerId, fromX: x, fromY: y, endX: x, endY: y, captureTarget: target };
     this.snapPegs = this.snapCandidates(pegId);
+    // The grab is where the pinch itself landed (an oblique ray can land off the knob's centre, or beside it).
+    const frame = puzzleStore.frame;
+    const grab = frame ? pointerToDiorama(e, frame, this.dragPoint) : { x, y };
     reset(this.trail);
-    push(this.trail, x, y, performance.now());
+    push(this.trail, grab.x, grab.y, performance.now());
     capturePointer(target, e.pointerId);
     puzzleStore.dispatch(DRAG_START);
   }
@@ -197,16 +200,17 @@ export class ThreadSystem extends createSystem({
     if (!drag || e.pointerId !== drag.pointerId) return;
     this.moveDrag(e);
     this.finishDrag(drag);
-    // A release that jumped off a held peg keeps the peg (lib/releaseTrail); once per release, so it may allocate.
-    const { x, y } = stableRelease(this.trail, this.releasePoint);
+    // A release that jumped off a held peg keeps the peg (lib/releaseTrail); a hold on the
+    // pull's own knob is the pinch, never an aim. Once per release, so it may allocate.
+    const source = { x: drag.fromX, y: drag.fromY, radius: PEG.knobRadius };
+    const { x, y } = stableRelease(this.trail, this.releasePoint, source);
     const targetId = landingPeg([x, y], [drag.endX, drag.endY], this.snapPegs, drag.pegId, PEG.snapRadius);
     if (targetId) {
       this.tryAddThread(drag.pegId, targetId);
       return;
     }
-    // Let go on (or beside) the peg it started from: a tap, not a miss, so no sound.
-    const onOwnPeg = (px: number, py: number) => Math.hypot(px - drag.fromX, py - drag.fromY) <= PEG.snapRadius;
-    if (!onOwnPeg(x, y) && !onOwnPeg(drag.endX, drag.endY)) stringSynth.play('dragMiss');
+    // The release frame let go on (or beside) the peg it started from: a tap, not a miss, so no sound.
+    if (Math.hypot(drag.endX - drag.fromX, drag.endY - drag.fromY) > PEG.snapRadius) stringSynth.play('dragMiss');
     devLog(`released at (${x.toFixed(3)}, ${y.toFixed(3)}) — no peg in reach`);
   }
 

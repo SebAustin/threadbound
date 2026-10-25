@@ -137,3 +137,36 @@
     - `test:e2e:levels` 24/24, `:levels:slow` 24/24 and `:dailies` 7/7, all exit 0.
     - `npm run test:e2e:hands`: all 8 scripts, 54 PASS, 0 FAIL, exit 0. This includes hand-pinch 8/8 (target, release, miss), xr-controls 15/15 (hover, press 5 mm, hover again, the thread-edge snip) and gaze-pinch 5/5 (hover, rest).
     - `NODE_ENV=production npm run build`: exit 0. `npm run test:smoke`: 19 PASS, 0 FAIL.
+- **Oct 25, agent: review findings fixed locally on main (not pushed).** This replaces the earlier refinement "A hold at the grab never wins". That only covered a hold within 6 mm of the peg's centre, so a hand ray holding 6-16.5 mm off-centre on the knob could still win.
+  - **Medium, a hold on the pull's own peg is the pinch:**
+    - `stableRelease` takes an optional `SourcePeg { x, y, radius }` (src/lib/releaseTrail.ts:32, :98). A held point never wins when it is near where the pinch landed (`isPinch` :71: within `holdRadius` of the grab sample) or anywhere on the source peg's knob (within `PEG.knobRadius`).
+    - The new `PEG.knobRadius` is 16.5 mm (src/config/constants.ts:20). The knob sphere uses it too (src/features/diorama/palette.ts:212), and threadRules.test's knob-overlap check does as well.
+    - ThreadSystem now pushes the pointer's own diorama point at pointerdown as the grab (src/features/threads/ThreadSystem.ts:177), so an oblique ray that lands off the centre counts too. It passes the source peg with `PEG.knobRadius` (:205).
+    - `dragMiss` now depends on the release frame alone (:213). The release frame is "within `PEG.snapRadius` of the own peg" or it isn't.
+    - New unit tests:
+      - releaseTrail.test: a hold 1.2 cm off A, then a flick to B within 100 ms, returns B; a hold at the knob's rim never wins; a hold on a neighbour 3.3 cm away still wins.
+      - threadRules.test: a hold on the own knob, 2.1 cm from a neighbour (inside its snap radius), followed by a flick, lands on the flick's target and not on the neighbour.
+    - The mouse E2E can show this case after all, by wiggling the held mouse a pixel each frame the way a hand ray keeps sending moves. touch-feedback `heldPinchThenFlick` has two checks:
+      - On w2-04 (a and c are 4.5 cm apart, the closest non-preset-only pair in the campaign), a held pinch 1.2 cm off a's centre toward c, then a flick onto b, makes a-b, never a-c.
+      - On w1-01, the same held pinch flicked onto bare panel logs one `dragMiss`.
+  - **Medium, the release is checked on a surviving button:**
+    - touch-feedback `settingsRelease` presses Settings, which only flips the plaque's face. Over it, it reads hover. Held, it reads press with 5 mm of travel. After the release, with no mouse move, the same root object reads hover with travel 0. The face flips, moving off reads rest, and a second press restores the face.
+    - xr-controls.sh does the same with the hand ray and select 1, then 0, on Settings, comparing the root's object id. A second pinch restores the face.
+    - The hook's `touch()` now reports `objectId` (`root.id`, src/features/debug/testHook.ts:224). The Restart checks are renamed to say what they read: the button that the release rebuilds.
+  - **Lows, all fixed (each was a line or two):**
+    - TouchFeedbackSystem fills a reused `touchInput` object (src/features/input/TouchFeedbackSystem.ts:42, :81), so the doc comment's "nothing is allocated" is now true.
+    - `touch()` reports the plaque's `pokeInteractable` as null when `hud-plaque` isn't found (testHook.ts:227, with `PlaqueTouchProbe`), so the `=== false` check can't pass by default.
+    - The stars note in public/ui/hud.uikitml:148 now says "brighter still while pinched", which matches `.stars:active`. The colours are unchanged; ticket 15 still moves them.
+  - **Red first** (logs in .scratch/week8/logs/, gitignored):
+    - Unit: 3 of 26 failed in releaseTrail.test and threadRules.test (ticket11-review-unit-red.log): the 1.2 cm hold returned the held point, the rim hold returned the held point, and landingPeg returned the neighbour `n`.
+    - E2E, with releaseTrail.ts and ThreadSystem.ts stashed back to HEAD for the run and then restored, touch-feedback failed both new checks: it made a-c, and logged no `dragMiss` (only `pegGrab`) (ticket11-review-e2e-red.log). Every other check passed.
+    - Mutation, with TouchFeedbackSystem's `pressed` disqualify subscription commented out:
+      - touch-feedback failed "released, the same Settings button reads hover with travel 0": it still read press, 5 mm, same object id. The Restart rebuild check still passed (ticket11-review-mutation-red.log).
+      - xr-controls failed "releasing Settings reads hover again on the same button, travel 0" ("press 4-7 617, was 617"). Its Restart check still passed (ticket11-review-xr-mutation-red.log).
+      - The subscription was then restored.
+  - **Regression on the final tree** (ticket11-review-*.log):
+    - No Vite overlay before or after. The dev server stayed headless with browser automation (`browserCommandReady: true`).
+    - `npm run typecheck`: exit 0. `npm test`: 46 files, 611 tests passed (releaseTrail 11, threadRules 15).
+    - `npm run test:e2e`: all 31 scripts, 236 PASS, 0 FAIL, exit 0. touch-feedback is 28/28 and sound-cues 11/11.
+    - `npm run test:e2e:hands`: all 8 scripts, 59 PASS, 0 FAIL, exit 0. xr-controls is 20/20, including the 5 new Settings checks; hand-pinch 8/8 and gaze-pinch 5/5. iwsdk.config.json had no diff after gaze-pinch.
+    - Not rerun: `test:e2e:levels`, `:levels:slow` and `:dailies`. They place threads through the hook (`solve`), not through pulls. The only change that reaches them is the knob sphere's radius, now the literal 0.0165 instead of 0.011 × 1.5, a difference of about 3e-18 m. That sphere is visual only; the peg's collider is the `PEG.radius` cylinder.

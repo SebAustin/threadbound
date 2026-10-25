@@ -16,6 +16,8 @@ export const DIORAMA = {
 
 export const PEG = {
   radius: 0.011,
+  /** The ball on the peg's tip (1.5 x radius), on the knobs' plane: where a pinch lands. */
+  knobRadius: 0.0165,
   length: 0.04,
   /** Pointer release within this distance of a peg attaches the thread to it. */
   snapRadius: 0.035,

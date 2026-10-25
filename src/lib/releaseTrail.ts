@@ -23,9 +23,17 @@ export interface ReleaseTrail {
   readonly samples: Float64Array;
   /** Samples pushed since the last reset; the newest is at (count - 1) % TRAIL_SAMPLES. */
   count: number;
-  /** The first sample since the reset: where the pull grabbed its peg. */
+  /** The first sample since the reset: where the pinch landed on its peg. */
   grabX: number;
   grabY: number;
+}
+
+/** The peg a pull started from: a hold on it is the pinch itself, never an aim. */
+export interface SourcePeg {
+  readonly x: number;
+  readonly y: number;
+  /** Meters: a held point this close to (x, y) is on the peg (its knob). */
+  readonly radius: number;
 }
 
 export function createTrail(): ReleaseTrail {
@@ -59,6 +67,12 @@ function offsetOf(trail: ReleaseTrail, i: number): number {
 const near = (ax: number, ay: number, bx: number, by: number) =>
   Math.hypot(ax - bx, ay - by) <= RELEASE_TRAIL.holdRadius;
 
+/** Whether a held point is the pinch itself: where the pinch landed, or anywhere on the source peg. */
+function isPinch(trail: ReleaseTrail, x: number, y: number, source: SourcePeg | undefined): boolean {
+  if (near(x, y, trail.grabX, trail.grabY)) return true;
+  return source !== undefined && Math.hypot(x - source.x, y - source.y) <= source.radius;
+}
+
 /** First kept sample of the still run ending at sample `end`: each within holdRadius of `end`. */
 function holdStart(trail: ReleaseTrail, end: number): number {
   const s = trail.samples;
@@ -76,10 +90,16 @@ function holdStart(trail: ReleaseTrail, end: number): number {
  * Where a pull lands. The newest sample is the release. If the pointer held still
  * (within holdRadius for at least minHoldMs, until the next sample moved off) and
  * that hold ended within maxGapMs of the release, the held point wins; otherwise
- * the release stands, so jumps and deliberate flicks behave as before. A hold at
- * the grab is the pinch itself, not an aim, and never wins. Writes into `out`.
+ * the release stands, so jumps and deliberate flicks behave as before. A hold
+ * where the pinch landed, or anywhere on `source` (the pull's own knob, which a
+ * pinch may land up to its rim from the centre), is the pinch itself, not an aim,
+ * and never wins. Writes into `out`.
  */
-export function stableRelease(trail: ReleaseTrail, out: { x: number; y: number }): { x: number; y: number } {
+export function stableRelease(
+  trail: ReleaseTrail,
+  out: { x: number; y: number },
+  source?: SourcePeg,
+): { x: number; y: number } {
   const kept = Math.min(trail.count, TRAIL_SAMPLES);
   if (kept === 0) return out;
   const s = trail.samples;
@@ -92,7 +112,7 @@ export function stableRelease(trail: ReleaseTrail, out: { x: number; y: number }
     if (releasedAt - leftAt > RELEASE_TRAIL.maxGapMs) break;
     const e = offsetOf(trail, end);
     const heldFor = leftAt - s[offsetOf(trail, holdStart(trail, end)) + 2];
-    if (heldFor >= RELEASE_TRAIL.minHoldMs && !near(s[e], s[e + 1], trail.grabX, trail.grabY)) {
+    if (heldFor >= RELEASE_TRAIL.minHoldMs && !isPinch(trail, s[e], s[e + 1], source)) {
       out.x = s[e];
       out.y = s[e + 1];
       return out;

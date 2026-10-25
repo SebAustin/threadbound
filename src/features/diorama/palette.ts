@@ -209,7 +209,7 @@ export const GEOMETRIES = {
    */
   peg: mergeParts([
     { geometry: new CylinderGeometry(PEG.radius, PEG.radius, DIORAMA.channelHalfDepth * 2, 12) },
-    { geometry: new SphereGeometry(PEG.radius * 1.5, 16, 12), at: [0, DIORAMA.channelHalfDepth + PEG.radius, 0] },
+    { geometry: new SphereGeometry(PEG.knobRadius, 16, 12), at: [0, DIORAMA.channelHalfDepth + PEG.radius, 0] },
   ]),
 } as const;
 

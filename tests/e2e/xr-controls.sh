@@ -2,7 +2,8 @@
 # Hand-ray pinches in an emulated Quest 3 session operate the chute, the ledge
 # buttons, the settings face and thread snipping (taps, not drags), and the ledge
 # strip teaches level 1 from a fresh save. A ray resting on Restart lights it, a
-# pinch presses it in, and a pinch beside a thread (inside its hit area) snips it.
+# pinch presses it in, a released Settings comes back up on the same button, and a
+# pinch beside a thread (inside its hit area) snips it.
 # Exit 1 on any failure.
 cd "$(dirname "$0")/../.."
 source tests/e2e/xr-lib.sh
@@ -34,14 +35,34 @@ N=$(field "$(probe)" "['threads']" | python3 -c "import sys,json;print(len(json.
 [ "$N" = "0" ] && pass "pinching Restart clears the threads" || fail "pinching Restart clears the threads (threads=$N)"
 
 # The hand ray resting on Restart, no pinch, lights it; a pinch presses it in 4-7 mm; the release lights it again.
-touch_of() { field "$(probe)" "['touch']['button-restart']" | python3 -c "import sys,json;t=json.load(sys.stdin);print(t['state'], 4 <= round(t['travel']*1000, 3) <= 7)"; }
+# touch_of <part>: its state, its travel ('0', '4-7' mm, or the millimetres otherwise) and its root's
+# object id (a rebuilt part gets a new one).
+touch_of() { field "$(probe)" "['touch']['$1']" | python3 -c "import sys,json;t=json.load(sys.stdin);mm=round(t['travel']*1000,3);print(t['state'], '0' if mm==0 else '4-7' if 4<=mm<=7 else f'{mm}mm', t['objectId'])"; }
+select_right() { iw xr set-select-value --input-json "{\"device\":\"hand-right\",\"value\":$1}" >/dev/null 2>&1; }
 P=$(probe load0)
 aim_hand "$(field "$P" "['buttons']['restart']")"; sleep 0.5
-TOUCH=$(touch_of); [ "$TOUCH" = "hover False" ] && pass "the hand ray resting on Restart reads hover" || fail "the hand ray resting on Restart reads hover ($TOUCH)"
-iw xr set-select-value --input-json '{"device":"hand-right","value":1}' >/dev/null 2>&1; sleep 0.3
-TOUCH=$(touch_of); [ "$TOUCH" = "press True" ] && pass "pinching Restart reads press with 4-7 mm of travel" || fail "pinching Restart reads press with 4-7 mm of travel ($TOUCH)"
-iw xr set-select-value --input-json '{"device":"hand-right","value":0}' >/dev/null 2>&1; sleep 0.8
-TOUCH=$(touch_of); [ "$TOUCH" = "hover False" ] && pass "releasing Restart reads hover again" || fail "releasing Restart reads hover again ($TOUCH)"
+TOUCH=$(touch_of button-restart); [ "${TOUCH% *}" = "hover 0" ] && pass "the hand ray resting on Restart reads hover" || fail "the hand ray resting on Restart reads hover ($TOUCH)"
+select_right 1; sleep 0.3
+TOUCH=$(touch_of button-restart); [ "${TOUCH% *}" = "press 4-7" ] && pass "pinching Restart reads press with 4-7 mm of travel" || fail "pinching Restart reads press with 4-7 mm of travel ($TOUCH)"
+select_right 0; sleep 0.8
+TOUCH=$(touch_of button-restart); [ "${TOUCH% *}" = "hover 0" ] && pass "after Restart rebuilds the ledge, the new button reads hover" || fail "after Restart rebuilds the ledge, the new button reads hover ($TOUCH)"
+
+# Settings survives its own press (it only flips the plaque's face), so its release shows the press
+# undone on the same entity: hover, then press 4-7 mm, then hover again with the same root object.
+P=$(probe load0)
+FACE0=$(field "$P" "['face']")
+aim_hand "$(field "$P" "['buttons']['settings']")"; sleep 0.5
+TOUCH=$(touch_of button-settings); SETTINGS_ID=${TOUCH##* }
+[ "${TOUCH% *}" = "hover 0" ] && pass "the hand ray resting on Settings reads hover" || fail "the hand ray resting on Settings reads hover ($TOUCH)"
+select_right 1; sleep 0.3
+TOUCH=$(touch_of button-settings); [ "$TOUCH" = "press 4-7 $SETTINGS_ID" ] && pass "pinching Settings reads press with 4-7 mm of travel" || fail "pinching Settings reads press with 4-7 mm of travel ($TOUCH)"
+select_right 0; sleep 0.8
+TOUCH=$(touch_of button-settings); [ "$TOUCH" = "hover 0 $SETTINGS_ID" ] && pass "releasing Settings reads hover again on the same button, travel 0" || fail "releasing Settings reads hover again on the same button, travel 0 ($TOUCH, was $SETTINGS_ID)"
+FACE1=$(field "$(probe)" "['face']")
+[ "$FACE1" != "$FACE0" ] && pass "the release acted: the plaque flipped its face ($FACE0 -> $FACE1)" || fail "the release acted: the plaque flipped its face ($FACE0 -> $FACE1)"
+select_right 1; sleep 0.3; select_right 0; sleep 0.8
+FACE2=$(field "$(probe)" "['face']")
+[ "$FACE2" = "$FACE0" ] && pass "a second pinch on Settings puts the first face back ($FACE2)" || fail "a second pinch on Settings puts the first face back ($FACE2, was $FACE0)"
 
 P=$(probe thread)
 pinch_at "$(field "$P" "['threadMid']")"

@@ -47,7 +47,10 @@ interface LedgeProbe {
 }
 
 /** A touchable part as TouchFeedbackSystem shows it, and whether a fingertip can poke it. */
-type TouchProbe = Omit<TouchMirror, 'kind'> & { kind: string; pokeInteractable: boolean };
+/** A touchable part's mirror, whether it takes a poke, and its root's object id (a rebuilt part gets a new one). */
+type TouchProbe = Omit<TouchMirror, 'kind'> & { kind: string; pokeInteractable: boolean; objectId: number };
+/** The plaque's poke state; null when the plaque entity can't be found, so a check can't pass by default. */
+type PlaqueTouchProbe = { pokeInteractable: boolean | null };
 
 export interface ThreadboundTestHook {
   /** Canvas-relative CSS pixel position of a diorama-local point. */
@@ -65,7 +68,7 @@ export interface ThreadboundTestHook {
    * 'thread-a-b'): its kind, what it shows ('rest' | 'hover' | 'target' | 'press'), how far it
    * is pressed in (meters) and whether it is pokeable; plus 'hud-plaque' (pokeable or not only).
    */
-  touch(): Record<string, TouchProbe | { pokeInteractable: boolean }>;
+  touch(): Record<string, TouchProbe | PlaqueTouchProbe>;
   /** Canvas position of a rail peg's slider tab, null if the peg has no rail. */
   handle(pegId: string): ScreenPoint | null;
   /** Where that tab would be on screen with its peg at `along` on the rail. */
@@ -213,15 +216,15 @@ function levelProbes(
 function touchProbe(world: World): Hook<'touch'> {
   return {
     touch: () => {
-      const parts: Record<string, TouchProbe | { pokeInteractable: boolean }> = {};
+      const parts: Record<string, TouchProbe | PlaqueTouchProbe> = {};
       for (const entity of world.getSystem(TouchFeedbackSystem)?.queries.touchables.entities ?? []) {
         const root = entity.object3D;
         const mirror = root?.userData.touch as TouchMirror | undefined;
         if (!root || !mirror) continue;
-        parts[root.name] = { ...mirror, pokeInteractable: entity.hasComponent(PokeInteractable) };
+        parts[root.name] = { ...mirror, pokeInteractable: entity.hasComponent(PokeInteractable), objectId: root.id };
       }
       const plaque = world.getSceneEntity('hud-plaque');
-      parts['hud-plaque'] = { pokeInteractable: plaque?.hasComponent(PokeInteractable) ?? false };
+      parts['hud-plaque'] = { pokeInteractable: plaque ? plaque.hasComponent(PokeInteractable) : null };
       return parts;
     },
   };

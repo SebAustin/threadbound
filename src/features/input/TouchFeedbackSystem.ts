@@ -38,6 +38,8 @@ export class TouchFeedbackSystem extends createSystem({
 }) {
   /** Each visible part's own material, recorded when its root is set up. */
   private readonly restMaterials = new WeakMap<Object3D, Material>();
+  /** Refilled on every tag change, so a ray entering or leaving a part allocates nothing. */
+  private readonly touchInput = { hovered: false, pressed: false, target: false };
 
   init(): void {
     const refresh = (entity: Entity) => this.refresh(entity);
@@ -73,11 +75,10 @@ export class TouchFeedbackSystem extends createSystem({
     if (!root) return;
     if (!root.userData.touch) this.setUp(entity);
     const mirror = root.userData.touch as TouchMirror;
-    const state = touchState({
-      hovered: entity.hasComponent(Hovered),
-      pressed: entity.hasComponent(Pressed),
-      target: entity.hasComponent(SnapTarget),
-    });
+    this.touchInput.hovered = entity.hasComponent(Hovered);
+    this.touchInput.pressed = entity.hasComponent(Pressed);
+    this.touchInput.target = entity.hasComponent(SnapTarget);
+    const state = touchState(this.touchInput);
     if (state === mirror.state) return;
     mirror.state = state;
     this.light(root, state, mirror.kind);

@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { PEG } from '../../src/config/constants';
 import { LEVELS } from '../../src/levels';
+import { createTrail, push, stableRelease } from '../../src/lib/releaseTrail';
 import { checkNewThread, findSnapPeg, landingPeg, presetOnlyPegs } from '../../src/lib/threadRules';
 
 const pegs = [
@@ -88,7 +89,7 @@ describe('presetOnlyPegs: pegs only the snipped preset threads touch', () => {
   });
 
   test('once they are removed, no two knobs overlap at their authored positions', () => {
-    const knob = PEG.radius * 1.5 * 2;
+    const knob = PEG.knobRadius * 2;
     expect(knob).toBeCloseTo(0.033, 6);
     for (const level of LEVELS) {
       const presetOnly = presetOnlyPegs(level);
@@ -116,5 +117,17 @@ describe('landingPeg: where a released pull attaches', () => {
 
   test('neither on a peg: nothing', () => {
     expect(landingPeg([0.2, 0.1], [0.2, 0.5], pegs, 'a', R)).toBeNull();
+  });
+
+  test("a hold on the own knob within snap reach of a neighbour is the pinch: a flick lands on its target, not the neighbour", () => {
+    // Knobs 3.3 cm apart (the closest pair); the pinch held 1.2 cm off a's centre, 2.1 cm from n.
+    const close = [{ id: 'a', x: 0, y: 0 }, { id: 'n', x: 0.033, y: 0 }, { id: 'b', x: 0.2, y: 0.1 }];
+    const trail = createTrail();
+    push(trail, 0, 0, 0);
+    for (let t = 16; t <= 112; t += 16) push(trail, 0.012, 0, t);
+    push(trail, 0.1, 0.05, 128);
+    push(trail, 0.2, 0.1, 144);
+    const held = stableRelease(trail, { x: 0, y: 0 }, { x: 0, y: 0, radius: PEG.knobRadius });
+    expect(landingPeg([held.x, held.y], [0.2, 0.1], close, 'a', PEG.snapRadius)).toBe('b');
   });
 });

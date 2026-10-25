@@ -1,9 +1,13 @@
 // E2E (real mouse): every control shows it's being touched (week 8 ticket 11).
-// Restart and the chute light under the pointer and a held Restart sinks; the
+// Restart and the chute light under the pointer and a held Restart sinks; a held
+// Settings sinks and, released, comes back up on the same button (Restart rebuilds
+// every ledge button, so only a button that survives its press proves that); the
 // invisible hit areas around a thread and a tab take a pointer that misses the part
 // itself; a pull released on a preset-only peg's knob lands on its neighbour; the peg
 // a pull would attach to reads 'target'; a release that jumps off a held peg keeps
-// the peg; and threads and the plaque take a pinch only (no poke).
+// the peg, while a hold on the pull's own knob (off its centre, where a hand ray
+// keeps sending moves) is the pinch itself and a flick after it lands where it went;
+// and threads and the plaque take a pinch only (no poke).
 // Every step moves the mouse with a lead-in first: the screen pointer only re-targets on pointermove.
 import { canvasMapper, checks, drag, frames, loadLevel, sleep, waitFor } from './lib.mjs';
 
@@ -39,16 +43,18 @@ export default async function run({ page, frame }) {
   const local = async (x, y, z = KNOB_Z) => at(await app.evaluate(([px, py, pz]) => window.__threadbound.project(px, py, pz), [x, y, z]));
   const ctx = { page, app, check, at, local };
   await restartAndChute(ctx);
+  await settingsRelease(ctx);
   await threadHitArea(ctx);
   await tabHitArea(ctx);
   await overlaps(ctx);
   await snapTarget(ctx);
   await stableRelease(ctx);
+  await heldPinchThenFlick(ctx);
   await pinchOnly(ctx);
   return results;
 }
 
-/** Restart: hover, then held (press, sunk 4-7 mm), released (hover, travel 0), off (rest). The chute hovers too. */
+/** Restart: hover, then held (press, sunk 4-7 mm), rebuilt by its release (the new one hovers, travel 0), off (rest). The chute hovers too. */
 async function restartAndChute({ page, app, check, at, local }) {
   await loadLevel(app, 'w1-01');
   const restart = at(await app.evaluate(() => window.__threadbound.button('restart')));
@@ -66,13 +72,50 @@ async function restartAndChute({ page, app, check, at, local }) {
   await lead(page, restart);
   await waitFor(app, reads, 2000, ['button-restart', 'hover']);
   const released = await app.evaluate(touchOf, 'button-restart');
-  check('released, it reads hover with travel 0', released?.state === 'hover' && released.travel === 0, JSON.stringify(released));
+  check('after the release rebuilds it, the new Restart reads hover with travel 0', released?.state === 'hover' && released.travel === 0, JSON.stringify(released));
   await lead(page, bare);
   check('moving off reads rest', ...(await readsNow('button-restart', 'rest')));
   await lead(page, at(await app.evaluate(() => window.__threadbound.chute())));
   check('over the chute it reads hover', ...(await readsNow('chute', 'hover')));
   await lead(page, bare);
   check('moving off the chute reads rest', ...(await readsNow('chute', 'rest')));
+}
+
+/**
+ * Settings survives its own press (it only flips the plaque's face), so its release shows the
+ * press undone on the same entity: hover, held (press, sunk 4-7 mm), released (hover, travel 0,
+ * same root object), off (rest). A second press puts the level face back.
+ */
+async function settingsRelease({ page, app, check, at, local }) {
+  await loadLevel(app, 'w1-01');
+  const face = () => window.__threadbound.plaque()?.face;
+  const isFace = ([f]) => window.__threadbound.plaque()?.face === f;
+  const startFace = await app.evaluate(face);
+  const otherFace = startFace === 'settings' ? 'level' : 'settings';
+  const settings = at(await app.evaluate(() => window.__threadbound.button('settings')));
+  const readsNow = async (state) => [await waitFor(app, reads, 2000, ['button-settings', state]), JSON.stringify(await app.evaluate(touchOf, 'button-settings'))];
+  await lead(page, settings);
+  check('over Settings it reads hover', ...(await readsNow('hover')));
+  const before = await app.evaluate(touchOf, 'button-settings');
+  await page.mouse.down();
+  await waitFor(app, reads, 2000, ['button-settings', 'press']);
+  const held = await app.evaluate(touchOf, 'button-settings');
+  check('held, Settings reads press with 4-7 mm of travel', held?.state === 'press' && held.travel >= 4 * MM && held.travel <= 7 * MM, JSON.stringify(held));
+  // No move after the release: the same button, still under the pointer, must come back up by itself.
+  await page.mouse.up();
+  const flipped = await waitFor(app, isFace, 2000, [otherFace]);
+  await waitFor(app, reads, 2000, ['button-settings', 'hover']);
+  const released = await app.evaluate(touchOf, 'button-settings');
+  const same = released?.objectId === before?.objectId;
+  check('released, the same Settings button reads hover with travel 0', same && released?.state === 'hover' && released.travel === 0, JSON.stringify({ before, released }));
+  check('the release acted: the plaque flipped its face', flipped, `${startFace} -> ${await app.evaluate(face)}`);
+  await lead(page, await local(...BARE));
+  check('moving off Settings reads rest', ...(await readsNow('rest')));
+  await lead(page, settings);
+  await page.mouse.down();
+  await page.mouse.up();
+  check('a second press puts the first face back', await waitFor(app, isFace, 2000, [startFace]), String(await app.evaluate(face)));
+  await lead(page, await local(...BARE));
 }
 
 /** Page function: frame point 1.1 cm off thread a-b's axis at its midpoint, on the up side. */
@@ -183,6 +226,49 @@ async function pauseShortThenLand({ page, app, check, local, a, b, from, onB }) 
   await waitFor(app, () => window.__threadbound.state().threads.length > 0, 2000);
   const threads = await app.evaluate(() => window.__threadbound.state().threads);
   check('a 100 ms pause on bare panel short of b, then a landing on b, makes a-b', threads.length === 1 && threads[0].to === 'b', JSON.stringify(threads));
+}
+
+/** Wiggles the held mouse a pixel each frame for about `ms`: a hand ray never holds still, so it keeps sending moves. */
+async function jitterHold(page, [x, y], ms) {
+  for (let t = 0, i = 1; t < ms; t += 16, i++) {
+    await page.mouse.move(x + (i % 2), y);
+    await sleep(16);
+  }
+}
+
+/**
+ * A pinch that lands 1.2 cm off a knob's centre (still on its 33 mm knob) and holds there, sending
+ * moves, is the pinch itself, not an aim: a flick right after lands where it went, never on the
+ * knob's neighbour, and a flick onto bare panel misses audibly. The flick releases in the same tick.
+ */
+async function heldPinchThenFlick({ page, app, check, local }) {
+  const offCentre = async (peg, toward) => {
+    const len = Math.hypot(toward.x - peg.x, toward.y - peg.y);
+    return local(peg.x + ((toward.x - peg.x) / len) * 0.012, peg.y + ((toward.y - peg.y) / len) * 0.012);
+  };
+  const flick = async (from, to) => {
+    await lead(page, from);
+    await page.mouse.down();
+    await jitterHold(page, from, 120);
+    await page.mouse.move(...to);
+    await page.mouse.up();
+  };
+  // w2-04: c is 4.5 cm from a, the closest pair in the campaign; the held point is 3.3 cm from c, inside its snap radius.
+  await loadLevel(app, 'w2-04');
+  const { a, b, c } = await app.evaluate(() => window.__threadbound.state().pegPositions);
+  await flick(await offCentre(a, c), await local(b.x, b.y));
+  await waitFor(app, () => window.__threadbound.state().threads.some((t) => !t.preset), 2000);
+  const made = await app.evaluate(playerThreads);
+  check("a held pinch 1.2 cm off a's centre toward c, then a flick onto b, makes a-b, never a-c", made.length === 1 && made[0].from === 'a' && made[0].to === 'b', JSON.stringify(made));
+  await loadLevel(app, 'w1-01');
+  const pegs = await app.evaluate(() => window.__threadbound.state().pegPositions);
+  await app.evaluate(() => window.__threadbound.cues());
+  await flick(await offCentre(pegs.a, pegs.b), await local(...BARE));
+  await frames(app, 2);
+  const heard = await app.evaluate(() => window.__threadbound.cues());
+  const threads = await app.evaluate(() => window.__threadbound.state().threads.length);
+  const misses = heard.filter((cue) => cue === 'dragMiss').length;
+  check('the same held pinch, then a flick onto bare panel, makes no thread and logs one dragMiss', misses === 1 && threads === 0, JSON.stringify({ heard, threads }));
 }
 
 /** Threads (preset and player) and the plaque take a pinch only; the ledge buttons alone are pokeable. */

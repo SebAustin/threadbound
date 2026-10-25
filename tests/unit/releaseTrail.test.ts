@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import { PEG } from '../../src/config/constants';
 import { createTrail, push, reset, stableRelease, TRAIL_SAMPLES, type ReleaseTrail } from '../../src/lib/releaseTrail';
 
 const A = { x: 0.05, y: 0.24 };
@@ -15,6 +16,16 @@ function grabbedAt(from: { x: number; y: number }): ReleaseTrail {
 }
 
 const releaseOf = (trail: ReleaseTrail) => stableRelease(trail, { x: Number.NaN, y: Number.NaN });
+/** The pull's own peg at A: its knob is where a pinch lands. */
+const SOURCE_A = { x: A.x, y: A.y, radius: PEG.knobRadius };
+const releaseFrom = (trail: ReleaseTrail) => stableRelease(trail, { x: Number.NaN, y: Number.NaN }, SOURCE_A);
+
+/** Pushes a ~100 ms hold at `at` (from 16 ms), then a flick that releases at `to` within 100 ms. */
+function holdThenFlick(trail: ReleaseTrail, at: { x: number; y: number }, to: { x: number; y: number }): void {
+  for (let t = FRAME; t <= 7 * FRAME; t += FRAME) push(trail, at.x, at.y, t);
+  push(trail, (at.x + to.x) / 2, (at.y + to.y) / 2, 8 * FRAME);
+  push(trail, to.x, to.y, 9 * FRAME);
+}
 
 describe('stableRelease: a release that jumps off a held point keeps the held point', () => {
   test('a 200 ms hold at b, then a release frame 4 cm away, returns b (within 2 mm)', () => {
@@ -70,6 +81,25 @@ describe('stableRelease: a release that jumps off a held point keeps the held po
     push(trail, B.x, B.y, 260);
     push(trail, B.x, B.y, 276);
     expect(releaseOf(trail)).toEqual(B);
+  });
+
+  test('a hold on the own peg 1.2 cm off its centre is the pinch too: a flick to b within 100 ms returns b', () => {
+    const trail = grabbedAt(A);
+    holdThenFlick(trail, { x: A.x + 0.012, y: A.y }, B);
+    expect(releaseFrom(trail)).toEqual(B);
+  });
+
+  test('a hold anywhere on the own knob, even at its rim, never wins', () => {
+    const trail = grabbedAt(A);
+    holdThenFlick(trail, { x: A.x, y: A.y - PEG.knobRadius + 0.0005 }, B);
+    expect(releaseFrom(trail)).toEqual(B);
+  });
+
+  test('a hold on a neighbour 3.3 cm from the own peg still wins over a release that jumped off it', () => {
+    const neighbour = { x: A.x + 0.033, y: A.y };
+    const trail = grabbedAt(A);
+    holdThenFlick(trail, neighbour, { x: neighbour.x, y: neighbour.y - 0.04 });
+    expect(releaseFrom(trail)).toEqual(neighbour);
   });
 
   test('1000 pushes keep the same buffer object and length', () => {
