@@ -318,16 +318,13 @@ describe('studyTableFit: the virtual study table follows the offset', () => {
     expect(studyTableFit({ up: 0, near: 0 })).toEqual({ z: 0, scaleY: 1 });
   });
 
-  test.each(Array.from({ length: 13 }, (_, i) => i - 6))(
-    'Raise %i: scaled about the floor, the top stays flush with the base underside and the legs on the floor',
-    (up) => {
-      const fit = studyTableFit({ up, near: 0 });
-      expect(fit.scaleY).toBeGreaterThan(0);
-      // The fit is a scale about y = 0 and no lift, so the legs' feet stay on the floor.
-      expect(Object.keys(fit).sort()).toEqual(['scaleY', 'z']);
-      expect(STUDY_TABLE_TOP * fit.scaleY).toBeCloseTo(studyOrigin(up, 0)[1] - DIORAMA.slab, 9);
-    },
-  );
+  // The legs staying on the floor depends on the mesh being built about y = 0 (EnvironmentSystem);
+  // tests/e2e/placement.e2e.mjs checks the drawn table's feet after Raise twice.
+  test.each(Array.from({ length: 13 }, (_, i) => i - 6))('Raise %i: the top stays flush with the base underside', (up) => {
+    const fit = studyTableFit({ up, near: 0 });
+    expect(fit.scaleY).toBeGreaterThan(0);
+    expect(STUDY_TABLE_TOP * fit.scaleY).toBeCloseTo(studyOrigin(up, 0)[1] - DIORAMA.slab, 9);
+  });
 
   test.each([-2, -1, 1, 2])('Near %i slides the table along z with the diorama', (near) => {
     const fit = studyTableFit({ up: 3, near });

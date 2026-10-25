@@ -67,6 +67,29 @@ describe('stepSearch: the table search only runs while the player can see it', (
     expect(createSearch().hidden).toBe(false);
   });
 
+  test.each([
+    ['a drop', { status: 'dropping' as const }],
+    ['a drag', { drags: 1 }],
+  ])('a search started during %s places nothing, and stays hidden, until it ends', (_name, busy) => {
+    const search = started();
+    const findTable = vi.fn(() => TABLE);
+    expect(run(search, SEARCH.floatAfter + 2, busy, findTable)).toEqual([]);
+    expect(findTable).not.toHaveBeenCalled();
+    expect(search.hidden).toBe(true);
+    expect(search.phase).toBe('searching');
+    // Over: the search runs as if it started now, so its first look takes the table.
+    expect(run(search, STEP, {}, findTable)).toEqual(['table']);
+    expect(search.hidden).toBe(false);
+  });
+
+  test('with no table, a search held by a drop floats a full 3 s of visible time after the drop ends', () => {
+    const search = started();
+    expect(run(search, SEARCH.floatAfter + 2, { status: 'dropping' })).toEqual([]);
+    expect(run(search, SEARCH.floatAfter - STEP)).toEqual([]);
+    expect(search.hidden).toBe(true);
+    expect(run(search, STEP)).toEqual(['floating']);
+  });
+
   test('a table found at any point places the diorama on it, shows it and ends the search', () => {
     const search = started();
     const place = stepSearch(search, frame(), () => TABLE);

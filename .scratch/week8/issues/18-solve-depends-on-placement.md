@@ -39,3 +39,18 @@ Candidate boxes, for triage to keep, change or drop:
 ## Comments
 
 - **Oct 23, filed from ticket 05's review (finding 2).** The evidence is ticket 05's sweep, recorded in its Comments. Ticket 07's Comments point here.
+- **Oct 24, from ticket 07's review (finding 6): the sweep, re-run at ticket 07's table pose** (frame lifted by `DIORAMA.slab`, ledge front on the table's near edge). Local run on main, log `.scratch/week8/logs/ticket18-sweep-after-07.log` (gitignored). Same method as above: each level opened (`load` for w1-04, `daily` by pool index), its solution hung, shot.sh's seated pose entered (`xr enter`, hand mode, headset at (-0.85, 1.15, 0.2) looking at (-1.5, 0.79, 0.2), `xr exit`, `xr enter`, `settle session`), then `probe solve`. Every run placed the diorama on the dining table: `placedOn: table`, 1 place, yaw 1.5705 rad.
+
+  | Pool | Level | Before 07 (Oct 23) | After 07 (Oct 24) |
+  |---|---|---|---|
+  | - | w1-04 (Relay, campaign) | **idle** | **idle** |
+  | 0 | daily-w1-02 | complete | complete (6 notes) |
+  | 1 | daily-w1-04 (Relay) | **idle** | **idle** |
+  | 2 | daily-w1-06 | complete | complete (14 notes) |
+  | 3 | daily-w2-02 | **idle** | **idle** |
+  | 4 | daily-w2-04 | complete | complete (2 notes) |
+  | 5 | daily-w3-02 | complete | complete (6 notes) |
+  | 6 | daily-w3-04 | **idle** | **idle** |
+
+  - 07's pose change moves no outcome: the same four levels end `idle` at yaw 90 degrees, so the defect and the candidate boxes stand as written.
+  - Ticket 05's `daily` shot (pool 4) still works at the new pose (`ticket18-daily-shot-after-07.log`). `zsh tests/e2e/shot.sh daily` staged it ("start recording": audio running, no emulator chrome, no Vite overlay). `zsh tests/e2e/take.sh daily` then solved it with the live chute pinch: the plaque read "Daily - streak 7", status `complete`, on daily-w2-04 at yaw 1.5705 rad.

@@ -69,8 +69,11 @@ export interface ThreadboundTestHook {
   marbles(): Array<WorldPoint & { color: string }>;
   /** World-space position of a diorama-local point (for aiming emulated hands). */
   worldOf(x: number, y: number, z?: number): WorldPoint;
-  /** The virtual study: shown or not, its background, the session's blend mode, and its table top's height (world y). */
-  room(): { visible: boolean; background: boolean; blendMode: string | null; tableTop: number | null };
+  /**
+   * The virtual study: shown or not, its background, the session's blend mode, and the world y of its
+   * table's top and of its feet (the floor is y = 0).
+   */
+  room(): { visible: boolean; background: boolean; blendMode: string | null; tableTop: number | null; tableBottom: number | null };
   /** What the diorama plaque last rendered, and where it sits in diorama-local space. */
   hud(): { model: unknown; local: WorldPoint } | null;
   /** Which plaque face is showing, and where a plaque element is. */
@@ -372,12 +375,13 @@ function placementProbes(world: World): Hook<'placement' | 'recenter'> {
   };
 }
 
-/** World y of the study table's top, as drawn (it scales with the offset). */
-function studyTableTop(world: World): number | null {
+/** World y of the study table's top and of its feet, as drawn (it scales with the offset). */
+function studyTableSpan(world: World): { top: number; bottom: number } | null {
   const table = world.scene.getObjectByName('study-table');
   if (!table) return null;
   table.updateWorldMatrix(true, false);
-  return new Box3().setFromObject(table).max.y;
+  const box = new Box3().setFromObject(table);
+  return { top: box.max.y, bottom: box.min.y };
 }
 
 function sessionProbes(world: World): Hook<'gazeAvailable' | 'room' | 'frameStats' | 'meshBreakdown' | 'cues' | 'cueTrace' | 'audio'> {
@@ -411,12 +415,16 @@ function sessionProbes(world: World): Hook<'gazeAvailable' | 'room' | 'frameStat
       return { ...stats, breaches: budgetBreaches(perView, PERF_BUDGET), multiview, views };
     },
     gazeAvailable: () => [...(world.session?.inputSources ?? [])].some((s) => s.targetRayMode === 'gaze'),
-    room: () => ({
-      visible: world.scene.getObjectByName('virtual-room')?.visible ?? false,
-      background: world.scene.background !== null,
-      blendMode: world.session?.environmentBlendMode ?? null,
-      tableTop: studyTableTop(world),
-    }),
+    room: () => {
+      const table = studyTableSpan(world);
+      return {
+        visible: world.scene.getObjectByName('virtual-room')?.visible ?? false,
+        background: world.scene.background !== null,
+        blendMode: world.session?.environmentBlendMode ?? null,
+        tableTop: table?.top ?? null,
+        tableBottom: table?.bottom ?? null,
+      };
+    },
   };
 }
 

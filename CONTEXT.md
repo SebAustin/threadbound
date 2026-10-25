@@ -110,7 +110,7 @@ _Avoid_: settings menu, gear
 Time dilation of the simulation (physics, releases and rest timers all run at 2/3 speed), so every solution plays out identically, only slower.
 
 **Offset**:
-The player's height and distance adjustment of the diorama, in whole steps. Changing it **relocates** the diorama: a rebuild at the new pose that keeps threads, slides and a solve, and waits for a drop in progress to end.
+The player's height and distance adjustment of the diorama, in whole steps. Changing it **relocates** the diorama: a rebuild at the new pose that keeps threads, slides and a solve, and waits for a drop or a drag in progress to end.
 
 **Melody book**:
 The tune each campaign level's best solve played, kept with progress. Pinching the plaque's stars replays it; the settings face plays the whole book.

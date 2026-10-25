@@ -23,7 +23,8 @@
 - **Copy list for week 9:** re-run ticket 06's claim audit against the shipped build. List every README.md and docs/submission.md line that must change:
   - each `<!-- true once week 8 ticket 10 lands ... -->` marker and `[if shipped]` bracket left by ticket 06;
   - each claim without evidence in the final log;
-  - each shipped feature the copy leaves out (for example `?fresh=1` in the testing instructions, held back by ticket 06).
+  - each shipped feature the copy leaves out (for example `?fresh=1` in the testing instructions, held back by ticket 06);
+  - the accepted-table markers (README.md:41 and docs/submission.md:110, `every accepted table: true once week 8 ticket 07's ACCEPT_REACH lands`). With `ACCEPT_REACH` 0.61 m, a 0.74 m desk is accepted only when its near edge is within about 0.41 m (horizontal) of a seated head (0.40 m on every level, about 0.37 m for a 0.70 m desk); farther tables are refused and the diorama floats. "On any table it accepts" must not suggest that an ordinary desk is accepted. The final words wait on the user's decision in ticket 07 (Comments, "Decision for the user").
 
   Each entry gives the file:line, the current words, what shipped and its evidence, and the change.
 - **Week 9 tickets:** write them in this format as `.scratch/week9/issues/NN-*.md`, from .scratch/week9/spec.md and the tester replies summarized in ticket 04's Comments.
@@ -61,3 +62,4 @@
 ## Comments
 - **Carried over from ticket 01's post-landing review:** make xr-controls' chute check race-free with a `marbleCount` PROBE_FIELDS entry, passing on `status != idle || marbleCount > 0`. Details are in ticket 01's Comments. **Done in ticket 02 (4f76529)**, because it was that baseline's only red. Still open here: correct the ticket 01 Comments sentence that says the chute diagnostics tell a miss from an ended drop.
 - **From ticket 01:** the flat-view camera moved to (0, 1.07, 0.40) (`iwsdk.config.json`), so flat-view screenshots and shots look about 10% smaller and lower. Re-check ticket 05's flat-view shots. The Enter XR pill still covers the settings face's (unclickable) title.
+- **From ticket 07's review (Oct 24):** the accepted-table limit (about 0.41 m from a seated head to a 0.74 m desk's near edge) is in the copy list above, next to the accepted-table markers. Whether it stays is the user's decision, recorded in ticket 07's Comments. Until then 07 reads `done except` with its placement.test.ts box open; list that box as open, as for the user-only boxes of 06 and 16, unless the user says the gate waits for it.

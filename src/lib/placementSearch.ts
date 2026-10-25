@@ -83,6 +83,9 @@ export function requestRestart(search: PlacementSearch): void {
 /** Only a level nobody has touched yet may still move from floating to a table. */
 const untouched = (frame: SearchFrame) => frame.status === 'idle' && frame.playerThreads === 0 && frame.drags === 0;
 
+/** A drop or a drag is in progress: a move would wait for it (PuzzleSystem's `busy`), so a search waits too. */
+const busy = (frame: SearchFrame) => frame.status === 'dropping' || frame.drags > 0;
+
 /** Whether this frame looks at the planes: on the cadence, and while floating only for an untouched level. */
 function dueToEvaluate(search: PlacementSearch, frame: SearchFrame): boolean {
   if (search.sinceEvaluate < SEARCH.evaluateEvery) return false;
@@ -92,11 +95,14 @@ function dueToEvaluate(search: PlacementSearch, frame: SearchFrame): boolean {
 /**
  * One frame of the search. A table found at any point takes the diorama and ends the
  * search. With no table after `floatAfter` visible seconds it floats, and a table that
- * shows up before `keepLookingUntil` still takes an untouched level.
+ * shows up before `keepLookingUntil` still takes an untouched level. A search waits,
+ * hidden and with its clock stopped, while a drop or a drag is in progress, as a restart
+ * does: the move it asks for would wait too, and the diorama would show at its old pose.
  */
 export function stepSearch<T>(search: PlacementSearch, frame: SearchFrame, findTable: () => T | null): SearchPlace<T> | null {
-  if (search.restartPending && frame.status !== 'dropping' && frame.drags === 0) startSearch(search);
+  if (search.restartPending && !busy(frame)) startSearch(search);
   if (frame.paused || (search.phase !== 'searching' && search.phase !== 'floating')) return null;
+  if (search.phase === 'searching' && busy(frame)) return null;
   search.elapsed += frame.delta;
   search.sinceEvaluate += frame.delta;
   if (search.phase === 'floating' && search.elapsed > SEARCH.keepLookingUntil) {
