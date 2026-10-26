@@ -78,6 +78,7 @@ npm test                  # unit tests (vitest)
 npm run coverage          # unit tests with coverage
 npm run test:e2e          # real-input E2E suite (needs the dev server, see below)
 npm run test:e2e:levels   # every level solvable, not self-solving, within budget
+npm run test:e2e:levels:robust  # every stored solution RUNS times (default 3): both speeds, study pose and table
 npm run test:e2e:hands    # emulated XR: hands-only level, ledge/plaque pinches, gaze + pinch, outside hosts, placement and recenter, guest play
 npm run build             # production build to dist/
 npm run test:smoke        # production smoke on dist/: headless Chromium + IWER, flat view and an AR session
@@ -103,7 +104,8 @@ the save stays byte-identical and the guest line is logged, and its screenshots 
 1. `npm run coverage`;
 2. `NODE_ENV=production npm run build && npm run test:smoke`, the build CI runs;
 3. with the dev server up: `npm run test:e2e`, `npm run test:e2e:levels`, `npm run test:e2e:levels:slow`,
-   `npm run test:e2e:hands` and `npm run test:e2e:dailies`.
+   `npm run test:e2e:levels:robust` (at its default `RUNS=3`, about 45 minutes), `npm run test:e2e:hands`
+   and `npm run test:e2e:dailies`.
 
 CI (`.github/workflows/deploy.yml`) runs only the typecheck, the unit tests, the production build and the
 smoke, so the E2E and XR suites are a local gate. Pushes that touch only docs, Markdown or `.scratch/`

@@ -66,6 +66,21 @@ export async function loadIndex(app, index) {
 }
 
 /**
+ * Opens daily puzzle `pool` (its index in DAILY_LEVELS) fresh, like loadIndex for the campaign.
+ * A daily's level index follows the campaign's (src/levels/index.ts PLAYABLE).
+ */
+export async function loadDaily(app, pool) {
+  await app.evaluate((i) => window.__threadbound.dispatch({ type: 'daily', index: i }), pool);
+  const opened = (i) => {
+    const hook = window.__threadbound;
+    return hook.state().levelIndex === hook.levels().length + i;
+  };
+  if (!(await waitFor(app, opened, 5000, pool))) throw new Error(`daily ${pool} did not open`);
+  const { complete, rendered } = await frames(app, SETTLE_FRAMES);
+  if (!complete) throw new Error(`daily ${pool}: frames stalled (rendered ${rendered} of ${SETTLE_FRAMES} in 1 s)`);
+}
+
+/**
  * Waits for `n` rendered frames, for at most 1 s so a hidden page can't hang a test.
  * Reports whether all `n` ran (`complete`) and how many did (`rendered`).
  */
