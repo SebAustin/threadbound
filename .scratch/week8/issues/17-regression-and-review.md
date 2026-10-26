@@ -4,15 +4,15 @@
 - **Gate:** every ticket under **Blocked by** reads `**Status:** done`, with its boxes ticked and a Comments entry. Tickets 04 and 05 aren't blockers, because their open parts wait on the user (posting the request, running OBS). For the same reason the gate doesn't wait on the user-only `Human:` boxes of 06 (the future-of-VR answer and tagline, due before submitting) and 16 (the headphones check); list them as open in Comments.
 - **Full regression.** Run it with `node_modules` from `npm ci` and the dev server from `npx @iwsdk/cli dev up --headless --allow-browser-automation`, once `dev status` reports `browserCommandReady: true`. Don't edit `src/` while it runs, and follow ticket 02's rule for a running regression. The steps:
   - `npm run typecheck` and `npm run coverage`;
-  - `npm run test:e2e` (package.json:18, plus every script tickets 06-16 add to it), `test:e2e:levels` and `test:e2e:levels:slow` (:20-21), and `test:e2e:dailies` (:22);
-  - `test:e2e:hands` (:19), now with xr-hosts.sh (06), xr-placement.sh (07), enter-xr.sh (08), xr-guest.sh (09), the three-miss skip check (13) and xr-spatial-audio.sh (16);
+  - `npm run test:e2e` (package.json:19, plus every script tickets 06-16 add to it), `test:e2e:levels` and `test:e2e:levels:slow` (:21-22), `test:e2e:levels:robust` at its default `RUNS=3` (:23, ticket 20 and spec Q49: about 65 minutes), and `test:e2e:dailies` (:24);
+  - `test:e2e:hands` (:20), now with xr-hosts.sh (06), xr-placement.sh (07), enter-xr.sh (08), xr-guest.sh (09), the three-miss skip check (13) and xr-spatial-audio.sh (16);
   - the CI smoke, locally: `NODE_ENV=production npm run build && npm run test:smoke` (ticket 03; CI runs the same steps before the upload, deploy.yml:29-32 today), then `npm run test:e2e:prod-xr` against the local preview (ticket 02).
 
   Run it once on the commit after ticket 16, so any breakage becomes a review finding. The run that counts is the rerun on the review-fix commit.
 - **The log, `.scratch/week8/regression-final.log`:** use the layout of `.scratch/week8/regression-baseline.log` (ticket 02) and `.scratch/week6/regression-fixes.log`.
   - **Header:** the SHA, the date and `node --version`. Say so if the version isn't .nvmrc's 22.12.0 (local is v26.7.0).
-  - **Sections:** `--- unit`, `--- e2e`, `--- levels`, `--- levels slow`, `--- dailies`, `--- xr`, `--- build`, `--- smoke`, `--- prod-xr`.
-  - **Summary line:** unit count and coverage, E2E checks passed, levels N/24 at each speed, dailies N/7, hand scripts N/N, smoke and prod-xr PASS counts, and every exit code.
+  - **Sections:** `--- unit`, `--- e2e`, `--- levels`, `--- levels slow`, `--- levels robust`, `--- dailies`, `--- xr`, `--- build`, `--- smoke`, `--- prod-xr`.
+  - **Summary line:** unit count and coverage, E2E checks passed, levels N/24 at each speed, the robust sweep's levels at 3/3 in all six conditions (N/31, and each level and condition below 3/3 with its rate), dailies N/7, hand scripts N/N, smoke and prod-xr PASS counts, and every exit code.
 - **Two-axis review:** two read-only sub-agents, both on one fixed SHA.
   - **Standards:** checks the diff against AGENTS.md (Conventions and the Traps table), src/AGENTS.md, .claude/agents/iwsdk-project-code-reviewer.md and the user's coding-style, testing and security rules. Findings are split into HARD and judgement, as in .scratch/week7/issues/02-bug-bash.md:10. The new per-frame code (the placement fade-in, melody timing, the star and caption pulses) must not allocate in `update()` and must read signals with `.peek()`. Every listener, including the reference-space `reset` and the visibility listener, must be torn down through `cleanupFuncs`.
   - **Spec:** checks the build against .scratch/week8/spec.md (the 13 user stories, plus the Implementation and Testing Decisions), ADRs 0004-0006 and CONTEXT.md.
@@ -40,10 +40,10 @@
 
 - [ ] Unit: `npm run typecheck` and `npm run coverage` pass on the review-fix commit, with no fewer tests than the baseline log. Every fix that changes `src/lib/` behaviour adds a unit test that failed first.
 - [ ] E2E: every `test:e2e` script passes with real input. That includes ticket 10's melody checks: 3 or more distinct notes on w1-01 and w1-03, and the same notes on a repeat drop (spec :107).
-- [ ] E2E: levels prove 24/24 at normal speed and 24/24 at SLOW=1, each run on the index it asked for (tests/e2e/levels.sh:20). `test:e2e:dailies` passes every daily.
+- [ ] E2E: levels prove 24/24 at normal speed and 24/24 at SLOW=1, each run on the index it asked for (tests/e2e/levels.sh:20). `test:e2e:dailies` passes every daily. `test:e2e:levels:robust` (`RUNS=3`) solves all 31 levels and dailies 3/3 in all six conditions, exit 0.
 - [ ] XR: every `test:e2e:hands` script passes, including the four spec checks (spec :109-113): Enter XR with a long press (08's enter-xr.sh: an 800 ms mouse press, standing in for Quest Browser's pinch on the 2D page, which IWER can't emulate before a session), a guest-play run, a skip after three misses, and placement again after a recenter.
 - [ ] Smoke: the local production build passes `npm run test:smoke` and `npm run test:e2e:prod-xr`, with zero console errors.
-- [ ] Log: regression-final.log has the header, the nine sections and the summary line. Every PASS line in regression-baseline.log appears in it, or Comments explain its rename or removal (the term check will rename some).
+- [ ] Log: regression-final.log has the header, the ten sections and the summary line. Every PASS line in regression-baseline.log appears in it, or Comments explain its rename or removal (the term check will rename some).
 - [ ] Review: Comments summarize both reports. Every HARD finding and every missed story is fixed, or accepted with a reason. Each term-check hit is fixed or marked legitimate.
 - [ ] Copy: the list is in week 9's copy-pass ticket, and every entry has a path:line and its evidence. tests/unit/copyHonesty.test.ts (ticket 06) still passes.
 - [ ] Week 9: `.scratch/week9/issues/` holds the tickets, numbered from 01, with tester fixes first, the copy pass last, and efforts that fit Nov 5-10. The week 9 spec reads ready-for-agent.

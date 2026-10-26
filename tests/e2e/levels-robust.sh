@@ -2,8 +2,9 @@
 # Ticket 20: levels that solve reliably, not just once. Drops every stored solution (the campaign
 # levels and the dailies) RUNS times at normal and slow speed, each time at the study pose and on
 # the passthrough table turned 0 and 90 degrees, on a fresh page, one level per browser lease
-# (leases cap at 110 s). Prints each level's pass rate per condition, and exits 1 unless every
-# level solved RUNS out of RUNS in every condition.
+# (leases cap at 110 s). Each run first drops the level untouched, as levels.e2e.mjs does. Prints
+# each level's pass rate per condition, and exits 1 unless every level solved RUNS out of RUNS in
+# every condition (2 on a bad RUNS, SPEEDS or level).
 # Usage: RUNS=5 zsh tests/e2e/levels-robust.sh [level ...]   (default RUNS=3, every level)
 #   level: campaign:<campaign index> | daily:<pool index>;  SPEEDS="1" runs slow motion only.
 cd "$(dirname "$0")/../.."
@@ -17,6 +18,7 @@ if (( ! ${#levels} )); then
   for i in $(seq 0 $(( count - 1 ))); do levels+=("campaign:$i"); done
   for i in $(seq 0 $(( dailies - 1 ))); do levels+=("daily:$i"); done
 fi
+python3 tests/e2e/levels-robust.py check "$runs" "$speeds" $levels || exit 2
 rows=$(mktemp -t levels-robust)
 for level in $levels; do
   for slow in $speeds; do
@@ -27,7 +29,7 @@ for level in $levels; do
     done
   done
 done
-python3 tests/e2e/levels-robust.py table "$rows" "$runs"
+python3 tests/e2e/levels-robust.py table "$rows" "$runs" "$speeds" $levels
 verdict=$?
 rm -f "$rows"
 exit $verdict

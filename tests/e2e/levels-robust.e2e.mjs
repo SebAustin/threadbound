@@ -2,21 +2,31 @@
 // pose, then the passthrough table turned 0 and 90 degrees (ticket 18's poses). tests/e2e/levels-robust.sh
 // runs it RUNS times per level and speed, one level per browser lease, because a level must solve
 // every time, not just once: game events fall on frame boundaries, which shift with frame timing.
+// Before the first drop it runs the same steps as levels.e2e.mjs: the level dropped untouched, then
+// reopened. Without them w4-03 Budget's old layout passed here while levels.e2e.mjs failed it.
 // LEVEL=campaign:<campaign index> | daily:<pool index>; SLOW=1 drops in slow motion.
-import { hookReady, leaveTable, loadDaily, loadIndex, placeOnTable, solveAndDrop, TABLE_YAWS, waitFor } from './lib.mjs';
-
-const setSlowMotion = (app, slow) =>
-  app.evaluate((s) => window.__threadbound.dispatch({ type: 'settings', patch: { slowMotion: s } }), slow);
+import {
+  hookReady,
+  leaveTable,
+  loadDaily,
+  loadIndex,
+  placeOnTable,
+  reopenDaily,
+  reopenLevel,
+  setSlowMotion,
+  solveAndDrop,
+  solvesUntouched,
+  TABLE_YAWS,
+  waitFor,
+} from './lib.mjs';
 
 /** How to open the level fresh at the study pose, and the page function that reopens it on the table. */
 function levelOpener(which) {
   const [kind, raw] = which.split(':');
   const index = Number(raw);
   if (!Number.isInteger(index) || (kind !== 'campaign' && kind !== 'daily')) throw new Error(`bad LEVEL ${which}`);
-  if (kind === 'daily') {
-    return { index, open: (app) => loadDaily(app, index), reopen: (i) => window.__threadbound.dispatch({ type: 'daily', index: i }) };
-  }
-  return { index, open: (app) => loadIndex(app, index), reopen: (i) => window.__threadbound.dispatch({ type: 'load', index: i }) };
+  if (kind === 'daily') return { index, open: (app) => loadDaily(app, index), reopen: reopenDaily };
+  return { index, open: (app) => loadIndex(app, index), reopen: reopenLevel };
 }
 
 /** Drops the open level's stored solution; the marbles' resting places when it fails. */
@@ -36,6 +46,7 @@ export default async function run({ page, frame }) {
   await waitFor(app, hookReady, 15000);
   await setSlowMotion(app, slow);
   try {
+    const selfSolved = await solvesUntouched(app, open);
     await open(app);
     const level = await app.evaluate(() => window.__threadbound.state().level.id);
     const poses = { study: await drop(app, timeoutMs) };
@@ -44,7 +55,7 @@ export default async function run({ page, frame }) {
       poses[`table ${Math.round((yaw * 180) / Math.PI)}`] = await drop(app, timeoutMs);
     }
     await leaveTable(app);
-    return { which, level, slow, poses };
+    return { which, level, slow, selfSolved, poses };
   } finally {
     await setSlowMotion(app, false);
   }

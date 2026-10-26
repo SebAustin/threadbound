@@ -3,10 +3,20 @@
 // bus the player's buttons use; physics and scoring are fully live. The busiest
 // frame (solution hung, every marble in flight) must fit the performance budget.
 // Ticket 18: the same solution also solves on a passthrough table, turned 0 and 90 degrees.
-import { hookReady, isComplete, leaveTable, loadIndex, placeOnTable, solveAndDrop, TABLE_YAWS, waitFor } from './lib.mjs';
+import {
+  hookReady,
+  isComplete,
+  leaveTable,
+  loadIndex,
+  placeOnTable,
+  reopenLevel,
+  setSlowMotion,
+  solveAndDrop,
+  solvesUntouched,
+  TABLE_YAWS,
+  waitFor,
+} from './lib.mjs';
 
-const setSlowMotion = (app, slow) =>
-  app.evaluate((s) => window.__threadbound.dispatch({ type: 'settings', patch: { slowMotion: s } }), slow);
 /** All marbles released, or the drop already over: the busiest frame of a drop. */
 const allReleased = () => {
   const s = window.__threadbound.state();
@@ -32,7 +42,7 @@ export default async function run({ page, frame }) {
 
 /** One level: it doesn't solve itself, its stored solution solves it, and its busiest frame fits the budget. */
 async function proveLevel(app, i, { id, name }, slowMotion) {
-  const selfSolved = await solvesUntouched(app, i);
+  const selfSolved = await solvesUntouched(app, (a) => loadIndex(a, i));
   const { frameStats, solved } = await solveWithSolution(app, i, slowMotion);
   const state = await app.evaluate(() => {
     const s = window.__threadbound.state();
@@ -59,18 +69,11 @@ async function proveLevel(app, i, { id, name }, slowMotion) {
 async function solvesTurned(app, i, slowMotion) {
   const turned = {};
   for (const yaw of TABLE_YAWS) {
-    await placeOnTable(app, yaw, (index) => window.__threadbound.dispatch({ type: 'load', index }), i);
+    await placeOnTable(app, yaw, reopenLevel, i);
     turned[`${Math.round((yaw * 180) / Math.PI)} degrees`] = await solveAndDrop(app, slowMotion ? 25000 : 15000);
   }
   await leaveTable(app);
   return turned;
-}
-
-/** Negative control: presets untouched, no player threads. */
-async function solvesUntouched(app, i) {
-  await loadIndex(app, i);
-  await app.evaluate(() => window.__threadbound.dispatch({ type: 'drop' }));
-  return waitFor(app, isComplete, 6000);
 }
 
 /** Hangs the stored solution and drops, reading the frame cost once every marble is in flight. */

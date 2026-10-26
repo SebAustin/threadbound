@@ -104,7 +104,7 @@ the save stays byte-identical and the guest line is logged, and its screenshots 
 1. `npm run coverage`;
 2. `NODE_ENV=production npm run build && npm run test:smoke`, the build CI runs;
 3. with the dev server up: `npm run test:e2e`, `npm run test:e2e:levels`, `npm run test:e2e:levels:slow`,
-   `npm run test:e2e:levels:robust` (at its default `RUNS=3`, about 45 minutes), `npm run test:e2e:hands`
+   `npm run test:e2e:levels:robust` (at its default `RUNS=3`, about 65 minutes), `npm run test:e2e:hands`
    and `npm run test:e2e:dailies`.
 
 CI (`.github/workflows/deploy.yml`) runs only the typecheck, the unit tests, the production build and the

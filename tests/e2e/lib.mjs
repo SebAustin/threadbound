@@ -141,6 +141,25 @@ export async function placeOnTable(app, yaw, reopen, arg) {
   await frames(app, SETTLE_FRAMES);
 }
 
+/** Page functions for placeOnTable's `reopen`: a campaign level by index, a daily by pool index. */
+export const reopenLevel = (index) => window.__threadbound.dispatch({ type: 'load', index });
+export const reopenDaily = (pool) => window.__threadbound.dispatch({ type: 'daily', index: pool });
+
+/** Slow motion on or off through the settings command, as the player's toggle does. */
+export const setSlowMotion = (app, slow) =>
+  app.evaluate((s) => window.__threadbound.dispatch({ type: 'settings', patch: { slowMotion: s } }), slow);
+
+/**
+ * Negative control: opens a level fresh with `open(app)` (presets untouched, no player threads),
+ * drops, and reports whether it solved itself within 6 s. levels.e2e.mjs proves no level does;
+ * levels-robust.e2e.mjs runs it first so its drops follow the same steps as that proof's.
+ */
+export async function solvesUntouched(app, open) {
+  await open(app);
+  await app.evaluate(() => window.__threadbound.dispatch({ type: 'drop' }));
+  return waitFor(app, isComplete, 6000);
+}
+
 /** Back to the study pose (the default spot on the virtual study's table, yaw 0). */
 export async function leaveTable(app) {
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'resetPlacement' }));
