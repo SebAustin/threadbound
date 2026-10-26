@@ -79,6 +79,8 @@ Every decision below was made by the user in the Oct 22 grilling session. Where 
 
 11's larger hit areas and steadier release go last, if at all, because they address Meta's minimum target sizes.
 
+**Reliable levels (Q49).** Every board must solve its stored solution 5/5 at both speeds, at the study pose and on a table straight and turned. Ticket 20 adds the sweep, and the pre-deploy regression runs it at 3/3.
+
 **No tester by Nov 7 (Q44).** If no real-Quest report has arrived by Nov 7, nothing extra gets built. The submission says the game was built and verified in the emulator, the fps line describes the draw-call budget instead of a measured number, and the video uses emulator footage only. The brief allows emulator footage.
 
 ## User Stories
@@ -107,7 +109,7 @@ Every decision below was made by the user in the Oct 22 grilling session. Where 
   - while the level is idle with no threads, the search continues for 15-20 s;
   - the reference-space `reset` event places the board again;
   - the board stays hidden until its final pose, then fades in;
-  - a table is accepted only while every control stays within about 0.68 m of the seated head (Q47 on Oct 25, revising Q41's 0.61 m: at 0.61 m only desks within about 0.41 m qualified). The copy says every control works from your chair by pinch or touch, and keeps "within 2 ft" for the default spot (ticket 19);
+  - a table is accepted only while every control stays within 0.69 m of the seated head (Q47 and Q50 on Oct 25, revising Q41's 0.61 m: at 0.61 m only desks within about 0.41 m qualified). The copy says every control works from your chair by pinch or touch, and keeps "within 2 ft" for the default spot (ticket 19);
   - the contact shadow hides while the board floats;
   - a relocation waits while a drag is in progress.
 

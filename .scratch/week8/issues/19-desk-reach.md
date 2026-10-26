@@ -22,3 +22,5 @@
 **Gaps closed:** #21 (desks at ordinary distances); revises ticket 07's 0.61 m limit (Q41, then Q47)
 
 ## Comments
+- **Oct 25, batch 2:** stopped unlanded because `test:e2e:levels:slow` was red on main (w4-03 Budget), which isn't this ticket's defect. The finished work is committed on local branch `wip/ticket-19` (b117821).
+- **Q50 (user, Oct 25):** the limit is **0.69 m**, not 0.68 m. At 0.68 m, a desk 0.50 m away is refused only on w4-06 (peg v is 0.685 m away), so the board would float on that one level. At 0.69 m every level accepts it. When landing: rebase `wip/ticket-19` onto main after ticket 20, set `ACCEPT_REACH` to 0.69, drop the w4-06 exception from placement.test.ts, re-prove, and delete the branch.

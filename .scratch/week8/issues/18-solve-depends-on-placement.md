@@ -81,3 +81,4 @@ Candidate boxes, for triage to keep, change or drop:
     - `npm run test:e2e`: all 31 scripts, 236 PASS, 0 FAIL, exit 0 (touch-feedback's w4-06 snap from r onto u still makes r-s).
     - `NODE_ENV=production npm run build` exit 0. `npm run test:smoke`: 19 PASS, 0 FAIL, 5 NOTE.
   - **For the main session:** deploy with the next push. Ticket 13's level proofs now run the turned table poses as well.
+- **User (Oct 25):** keep the spool cuts (w4-03, w4-06, and the two dailies) and the amber chute move. Follow-up: w4-03 Budget turned flaky in slow motion after this ticket's change, which goes to ticket 20 (reliable levels, Q49).
