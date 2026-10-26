@@ -25,14 +25,18 @@ AUDIO=$(field "$(probe)" "['audio']")
 [ "$AUDIO" != "locked" ] && pass "the first XR pinch, even at nothing, unlocks sound ($AUDIO)" || fail "the first XR pinch, even at nothing, unlocks sound ($AUDIO)"
 WHERE=$(field "$P" "['placement']['placedOn']"); PLANES=$(field "$P" "['placement']['planesSeen']")
 [ "$WHERE" = "table" ] && pass "passthrough places the diorama on a detected table ($PLANES planes seen)" || fail "passthrough places the diorama on a detected table ($WHERE, $PLANES planes)"
-# Everything touchable on the placed diorama is within a seated 2 ft of the actual head.
+# Everything touchable on the placed diorama is within the accepted-table reach of the actual head:
+# ACCEPT_REACH in src/lib/placement.ts (ray-pinch reach from a chair, week 8 ticket 19).
+ACCEPT_REACH=$(sed -n 's/^export const ACCEPT_REACH = \([0-9.]*\);$/\1/p' src/lib/placement.ts)
 HEAD=$(iw xr get-transform --input-json '{"device":"headset"}' 2>/dev/null | python3 -c "import sys,json;print(json.dumps(json.load(sys.stdin)['data']['result']['position']))")
 REACH=$(echo "$P" | HEAD="$HEAD" python3 -c "
 import sys,json,os,math
 p=json.load(sys.stdin); h=json.loads(os.environ['HEAD'])
 pts=list(p['knobs'].values())+[b for b in p['buttons'].values() if b]+[p['chute'],p['stars']]
 print(round(max(math.dist((q['x'],q['y'],q['z']),(h['x'],h['y'],h['z'])) for q in pts),3))")
-python3 -c "import sys;sys.exit(0 if $REACH <= 0.61 else 1)" && pass "on the table, everything touchable is within 2 ft of the head (${REACH} m)" || fail "on the table, everything touchable is within 2 ft of the head (${REACH} m)"
+python3 -c "import sys;sys.exit(0 if ${ACCEPT_REACH:-0} > 0 and $REACH <= ${ACCEPT_REACH:-0} else 1)" &&
+  pass "on the table, everything touchable is within ACCEPT_REACH of the head (${REACH} m, limit ${ACCEPT_REACH} m)" ||
+  fail "on the table, everything touchable is within ACCEPT_REACH of the head (${REACH} m, limit ${ACCEPT_REACH:-unread} m)"
 # Where the celebration plays is in view: the cups and the solution thread within 30 degrees of the gaze.
 POSE=$(iw xr get-transform --input-json '{"device":"headset"}' 2>/dev/null | python3 -c "import sys,json;print(json.dumps(json.load(sys.stdin)['data']['result']))")
 GAZE=$(echo "$P" | POSE="$POSE" python3 -c "

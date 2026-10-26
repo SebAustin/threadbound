@@ -72,12 +72,20 @@ describe('the melody claim carries its re-check marker (ticket 10, week 9 copy p
   });
 });
 
-describe('the accepted-table claim carries its re-check marker (ticket 07)', () => {
-  const CLAIM = /any table it accepts/g;
-  const MARKER = "every accepted table: true once week 8 ticket 07's ACCEPT_REACH lands";
+describe('the seated claim keeps 2 ft for the default spot (ticket 19, Q47 and Q50)', () => {
+  // A table is accepted while every control is within ACCEPT_REACH (0.69 m, ray-pinch reach from
+  // a chair), so no line may say everything is within 2 ft on an accepted table.
+  const TABLE_CLAIMS = ['any table it accepts', 'every accepted table', 'on any table'] as const;
+  const SEATED =
+    'Seated, no standing or leaning: every control works from your chair by pinch or touch. In the default spot, everything sits within 2 ft.';
 
-  test.each(COPY)('%s marks every accepted-table claim in its paragraph', (path) => {
-    expect(claimsWithoutMarker(read(path), CLAIM, MARKER)).toEqual([]);
+  test.each([...COPY, 'docs/video/shot-list.md'])('%s claims no 2 ft on an accepted table', (path) => {
+    const text = normalise(read(path));
+    for (const claim of TABLE_CLAIMS) expect(text, claim).not.toContain(claim);
+  });
+
+  test.each(['README.md', 'docs/submission.md'])('%s says the seated sentence, however its lines wrap', (path) => {
+    expect(normalise(read(path))).toContain(normalise(SEATED));
   });
 });
 

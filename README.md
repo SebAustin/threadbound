@@ -38,7 +38,7 @@ into the cups. Every thread is a string tuned by its length, so every solution p
   Without a table it floats at lap height in front of you. Where there's no
   passthrough, a virtual study takes its place.
 - **Comfortable and accessible:**
-  - everything you touch is within a seated 2 ft in the study pose and on any table it accepts; <!-- every accepted table: true once week 8 ticket 07's ACCEPT_REACH lands; level 1's table is proven in XR today (tests/e2e/xr-full-level.sh) -->
+  - Seated, no standing or leaning: every control works from your chair by pinch or touch. In the default spot, everything sits within 2 ft.
   - one-handed height and distance adjustment;
   - slow motion that keeps every solution valid;
   - a sound for every event (cup chime, wrong-cup thud, refusal);

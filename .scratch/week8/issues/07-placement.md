@@ -26,7 +26,7 @@
 
 **Blocked by:** 01, 02 (merge after its step-4 log push; also for the prod-xr box)
 
-**Status:** done except: the placement.test.ts box (user: accept the desk limit of about 0.41 m, or change `ACCEPT_REACH` or the ledge geometry; see Comments, "Decision for the user")
+**Status:** done
 
 - [x] Unit: new tests/unit/placementSearch.test.ts covers the search policy:
   - while paused, the step neither advances nor evaluates, so nothing is placed, even with a table in view;
@@ -35,13 +35,13 @@
   - no evaluation after 18 s or once on a table;
   - `reset` restarts the search, hidden and from zero, and waits for a drop or a drag to end;
   - `revealOpacity` is 0 at build and 1 from 0.3 s on, rising and clamped.
-- [ ] Unit: tests/unit/placement.test.ts (unticked for the user: every bullet passes locally, but the first and the last pass only with changed numbers, see Comments, "Decision for the user", Oct 24 review fixes):
-  - a 0.74 m desk with its near edge 0.50 m from a seated head (1.15 m) is accepted (RED today); at 0.70 m it floats; (**conditional, user:** not met as written. With `ACCEPT_REACH` 0.61 m the code refuses this desk, because its ledge buttons are 0.679 m from the head. The test checks 0.40 m accepted and 0.43 m floating instead.)
+- [x] Unit: tests/unit/placement.test.ts (closed by ticket 19, 19-desk-reach.md: the user's Q47 and Q50 decisions on Oct 25 raised `ACCEPT_REACH` to 0.69 m. Until then it was unticked for the user: every bullet passed locally, but the first and the last only with changed numbers, see Comments, "Decision for the user", Oct 24 review fixes):
+  - a 0.74 m desk with its near edge 0.50 m from a seated head (1.15 m) is accepted (RED today); at 0.70 m it floats; (**conditional, user:** not met as written. With `ACCEPT_REACH` 0.61 m the code refuses this desk, because its ledge buttons are 0.679 m from the head. The test checks 0.40 m accepted and 0.43 m floating instead.) **Ticket 19: met.** With `ACCEPT_REACH` 0.69 m the 0.50 m desk is accepted on every level (level 1's ledge buttons at 0.679 m, w4-06's peg v at 0.685 m); on every level a desk just past the near-edge limit derived from `reachAt` floats; 0.70 m floats.
   - a wide table centred 50 degrees off, with its near edge 80 degrees off, is rejected;
   - an unlabelled table straight ahead beats a "desk" 55 degrees off;
   - the frame origin is `DIORAMA.slab` above the surface;
   - `studyTableFit` stays flush from up -6 to +6;
-  - the existing 0, 25 and 40 degree tables and the too-small table still pass. (**conditional, user:** they pass only because the fixtures moved closer: the turned-table origin from z -0.7 to -0.55, the 30-degree table replaced by one 0.30 m away, and the "ahead" table from 0.40 to 0.35 m. The old fixtures are refused.)
+  - the existing 0, 25 and 40 degree tables and the too-small table still pass. (**conditional, user:** they pass only because the fixtures moved closer: the turned-table origin from z -0.7 to -0.55, the 30-degree table replaced by one 0.30 m away, and the "ahead" table from 0.40 to 0.35 m. The old fixtures are refused.) **Ticket 19:** restored: the turned-table origin at z -0.7, the original 30-degree table and the "ahead" table at 0.40 m. The 0, 25 and 40 degree turns and the "ahead" table pass where they stand; the 30-degree table is still refused there, so the test slides it toward the head to a computed position (19's Comments).
 - [x] Unit: tests/unit/hud.test.ts: the `noTable` hint ranks below the refusal, onboarding and level hints, and above the ending and the daily line.
 - [x] E2E: new tests/e2e/placement.e2e.mjs, in the `test:e2e` chain:
   - `place` with `'floating'` hides the contact shadow, and `'table'` shows it; after each `place`, `reveal` is below 1 on the first frame and reaches 1 within 0.4 s;
@@ -53,7 +53,7 @@
   - make a thread, turn the head 120 degrees and call `recenter()`: a second `place` reaches the command bus, the diorama hides and then shows again with the thread intact, and the next pinch-pull works;
   - run `probe hide` (pause.e2e.mjs's `setHidden`, waiting inline for `paused`), then `probe recenter`, so the `reset` arrives while the page is hidden: no `place` for 5 s, then one once `probe show` runs;
   - a `'floating'` place shows the hint and hides the shadow.
-- [x] XR: xr-full-level.sh still passes. The reach on the table is at most 0.61 m, and `settle` (xr-lib.sh:15) waits for `reveal` to reach 1.
+- [x] XR: xr-full-level.sh still passes. The reach on the table is at most `ACCEPT_REACH` (0.69 m since ticket 19; 0.61 m before), and `settle` (xr-lib.sh:15) waits for `reveal` to reach 1.
 - [x] XR: ticket 02's `tests/e2e/prod-xr.mjs` has no hook, so its placement wait becomes the 3 s window plus the fade (about 3.4 s of visible time) before the first pinch. After `NODE_ENV=production npm run build`, re-run `npm run test:e2e:prod-xr` on the local preview: it solves level 1, and `tests/unit/prodXrTargets.test.ts` stays green (update the fixture in the same change if the floating pose moved).
 - [x] Config: typecheck, vitest and both E2E chains pass with the three features off, and `placement().planesSeen` is above 0 in AR.
 
@@ -69,7 +69,7 @@
 - Never dispose an entity a hand still holds: release the capture first, or that hand's next pinch is swallowed.
 - IWER can't show a recenter's misalignment (gap 19). The XR check proves the chain from `reset` to search to `place`, not the alignment on a device.
 - Editing iwsdk.config.json restarts Vite, so wait for `browserCommandReady`. Plane detection alone still triggers the spatial-data prompt.
-- `ACCEPT_REACH` is 0.61 m, so a table whose controls would sit farther than 2 ft is refused, and the board floats within reach instead. Don't raise the limit without the user: ticket 06's "2 ft" copy depends on it.
+- `ACCEPT_REACH` is 0.61 m, so a table whose controls would sit farther than 2 ft is refused, and the board floats within reach instead. Don't raise the limit without the user: ticket 06's "2 ft" copy depends on it. (The user raised it to 0.69 m on Oct 25, Q47 then Q50; ticket 19 changed the copy with it.)
 
 ## Comments
 

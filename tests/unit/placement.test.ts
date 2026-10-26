@@ -13,7 +13,9 @@ import {
   reachAt,
   STUDY_TABLE_TOP,
   studyTableFit,
+  type Placement,
   type PlaneCandidate,
+  type ReachLevel,
 } from '../../src/lib/placement';
 import type { Vec3 } from '../../src/lib/vec';
 
@@ -74,7 +76,7 @@ describe('choosePlacement', () => {
     expect(choosePlacement([across], head, LEVEL)).toBeNull();
   });
 
-  test('on an accepted table everything a player touches is within a seated 2 ft', () => {
+  test('on an accepted table everything a player touches is within ACCEPT_REACH', () => {
     const p = choosePlacement([table], head, LEVEL)!;
     expect(reachAt(p, head, LEVEL)).toBeLessThanOrEqual(ACCEPT_REACH);
   });
@@ -109,14 +111,14 @@ describe('originFromCenter', () => {
 });
 
 describe('choosePlacement facing preference', () => {
-  // Both within seated reach (near edges 0.35 m), so only facing decides.
+  // Both within seated reach (near edges 0.35 m and 0.4 m), so only facing decides.
   const side: PlaneCandidate = { orientation: 'horizontal', label: 'table', min: [0.35, 0.74, -0.3], max: [0.95, 0.76, 0.3] };
-  const ahead: PlaneCandidate = { orientation: 'horizontal', label: 'table', min: [-0.3, 0.74, -0.95], max: [0.3, 0.76, -0.35] };
+  const ahead: PlaneCandidate = { orientation: 'horizontal', label: 'table', min: [-0.3, 0.74, -1.0], max: [0.3, 0.76, -0.4] };
   const behind: PlaneCandidate = { orientation: 'horizontal', label: 'table', min: [-0.3, 0.74, 0.3], max: [0.3, 0.76, 0.9] };
 
   test('prefers the surface in front over one at the side at similar distance', () => {
     const p = choosePlacement([side, ahead], head, LEVEL, forward)!;
-    expect(p.center[2]).toBeLessThan(-0.35);
+    expect(p.center[2]).toBeLessThan(-0.4);
   });
 
   test('never places behind the player', () => {
@@ -163,13 +165,42 @@ function facingTable(from: readonly number[], t: FacingTable): PlaneCandidate {
   };
 }
 
-/** Bearing of a table's middle, from its pose. */
-const middleBearing = (from: readonly number[], t: PlaneCandidate) => {
-  const { origin, yaw, min, max } = t.pose!;
+/** A table's middle (world x, z): from its pose when it has one, else from its bounds. */
+const middleOf = (t: PlaneCandidate): [number, number] => {
+  if (!t.pose) return [(t.min[0] + t.max[0]) / 2, (t.min[2] + t.max[2]) / 2];
+  const { origin, yaw, min, max } = t.pose;
   const lx = (min[0] + max[0]) / 2;
   const lz = (min[1] + max[1]) / 2;
-  return bearing(from, origin[0] + lx * Math.cos(yaw) + lz * Math.sin(yaw), origin[2] - lx * Math.sin(yaw) + lz * Math.cos(yaw));
+  return [origin[0] + lx * Math.cos(yaw) + lz * Math.sin(yaw), origin[2] - lx * Math.sin(yaw) + lz * Math.cos(yaw)];
 };
+
+/** Bearing of a table's middle. */
+const middleBearing = (from: readonly number[], t: PlaneCandidate) => bearing(from, ...middleOf(t));
+
+/** `t` slid `d` m horizontally toward `from`, along the bearing of its middle: its bounds and pose move with it. */
+function slid(t: PlaneCandidate, from: Vec3, d: number): PlaneCandidate {
+  const [mx, mz] = middleOf(t);
+  const len = Math.hypot(from[0] - mx, from[2] - mz);
+  const [dx, dz] = [((from[0] - mx) / len) * d, ((from[2] - mz) / len) * d];
+  const pose = t.pose && { ...t.pose, origin: [t.pose.origin[0] + dx, t.pose.origin[1], t.pose.origin[2] + dz] as const };
+  return { ...t, min: [t.min[0] + dx, t.min[1], t.min[2] + dz], max: [t.max[0] + dx, t.max[1], t.max[2] + dz], pose };
+}
+
+/**
+ * How far (m, to 0.1 mm) a table has to slide toward `from` before choosePlacement takes it for
+ * level 1: 0 where it stands. Where a ticket 07 fixture that ACCEPT_REACH still refuses goes.
+ */
+function slideToAccept(t: PlaneCandidate, from: Vec3): number {
+  const accepted = (d: number) => choosePlacement([slid(t, from, d)], from, LEVEL, forward) !== null;
+  if (accepted(0)) return 0;
+  let [lo, hi] = [0, 0.3];
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (accepted(mid)) hi = mid;
+    else lo = mid;
+  }
+  return hi;
+}
 
 describe('choosePlacement off-axis rejection', () => {
   test('a table 90° to the side is ignored (fall back to in front)', () => {
@@ -177,11 +208,15 @@ describe('choosePlacement off-axis rejection', () => {
     expect(choosePlacement([side], head, LEVEL, forward)).toBeNull();
   });
 
-  test('a table 30° off-axis is still used', () => {
-    const angled = facingTable(head, { angle: 30, nearEdge: 0.3, top: 0.75, label: 'table' });
-    const p = choosePlacement([angled], head, LEVEL, forward)!;
+  test('a table 30° off-axis is still used, once slid toward the head to where every control is within ACCEPT_REACH', () => {
+    // Where it stands, the base's farthest control is about 0.81 m from the head, past ACCEPT_REACH
+    // (ticket 19's Comments); the facing gate is what this case is about.
+    const angled: PlaneCandidate = { orientation: 'horizontal', label: 'table', min: [0.1, 0.74, -0.8], max: [0.7, 0.76, -0.4] };
+    expect(choosePlacement([angled], head, LEVEL, forward)).toBeNull();
+    const p = choosePlacement([slid(angled, head, slideToAccept(angled, head))], head, LEVEL, forward)!;
     expect(p).not.toBeNull();
-    expect(bearing(head, p.center[0], p.center[2])).toBeCloseTo(30, 0);
+    expect(bearing(head, p.center[0], p.center[2])).toBeGreaterThan(30);
+    expect(reachAt(p, head, LEVEL)).toBeLessThanOrEqual(ACCEPT_REACH);
   });
 
   test('a wide table centred 50 degrees off, with its near edge 80 degrees off, is rejected', () => {
@@ -200,31 +235,68 @@ describe('choosePlacement off-axis rejection', () => {
   });
 });
 
+const DESK_TOP = 0.74;
+
 /** A 0.74 m desk straight ahead, 1.2 m wide and 0.6 m deep, its near edge `nearEdge` m from the head. */
 const desk = (nearEdge: number): PlaneCandidate => ({
   orientation: 'horizontal',
   label: 'desk',
-  min: [-0.6, 0.73, -(nearEdge + 0.6)],
-  max: [0.6, 0.74, -nearEdge],
+  min: [-0.6, DESK_TOP - 0.01, -(nearEdge + 0.6)],
+  max: [0.6, DESK_TOP, -nearEdge],
 });
 
-describe('choosePlacement: a desk is accepted from the measured reach, within a seated 2 ft (ACCEPT_REACH)', () => {
-  test('ACCEPT_REACH is 2 ft (0.61 m)', () => {
-    expect(ACCEPT_REACH).toBe(0.61);
+/** Where the diorama stands on `desk(nearEdge)`, whether or not it is accepted: the ledge front on the near edge. */
+const onDesk = (nearEdge: number): Placement => ({ center: [0, DESK_TOP + DIORAMA.slab, -(nearEdge + FOOTPRINT.front)], yaw: 0 });
+
+/**
+ * The farthest near edge (m, horizontal from the seated head) at which every control on `level`
+ * is within ACCEPT_REACH, found by bisection on reachAt (reach grows with the near edge).
+ */
+function nearEdgeLimit(level: ReachLevel): number {
+  let [lo, hi] = [0, 2];
+  for (let i = 0; i < 50; i++) {
+    const mid = (lo + hi) / 2;
+    if (reachAt(onDesk(mid), SEATED, level) <= ACCEPT_REACH) lo = mid;
+    else hi = mid;
+  }
+  return lo;
+}
+
+/** Q41's limit, before Q47: a seated 2 ft. */
+const TWO_FEET = 0.61;
+/** How far either side of a derived limit the desks stand. */
+const STEP = 0.001;
+
+describe('choosePlacement: a desk is accepted from the measured reach, within ACCEPT_REACH (ray-pinch reach from a chair)', () => {
+  test('ACCEPT_REACH is 0.69 m (Q47, then Q50)', () => {
+    expect(ACCEPT_REACH).toBe(0.69);
+  });
+
+  test('a 0.74 m desk with its near edge 0.50 m from a seated head (1.15 m) is accepted: level 1\'s ledge buttons are past 2 ft, within ACCEPT_REACH', () => {
+    const p = choosePlacement([desk(0.5)], SEATED, LEVEL, forward);
+    expect(p).not.toBeNull();
+    expect(reachAt(p!, SEATED, LEVEL)).toBeGreaterThan(TWO_FEET);
+    expect(reachAt(p!, SEATED, LEVEL)).toBeLessThanOrEqual(ACCEPT_REACH);
+  });
+
+  test('a 0.50 m desk is accepted on every level, w4-06 included (Q50)', () => {
+    const refused = LEVELS.filter((level) => !choosePlacement([desk(0.5)], SEATED, level, forward)).map((level) => level.id);
+    expect(refused).toEqual([]);
+    for (const level of LEVELS) expect(nearEdgeLimit(level), level.id).toBeGreaterThanOrEqual(0.5);
   });
 
   test.each(LEVELS.map((level) => [level.id, level] as const))(
-    '%s: a 0.74 m desk with its near edge 0.40 m from a seated head (1.15 m) is accepted, every control within 0.61 m',
+    '%s: a desk just inside the near-edge limit derived from reachAt is accepted, and one just past it floats',
     (_id, level) => {
-      const p = choosePlacement([desk(0.4)], SEATED, level, forward);
-      expect(p).not.toBeNull();
-      expect(reachAt(p!, SEATED, level)).toBeLessThanOrEqual(ACCEPT_REACH);
+      const limit = nearEdgeLimit(level);
+      const inside = choosePlacement([desk(limit - STEP)], SEATED, level, forward);
+      expect(inside).not.toBeNull();
+      // The derivation stands the diorama where choosePlacement does.
+      expect(inside!.center[2]).toBeCloseTo(onDesk(limit - STEP).center[2], 9);
+      expect(reachAt(inside!, SEATED, level)).toBeLessThanOrEqual(ACCEPT_REACH);
+      expect(choosePlacement([desk(limit + STEP)], SEATED, level, forward)).toBeNull();
     },
   );
-
-  test('at 0.43 m (inside the old 0.45 m near-edge limit) its ledge buttons would be past 2 ft, so it floats', () => {
-    expect(choosePlacement([desk(0.43)], SEATED, LEVEL, forward)).toBeNull();
-  });
 
   test('at 0.70 m it floats', () => {
     expect(choosePlacement([desk(0.7)], SEATED, LEVEL, forward)).toBeNull();
@@ -250,14 +322,10 @@ describe('offsetOrigin: the player nudges the diorama up/down and toward/away', 
   });
 });
 
-/**
- * A 0.9 x 0.6 table turned `yawDeg` about Y, its near edge 0.25 m from the head unturned: close
- * enough that the base, wherever it has to sit to fit the turned table, keeps every control
- * within 2 ft (at 40 degrees the base sits 0.59 m from the head at its farthest control).
- */
+/** A 0.9 x 0.6 table turned `yawDeg` about Y, its near edge 0.40 m from the head unturned. */
 const turned = (yawDeg: number): PlaneCandidate => {
   const yaw = (yawDeg * Math.PI) / 180;
-  const origin = [0.05, 0.75, -0.55] as const;
+  const origin = [0.05, 0.75, -0.7] as const;
   // World AABB of the turned rectangle (what the plane mesh's box would report).
   const corners = [[-0.45, -0.3], [0.45, -0.3], [0.45, 0.3], [-0.45, 0.3]].map(([x, z]) => [
     origin[0] + x * Math.cos(yaw) + z * Math.sin(yaw),
@@ -295,7 +363,7 @@ const onTable = (t: PlaneCandidate, [x, z]: number[]) => {
 };
 
 describe('choosePlacement on rotated tables (plane pose + local polygon)', () => {
-  test.each([0, 25, 40])('on a table turned %i degrees the whole base rests on the table', (deg) => {
+  test.each([0, 25, 40])('on a table turned %i degrees, taken where it stands, the whole base rests on the table', (deg) => {
     const t = turned(deg);
     const p = choosePlacement([t], head, LEVEL, forward)!;
     expect(p).not.toBeNull();

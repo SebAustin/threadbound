@@ -52,10 +52,13 @@ const MAX_SURFACE_HEIGHT = 1.15;
 const MIN_BELOW_EYES = 0.15;
 /**
  * A table is accepted only while everything a player touches on it (reachAt) is within
- * this distance of the head: 2 ft, the user's decision on Oct 23, so "within a seated
- * 2 ft" holds on every accepted table. Farther, the diorama floats within reach instead.
+ * this distance of the head. It is set by ray-pinch reach from a chair, not by literal
+ * arm's reach: the user's decisions on Oct 25 (Q47, revising Q41's 2 ft, and Q50), so an
+ * ordinary desk is accepted. A 0.74 m desk with its near edge 0.50 m from a seated head is
+ * then accepted on every level (w4-06's peg v, at 0.685 m, is why it is 0.69, not 0.68);
+ * farther, the diorama floats within reach instead.
  */
-export const ACCEPT_REACH = 0.61;
+export const ACCEPT_REACH = 0.69;
 const MIN_DEPTH = 0.2;
 const TABLE_LABELS = new Set(['table', 'desk']);
 /** Score penalty (≈ meters) for a surface fully to the side; scales with off-axis angle. */
@@ -218,8 +221,8 @@ function scorePlacement(placement: Placement, plane: PlaneCandidate, head: Vec3,
  * Best table-like surface, or null to float the diorama in front of the player. Each
  * surface gets the placement placeOn finds, and is judged there: with `forward`, a
  * diorama more than ~60 degrees to the side (or behind) is refused, and surfaces ahead
- * are preferred. A surface is only accepted while every control stays within a seated
- * 2 ft (ACCEPT_REACH) of the head.
+ * are preferred. A surface is only accepted while every control stays within
+ * ACCEPT_REACH of the head.
  */
 export function choosePlacement(
   planes: readonly PlaneCandidate[],
