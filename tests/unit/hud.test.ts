@@ -7,7 +7,9 @@ import {
   REFUSAL_HINTS,
   settingsModel,
   STAR_STAGGER_SECONDS,
+  starsLabel,
   starsShown,
+  SKIP_LABEL,
 } from '../../src/lib/hud';
 import { onboardingHint, type OnboardingStep } from '../../src/lib/onboarding';
 
@@ -70,6 +72,19 @@ describe('settingsModel: the plaque settings face', () => {
   test('shows where the diorama has been moved, in signed steps', () => {
     expect(settingsModel({ slowMotion: false, offset: { up: 2, near: -1 } }).offsetLabel).toBe('Height +2   Distance -1');
     expect(settingsModel({ slowMotion: false, offset: { up: 0, near: 0 } }).offsetLabel).toBe('Height 0   Distance 0');
+  });
+
+  test('the star total reads earned out of possible (ASCII)', () => {
+    expect(starsLabel(14, 72)).toBe('Stars 14/72');
+    expect(starsLabel(0, 72)).toBe('Stars 0/72');
+  });
+
+  test('the skip offer reads "Skip level", which fits its placeholder', () => {
+    expect(SKIP_LABEL).toBe('Skip level');
+  });
+
+  test('the widest star total fits the placeholder the face was sized with (Stars 72/72)', () => {
+    expect(starsLabel(72, 72).length).toBeLessThanOrEqual('Stars 72/72'.length);
   });
 });
 

@@ -11,6 +11,7 @@ import {
   type Entity,
 } from '@iwsdk/core';
 import { GOAL, MARBLE, THREAD_TUNING } from '../../config/constants';
+import { dropEnded, dropStarted } from '../../lib/attempts';
 import { dropOver, isStalled, nudgeDirection, restTimer } from '../../lib/dropWatch';
 import { goalAccepts } from '../../lib/goalMatch';
 import { isMarbleColor } from '../../lib/marbleColors';
@@ -117,7 +118,8 @@ export class MarbleSystem extends createSystem({
 
   /** Pinching the chute (re)starts a drop with the level's marbles. */
   private drop(): void {
-    const level = puzzleStore.get().level;
+    const state = puzzleStore.get();
+    const level = state.level;
     if (!level) return;
     stringSynth.unlock();
     this.clearMarbles();
@@ -129,7 +131,9 @@ export class MarbleSystem extends createSystem({
     this.releaseTimer = 0;
     this.quiet = 0;
     // A new drop is a new attempt: unscored, so a better solve is recorded on completion.
-    puzzleStore.update({ status: 'dropping', scored: 0, stars: 0, melody: EMPTY_MELODY });
+    // One more drop; a drop still in flight is abandoned, so it counts as missed.
+    const attempts = dropStarted(state, { inFlight: state.status === 'dropping' });
+    puzzleStore.update({ status: 'dropping', scored: 0, stars: 0, melody: EMPTY_MELODY, ...attempts });
   }
 
   /** Every thread climbs from its root again, and the drop clock restarts. Published tunes are copies. */
@@ -236,12 +240,13 @@ export class MarbleSystem extends createSystem({
     marble.addComponent(PhysicsManipulation, { linearVelocity: [this.tmpNudge.x, this.tmpNudge.y, this.tmpNudge.z] });
   }
 
-  /** An unsolved drop whose marbles have all stopped is over: the player can try again. */
+  /** An unsolved drop whose marbles have all stopped is over, and missed: the player can try again. */
   private endDropIfSettled(allResting: boolean, delta: number): void {
-    if (puzzleStore.get().status !== 'dropping') return;
+    const state = puzzleStore.get();
+    if (state.status !== 'dropping') return;
     this.quiet = allResting ? this.quiet + delta : 0;
     if (dropOver({ allReleased: this.released >= this.queue.length, quietSeconds: this.quiet })) {
-      puzzleStore.update({ status: 'idle' });
+      puzzleStore.update({ status: 'idle', ...dropEnded(state, false) });
     }
   }
 
@@ -309,9 +314,9 @@ export class MarbleSystem extends createSystem({
       puzzleStore.update({ scored });
       return;
     }
-    // One update, so the solve is recorded together with the tune it played.
+    // One update, so the solve is recorded together with the tune it played and the run of misses it ends.
     const melody: Melody = { notes: this.notes.slice(), times: this.noteTimes.slice() };
-    puzzleStore.update({ scored, status: 'complete', melody });
+    puzzleStore.update({ scored, status: 'complete', melody, ...dropEnded(state, true) });
     // Only after that update: a move deferred during the drop rebuilds the diorama inside it,
     // and that build's levelBuilt clears anything armed before it.
     this.celebrate(melody);

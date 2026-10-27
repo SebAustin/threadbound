@@ -112,6 +112,14 @@ export function starsShown(best: number, sinceSolve: number | null): number {
   return Math.min(best, Math.floor(sinceSolve / STAR_STAGGER_SECONDS));
 }
 
+/** The settings face's star total (ASCII), e.g. "Stars 14/72". */
+export function starsLabel(earned: number, possible: number): string {
+  return `Stars ${earned}/${possible}`;
+}
+
+/** The settings face's skip offer, shown only while it is offered (CONTEXT.md Skip). */
+export const SKIP_LABEL = 'Skip level';
+
 export interface SettingsModel {
   readonly slowLabel: string;
   readonly offsetLabel: string;

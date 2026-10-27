@@ -7,7 +7,7 @@
     { "x": 0.15, "y": 0.37, "color": "amber", "count": 2 },
     { "x": 0.35, "y": 0.37, "color": "azure", "count": 2 }
   ],
-  "maxThreads": 1,
+  "maxThreads": 2,
   "par": 1,
   "pegs": [
     { "id": "h", "x": 0.26, "y": 0.06, "rail": { "axis": "y", "min": 0.06, "max": 0.2 } },

@@ -137,9 +137,11 @@ function checkThreads(level: RawLevel, issue: Issue): void {
       if (!pegIds.has(id)) issue(`Thread references unknown peg "${id}"`);
     }
   }
-  if (level.par > level.maxThreads) issue('Par cannot exceed maxThreads');
+  // ADR 0005: one spare thread, so a solve with it is possible but costs the economy star.
+  if (level.maxThreads !== level.par + 1) issue('maxThreads must be par + 1');
   const playerThreads = level.solution.filter((t) => !level.presetThreads.some((p) => sameThread(p, t)));
-  if (playerThreads.length > level.maxThreads) issue('Solution uses more threads than maxThreads');
+  // Within par, so the stored solution earns all three stars on a first drop.
+  if (playerThreads.length > level.par) issue('Solution uses more threads than par');
   if (level.spool !== undefined) {
     const needed = solutionLength(level);
     if (needed > level.spool) {

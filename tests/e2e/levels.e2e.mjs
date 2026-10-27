@@ -3,6 +3,8 @@
 // bus the player's buttons use; physics and scoring are fully live. The busiest
 // frame (solution hung, every marble in flight) must fit the performance budget.
 // Ticket 18: the same solution also solves on a passthrough table, turned 0 and 90 degrees.
+// ADR 0005: the stored solution earns all 3 stars on the first drop after a load. That drop
+// follows the no-thread drop, so this also proves a load resets the drop count.
 import {
   hookReady,
   isComplete,
@@ -47,14 +49,23 @@ async function proveLevel(app, i, { id, name }, slowMotion) {
   const state = await app.evaluate(() => {
     const s = window.__threadbound.state();
     // Distinct notes the solve played (ADR 0004: bounces climb, so few levels should play one note).
-    return { scored: s.scored, marbles: s.level.marbles, stars: s.stars, threads: s.threads.length, notes: new Set(s.melody.notes).size };
+    return {
+      scored: s.scored,
+      marbles: s.level.marbles,
+      stars: s.stars,
+      drops: s.drops,
+      threads: s.threads.length,
+      par: s.level.par,
+      maxThreads: s.level.maxThreads,
+      notes: new Set(s.melody.notes).size,
+    };
   });
   const marbles = solved ? [] : await app.evaluate(() => window.__threadbound.marbles());
   const turned = await solvesTurned(app, i, slowMotion);
   return {
     index: i,
     level: `${id} ${name}${slowMotion ? ' (slow motion)' : ''}`,
-    pass: solved && !selfSolved && frameStats.breaches.length === 0 && Object.values(turned).every(Boolean),
+    pass: solved && state.stars === 3 && !selfSolved && frameStats.breaches.length === 0 && Object.values(turned).every(Boolean),
     solved,
     turned,
     selfSolved,
@@ -86,5 +97,7 @@ async function solveWithSolution(app, i, slowMotion) {
   await waitFor(app, allReleased, 8000);
   const frameStats = await app.evaluate(() => window.__threadbound.frameStats());
   const solved = await waitFor(app, isComplete, slowMotion ? 25000 : 15000);
+  // The solve is recorded in the update after the one that completes it: wait for its stars.
+  if (solved) await waitFor(app, () => window.__threadbound.state().stars > 0, 2000);
   return { frameStats, solved };
 }

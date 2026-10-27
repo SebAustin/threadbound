@@ -5,8 +5,9 @@
 // with every marble in flight), 'solve' (solve and drop the current level, then wait
 // until its cadence and replay have played), 'recenter' (the emulated headset
 // recenters: its reference space fires 'reset' on the next frame), 'hide' / 'show'
-// (the page reports itself hidden / shown, waiting until the puzzle pauses / resumes)
-// or 'float' (a 'floating' place where the diorama is). An empty SETUP runs no setup;
+// (the page reports itself hidden / shown, waiting until the puzzle pauses / resumes),
+// 'float' (a 'floating' place where the diorama is) or 'settle' (wait while a drop is
+// still falling, so a missed drop has ended before anything is read). An empty SETUP runs no setup;
 // an unknown one throws with its name.
 // To add a mode or a field, add a table entry and leave run() alone. Page functions
 // run inside the app frame, so each must be self-contained (see tests/e2e/lib.mjs:2).
@@ -47,6 +48,11 @@ const SETUP_MODES = {
     const hook = window.__threadbound;
     const f = hook.frame();
     hook.dispatch({ type: 'place', origin: f.origin, yaw: f.yaw, surface: 'floating' });
+  },
+  // A missed drop takes up to ~15 s to settle (tests/e2e/missed-drop.e2e.mjs).
+  settle: async () => {
+    const hook = window.__threadbound;
+    for (let t = 0; t < 20000 && hook.state().status === 'dropping'; t += 200) await new Promise((r) => setTimeout(r, 200));
   },
   // The heaviest frame in the campaign: Three Cups, solution hung, every marble in flight.
   busiest: async () => {
@@ -134,6 +140,10 @@ const PROBE_FIELDS = [
   ['slowMotion', () => window.__threadbound.state().settings.slowMotion],
   ['raiseToggle', () => window.__threadbound.plaqueElement('set-up')?.world],
   ['nearToggle', () => window.__threadbound.plaqueElement('set-near')?.world],
+  // The settings face's Skip (laid out even while hidden), whether it is offered, and the saved skips.
+  ['skipToggle', () => window.__threadbound.plaqueElement('set-skip')?.world],
+  ['skipOffered', () => window.__threadbound.plaque()?.skipOffered],
+  ['skipped', () => window.__threadbound.state().progress.skipped],
   ['offset', () => window.__threadbound.state().settings.offset],
   // The plaque's details row: the world and place, or the daily and its streak.
   ['worldLabel', () => window.__threadbound.hud()?.model?.worldLabel],

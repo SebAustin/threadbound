@@ -6,6 +6,7 @@ import {
   MELODY_NOTES_MAX,
   recordCompletion,
   recordDaily,
+  recordSkip,
   saveProgress,
   type Solve,
 } from '../../src/lib/progress';
@@ -196,6 +197,53 @@ describe('daily streak in progress', () => {
       streak: { lastDay: null, count: 0 },
       dailyBest: { day: null, stars: 0 },
       melodies: {},
+      skipped: [],
     });
+  });
+});
+
+describe('skip: moving on from a level without solving it', () => {
+  const skip = { levelId: 'w1-02', levelIndex: 1, levelCount: 6 };
+  const played = recordCompletion(INITIAL_PROGRESS, solve('w1-01', 0, 3, tune([C4, E4])));
+
+  test("records the skip without mutating its input, and unlocks the next level", () => {
+    const after = recordSkip(played, skip);
+    expect(after.skipped).toEqual(['w1-02']);
+    expect(after.unlocked).toBe(2);
+    expect(played.skipped).toEqual([]);
+    expect(played.unlocked).toBe(1);
+  });
+
+  test('adds the id once', () => {
+    expect(recordSkip(recordSkip(played, skip), skip).skipped).toEqual(['w1-02']);
+  });
+
+  test('keeps best stars and the melody book as they were', () => {
+    const after = recordSkip(played, skip);
+    expect(after.best).toEqual(played.best);
+    expect(after.best['w1-02']).toBeUndefined();
+    expect(after.melodies).toBe(played.melodies);
+  });
+
+  test('never unlocks past the last level', () => {
+    expect(recordSkip({ ...played, unlocked: 5 }, { levelId: 'w1-06', levelIndex: 5, levelCount: 6 }).unlocked).toBe(5);
+  });
+
+  test('a later solve of a skipped level takes it off the skipped list', () => {
+    const skipped = recordSkip(played, skip);
+    const solved = recordCompletion(skipped, solve('w1-02', 1, 2));
+    expect(solved.skipped).toEqual([]);
+    expect(solved.best['w1-02']).toBe(2);
+  });
+
+  test('a save from before skips loads with none skipped', () => {
+    expect(loadProgress(seeded({ unlocked: 1, best: { 'w1-01': 3 }, melodies: { 'w1-01': [C4] } })).skipped).toEqual([]);
+  });
+
+  test('skipped round-trips through storage', () => {
+    const storage = memoryStorage();
+    saveProgress(storage, recordSkip(played, skip));
+    expect(loadProgress(storage).skipped).toEqual(['w1-02']);
+    expect(loadProgress(storage).melodies['w1-01']).toEqual(tune([C4, E4]));
   });
 });

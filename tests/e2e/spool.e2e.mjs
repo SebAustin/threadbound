@@ -55,11 +55,19 @@ export default async function run({ page, frame }) {
   const stayed = await app.evaluate(pegB);
   check('a slide that would overspend the spool is refused', Math.abs(stayed.x - 0.16) < 1e-6, JSON.stringify(stayed));
   check('the slide refusal is explained too', await waitFor(app, () => window.__threadbound.ledge()?.text.hint === 'Not enough spool for that thread', 2000), await app.evaluate(hint));
-  await app.evaluate(() => window.__threadbound.dispatch({ type: 'addThread', from: 'a', to: 'c' }));
-  check('the thread limit is explained', await waitFor(app, () => window.__threadbound.ledge()?.text.hint === 'No threads left - snip one first', 2000), await app.evaluate(hint));
 
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'load', index: 0 }));
   const plain = await waitFor(app, () => window.__threadbound.hud()?.model?.spoolLabel === '' && window.__threadbound.ledge()?.text.spool === '', 2000);
   check('levels without a spool show no spool readout on the ledge', plain, await app.evaluate(spool));
+  // The thread limit is par + 1 (ADR 0005): level 1 takes two threads, and a third is refused. A
+  // tight spool refuses a spare thread before the limit can, so this is checked without one.
+  await app.evaluate(() => {
+    window.__threadbound.dispatch({ type: 'addThread', from: 'a', to: 'b' });
+    window.__threadbound.dispatch({ type: 'addThread', from: 'b', to: 'c' });
+    window.__threadbound.dispatch({ type: 'addThread', from: 'a', to: 'c' });
+  });
+  const limited = await app.evaluate(() => ({ threads: window.__threadbound.state().threads.length, refusal: window.__threadbound.state().refusal }));
+  check('the thread limit is explained', limited.threads === 2 && limited.refusal === 'limit' &&
+    await waitFor(app, () => window.__threadbound.ledge()?.text.hint === 'No threads left - snip one first', 2000), `${JSON.stringify(limited)} ${await app.evaluate(hint)}`);
   return results;
 }

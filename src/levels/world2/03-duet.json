@@ -20,7 +20,7 @@
       "count": 2
     }
   ],
-  "maxThreads": 1,
+  "maxThreads": 2,
   "par": 1,
   "pegs": [
     {

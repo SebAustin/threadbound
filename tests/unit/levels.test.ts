@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { LEVELS } from '../../src/levels';
+import { DAILY_LEVELS, LEVELS } from '../../src/levels';
 
 describe('level data', () => {
   test('ids are unique', () => {
@@ -12,6 +12,11 @@ describe('level data', () => {
     expect([...ids].sort()).toEqual(ids);
   });
 
+  // ADR 0005: one spare thread above par on every level, so every star tier is reachable.
+  test('the thread limit is par + 1 on every campaign level and every daily', () => {
+    for (const level of [...LEVELS, ...DAILY_LEVELS]) expect(level.maxThreads, level.id).toBe(level.par + 1);
+  });
+
   test('every level stays within the physics body budget', () => {
     for (const level of LEVELS) {
       // case(5) + pegs + goal walls(2 each) + walls + threads(max) + marbles
@@ -19,6 +24,16 @@ describe('level data', () => {
         + level.maxThreads + level.presetThreads.length + level.marbles;
       expect(bodies, level.id).toBeLessThanOrEqual(40);
     }
+  });
+
+  test('the busiest level, Three Cups, stays well inside the body budget with its spare thread', () => {
+    const bodies = (id: string) => {
+      const l = LEVELS.find((level) => level.id === id)!;
+      return 5 + l.pegs.length + l.goals.length * 2 + l.walls.length + l.maxThreads + l.presetThreads.length + l.marbles;
+    };
+    const busiest = Math.max(...LEVELS.map((l) => bodies(l.id)));
+    expect(bodies('w2-06')).toBe(busiest);
+    expect(busiest).toBe(26);
   });
 });
 

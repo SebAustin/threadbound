@@ -1,16 +1,18 @@
 /**
  * Where a returning player picks up: the first campaign level they haven't
- * solved, found by level id. Saves record ids, not positions, so adding levels
- * to a world never moves a player to the wrong level. With every level solved
- * it gives the last one, which is also Prev/Next's upper bound (levelSelect.ts);
- * the game itself reopens a finished campaign on the daily (resumeTarget).
+ * solved or skipped, found by level id. Saves record ids, not positions, so
+ * adding levels to a world never moves a player to the wrong level. With every
+ * level solved or skipped it gives the last one, which is also Prev/Next's upper
+ * bound (levelSelect.ts); the game itself reopens a finished campaign on the
+ * daily (resumeTarget).
  */
 export function resumeIndex(
   levels: readonly { readonly id: string }[],
   best: Readonly<Record<string, number>>,
+  skipped: readonly string[] = [],
 ): number {
-  const unsolved = levels.findIndex((level) => !(best[level.id] > 0));
-  return unsolved >= 0 ? unsolved : Math.max(0, levels.length - 1);
+  const open = levels.findIndex((level) => !(best[level.id] > 0) && !skipped.includes(level.id));
+  return open >= 0 ? open : Math.max(0, levels.length - 1);
 }
 
 /**
@@ -31,13 +33,15 @@ export type ResumeTarget =
   | { readonly daily: true; readonly returnTo: number };
 
 /**
- * Where the game reopens: the first unsolved level, or, once the campaign is
- * finished, today's daily, whose sun returns to the last level.
+ * Where the game reopens: the first level neither solved nor skipped, or, once
+ * the campaign is finished, today's daily, whose sun returns to the last level.
+ * A skipped level is unsolved, so it holds the finish (and the daily) back.
  */
 export function resumeTarget(
   levels: readonly { readonly id: string }[],
   best: Readonly<Record<string, number>>,
+  skipped: readonly string[],
 ): ResumeTarget {
   if (campaignComplete(levels, best)) return { daily: true, returnTo: levels.length - 1 };
-  return { daily: false, index: resumeIndex(levels, best) };
+  return { daily: false, index: resumeIndex(levels, best, skipped) };
 }

@@ -1,9 +1,10 @@
 import { createSystem, Vector3 } from '@iwsdk/core';
 import { DIORAMA_DEFAULT_POSITION } from '../../config/constants';
+import { afterBuild, NO_ATTEMPTS } from '../../lib/attempts';
 import type { Level } from '../../lib/levelSchema';
 import { EMPTY_MELODY } from '../../lib/melody';
 import { offsetOrigin, originFromCenter, type DioramaOffset } from '../../lib/placement';
-import { INITIAL_PROGRESS, loadProgress, recordCompletion, recordDaily, saveProgress } from '../../lib/progress';
+import { INITIAL_PROGRESS, loadProgress, recordCompletion, recordDaily, recordSkip, saveProgress } from '../../lib/progress';
 import { browserStorage } from '../../lib/storage';
 import { starsFor } from '../../lib/scoring';
 import { resumeTarget } from '../../lib/resume';
@@ -17,6 +18,7 @@ import { DioramaFrame } from '../diorama/dioramaFrame';
 import { disposeLevelEntity } from '../diorama/disposeLevelEntity';
 import { Marble, Thread } from './components';
 import { puzzleStore, type BuildReason, type DailySession, type PuzzleCommand, type PuzzleState } from './puzzleStore';
+import { skipOfferedOf } from './skipOffer';
 
 interface FramePose {
   readonly origin: Vec3;
@@ -52,9 +54,9 @@ export class PuzzleSystem extends createSystem({
       puzzleStore.onCommand((command) => this.handle(command)),
       puzzleStore.subscribe((state) => this.onStateChange(state)),
     );
-    // Resume by solved level ids, not a stored index: adding levels never misplaces a save.
+    // Resume by solved level ids, not a stored index: adding levels never misplaces a save; skipped levels are passed over.
     // A finished campaign reopens on today's daily (solved or not), whose sun returns to the last level.
-    const target = resumeTarget(LEVELS, progress.best);
+    const target = resumeTarget(LEVELS, progress.best, progress.skipped);
     if (target.daily) this.openDaily(undefined, target.returnTo);
     else this.loadLevel(target.index);
   }
@@ -82,8 +84,12 @@ export class PuzzleSystem extends createSystem({
       }
       case 'resetProgress':
         saveProgress(this.storage, INITIAL_PROGRESS);
-        puzzleStore.update({ progress: INITIAL_PROGRESS });
+        // A fresh start forgets the run of misses too, even on the level already open.
+        puzzleStore.update({ progress: INITIAL_PROGRESS, ...NO_ATTEMPTS });
         this.loadLevel(0);
+        break;
+      case 'skip':
+        this.skip();
         break;
       case 'place':
         // Only the table pose changes: rebuild there with the player's work intact.
@@ -100,6 +106,20 @@ export class PuzzleSystem extends createSystem({
         this.handleFlag(command);
         break;
     }
+  }
+
+  /** The settings face's Skip, only while it is offered: saved as skipped (no stars), then on to the next level. */
+  private skip(): void {
+    const state = puzzleStore.get();
+    if (!state.level || !skipOfferedOf(state)) return;
+    const progress = recordSkip(state.progress, {
+      levelId: state.level.id,
+      levelIndex: state.levelIndex,
+      levelCount: LEVELS.length,
+    });
+    saveProgress(this.storage, progress);
+    puzzleStore.update({ progress });
+    this.loadLevel(state.levelIndex + 1);
   }
 
   /** Flags other systems raise through the bus: the diorama hidden, a drag started or ended. */
@@ -149,6 +169,9 @@ export class PuzzleSystem extends createSystem({
     // Floating, there is no table under the case to shadow.
     if (shadow) shadow.visible = puzzleStore.get().surface !== 'floating';
     const pegPositions = Object.fromEntries(level.pegs.map((p) => [p.id, { x: p.x, y: p.y }]));
+    const before = puzzleStore.get();
+    // A move keeps both drop counts, Restart keeps the run of misses, another level starts both again.
+    const attempts = afterBuild(before, { relocated: reason === 'relocated', sameLevel: index === before.levelIndex });
     puzzleStore.update({
       level,
       levelIndex: index,
@@ -162,6 +185,7 @@ export class PuzzleSystem extends createSystem({
       melody: EMPTY_MELODY,
       // Every build drops any drag still open (its systems release their pointers on levelBuilt).
       drags: 0,
+      ...attempts,
     });
     puzzleStore.dispatch({ type: 'levelBuilt', reason });
   }
@@ -179,8 +203,7 @@ export class PuzzleSystem extends createSystem({
     if (next) next.visible = state.status === 'complete' && hasNext;
     if (state.status !== 'complete' || state.stars > 0 || !state.level) return;
 
-    const used = playerThreadCount(state.threads);
-    const stars = starsFor(used, state.level.par);
+    const stars = starsFor({ threadsUsed: playerThreadCount(state.threads), par: state.level.par, drops: state.drops });
     const progress = state.daily
       ? recordDaily(state.progress, stars, state.daily.day)
       : recordCompletion(state.progress, {
@@ -203,12 +226,14 @@ export class PuzzleSystem extends createSystem({
 
   /** The player moved the diorama: rebuild it there exactly as they left it, solved or not. */
   private relocate(state: PuzzleState): void {
-    const { level, levelIndex, threads, pegPositions, daily, status, scored, stars, melody } = state;
+    const { level, levelIndex, threads, pegPositions, daily, status, scored, stars, melody, drops, missedDrops } = state;
     this.build(levelIndex, daily, 'relocated');
     if (!level) return;
     for (const step of restoreSteps(level, threads, pegPositions)) puzzleStore.dispatch(step);
-    // Stars of 0 here means the solve isn't recorded yet; onStateChange records it, tune included.
-    if (status === 'complete') puzzleStore.update({ status, scored, stars, melody });
+    // Stars of 0 here means the solve isn't recorded yet; onStateChange records it, tune and drop counts
+    // included: they ride in the same update as the status, so a first-drop solve keeps its star.
+    // (The build itself keeps both counts for a relocation: lib/attempts' afterBuild.)
+    if (status === 'complete') puzzleStore.update({ status, scored, stars, melody, drops, missedDrops });
   }
 
   private teardown(): void {

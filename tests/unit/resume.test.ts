@@ -26,6 +26,15 @@ describe('resumeIndex: where a returning player picks up', () => {
   test('stars for levels that no longer exist (or dailies) are ignored', () => {
     expect(resumeIndex(campaign, { 'w9-99': 3, 'daily-w1-02': 3 })).toBe(0);
   });
+
+  test('passes over a skipped level to the next one not yet solved', () => {
+    expect(resumeIndex(campaign, { 'w1-01': 3 }, ['w1-02'])).toBe(2);
+    expect(resumeIndex(campaign, {}, ['w1-01', 'w1-02'])).toBe(2);
+  });
+
+  test('a skip of a removed level changes nothing', () => {
+    expect(resumeIndex(campaign, { 'w1-01': 3 }, ['w9-99'])).toBe(1);
+  });
 });
 
 const allSolved = (stars = 3) => Object.fromEntries(campaign.map((l) => [l.id, stars]));
@@ -56,11 +65,22 @@ describe('campaignComplete: every campaign level has a real solve', () => {
 
 describe('resumeTarget: where the game opens on a reload', () => {
   test('an unfinished campaign opens on its first unsolved level', () => {
-    expect(resumeTarget(campaign, {})).toEqual({ daily: false, index: 0 });
-    expect(resumeTarget(campaign, { 'w1-01': 3, 'w1-02': 2 })).toEqual({ daily: false, index: 2 });
+    expect(resumeTarget(campaign, {}, [])).toEqual({ daily: false, index: 0 });
+    expect(resumeTarget(campaign, { 'w1-01': 3, 'w1-02': 2 }, [])).toEqual({ daily: false, index: 2 });
   });
 
   test("a finished campaign opens on today's daily, returning to the last level", () => {
-    expect(resumeTarget(campaign, allSolved())).toEqual({ daily: true, returnTo: campaign.length - 1 });
+    expect(resumeTarget(campaign, allSolved(), [])).toEqual({ daily: true, returnTo: campaign.length - 1 });
+  });
+
+  test('resumes past a skipped level', () => {
+    expect(resumeTarget(campaign, { 'w1-01': 3 }, ['w1-02'])).toEqual({ daily: false, index: 2 });
+  });
+
+  // Ticket 09's Risks: a skipped level is unsolved, so the campaign isn't finished.
+  test('every level solved but one skipped: not complete, and it reopens on the campaign', () => {
+    const { 'w2-02': _skipped, ...rest } = allSolved();
+    expect(campaignComplete(campaign, rest)).toBe(false);
+    expect(resumeTarget(campaign, rest, ['w2-02'])).toEqual({ daily: false, index: campaign.length - 1 });
   });
 });

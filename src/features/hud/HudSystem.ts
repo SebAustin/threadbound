@@ -9,6 +9,7 @@ import { dailyStarsOn } from '../../lib/progress';
 import { campaignComplete } from '../../lib/resume';
 import { LEVELS } from '../../levels';
 import { puzzleStore, type PuzzleState } from '../puzzle/puzzleStore';
+import { skipOfferedOf } from '../puzzle/skipOffer';
 import type { PlaqueFace } from '../../lib/viewExtent';
 import { LedgeStrip } from './ledgeStrip';
 import { SettingsFace } from './settingsFace';
@@ -134,6 +135,8 @@ export class HudSystem extends createSystem({}) {
   private render(state: PuzzleState): void {
     this.settingsFace?.render(state.settings);
     this.settingsFace?.renderLevel(state.levelIndex);
+    this.settingsFace?.renderStars(state.progress);
+    this.settingsFace?.renderSkip(skipOfferedOf(state));
     // While placement searches, the plaque and the strip hide with the diorama.
     if (this.panel) this.panel.visible = !state.dioramaHidden;
     this.ledge?.show(!state.dioramaHidden);

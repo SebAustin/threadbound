@@ -1,3 +1,4 @@
+import { NO_ATTEMPTS } from '../../lib/attempts';
 import type { Level } from '../../lib/levelSchema';
 import { EMPTY_MELODY, type Melody } from '../../lib/melody';
 import { INITIAL_PROGRESS, type Progress } from '../../lib/progress';
@@ -53,6 +54,10 @@ export interface PuzzleState {
   readonly surface: PlacementSurface | null;
   /** Thread pulls and tab slides in progress: a relocation waits for them, as it waits for a drop. */
   readonly drags: number;
+  /** Drops since this level loaded or restarted (lib/attempts): one drop earns the first-drop star. */
+  readonly drops: number;
+  /** Drops in a row that ended without a solve (lib/attempts): three offer the skip. */
+  readonly missedDrops: number;
 }
 
 /** Everything that changes the puzzle goes through here: buttons, placement, tests. */
@@ -73,6 +78,8 @@ export type PuzzleCommand =
   | { readonly type: 'playMelody' }
   /** Flip the plaque between the level face and the settings face. */
   | { readonly type: 'toggleSettings' }
+  /** The settings face's Skip: move on to the next level unsolved (ignored unless it is offered). */
+  | { readonly type: 'skip' }
   | { readonly type: 'drop' }
   /** Emitted once a drop solves the level, after the solve's state is published: the celebration starts. */
   | { readonly type: 'solved' }
@@ -114,6 +121,7 @@ const INITIAL: PuzzleState = {
   dioramaHidden: false,
   surface: null,
   drags: 0,
+  ...NO_ATTEMPTS,
 };
 
 /**

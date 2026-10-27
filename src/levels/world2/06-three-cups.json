@@ -8,7 +8,7 @@
     { "x": 0.25, "y": 0.37, "color": "amber", "count": 1 },
     { "x": 0.33, "y": 0.37, "color": "azure", "count": 2 }
   ],
-  "maxThreads": 2,
+  "maxThreads": 3,
   "par": 2,
   "pegs": [
     { "id": "u", "x": 0.47, "y": 0.31 },

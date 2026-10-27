@@ -89,8 +89,11 @@ export interface ThreadboundTestHook {
   room(): { visible: boolean; background: boolean; blendMode: string | null; tableTop: number | null; tableBottom: number | null };
   /** What the diorama plaque last rendered, and where it sits in diorama-local space. */
   hud(): { model: unknown; local: WorldPoint } | null;
-  /** Which plaque face is showing, and where a plaque element is. */
-  plaque(): { face: string; resetLabel: string } | null;
+  /**
+   * Which plaque face is showing, the reset control's label, the settings face's star total
+   * ("Stars N/72") and whether it offers the skip (both as rendered).
+   */
+  plaque(): { face: string; resetLabel: string; starsLabel: string; skipOffered: boolean } | null;
   plaqueElement(id: string): Sized | null;
   /** The ledge strip: its pose on the ledge, its size, what it shows and whether it is drawn. */
   ledge(): LedgeProbe | null;
@@ -339,9 +342,13 @@ function plaqueProbes(world: World, probe: Probe): Hook<'hud' | 'plaque' | 'plaq
     },
     plaque: () => {
       const panel = plaque();
-      return panel
-        ? { face: String(panel.userData.face ?? ''), resetLabel: String(panel.userData.resetLabel ?? 'Reset progress') }
-        : null;
+      if (!panel) return null;
+      return {
+        face: String(panel.userData.face ?? ''),
+        resetLabel: String(panel.userData.resetLabel ?? 'Reset progress'),
+        starsLabel: String(panel.userData.starsLabel ?? ''),
+        skipOffered: panel.userData.skipOffered === true,
+      };
     },
     plaqueElement: (id) => sizedElement(probe, plaque(), id),
     ledge: () => ledgeProbe(world),

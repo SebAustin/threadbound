@@ -45,6 +45,11 @@ const ProgressSchema = z.object({
     .default({ day: null, stars: 0 }),
   /** Melody book: the tune each campaign level's best solve played (Hz), with when each note sounded. */
   melodies: z.record(z.string(), MelodyEntry).default({}),
+  /**
+   * Campaign level ids moved on from without a solve (CONTEXT.md Skip): they earn no stars and
+   * stay unsolved. Saves from before skips load with none.
+   */
+  skipped: z.array(z.string()).default([]),
 });
 
 export type Progress = Readonly<z.infer<typeof ProgressSchema>>;
@@ -57,6 +62,7 @@ export const INITIAL_PROGRESS: Progress = Object.freeze({
   streak: NO_STREAK,
   dailyBest: NO_DAILY,
   melodies: Object.freeze({}),
+  skipped: [],
 });
 
 /** A finished campaign level, as progress records it. */
@@ -83,6 +89,26 @@ export function recordCompletion(progress: Progress, solve: Solve): Progress {
     unlocked: Math.max(progress.unlocked, Math.min(solve.levelIndex + 1, solve.levelCount - 1)),
     best: { ...progress.best, [solve.levelId]: Math.max(previous, solve.stars) },
     melodies,
+    // A solved level is no longer skipped.
+    skipped: progress.skipped.includes(solve.levelId)
+      ? progress.skipped.filter((id) => id !== solve.levelId)
+      : progress.skipped,
+  };
+}
+
+/** A campaign level moved on from without a solve. */
+export interface Skip {
+  readonly levelId: string;
+  readonly levelIndex: number;
+  readonly levelCount: number;
+}
+
+/** Records a skip once and unlocks the next level; best stars and the melody book stay as they were. */
+export function recordSkip(progress: Progress, skip: Skip): Progress {
+  return {
+    ...progress,
+    unlocked: Math.max(progress.unlocked, Math.min(skip.levelIndex + 1, skip.levelCount - 1)),
+    skipped: progress.skipped.includes(skip.levelId) ? progress.skipped : [...progress.skipped, skip.levelId],
   };
 }
 

@@ -10,7 +10,7 @@ const base = {
     { x: 0.2, y: 0.37, color: 'amber', count: 2 },
     { x: 0.3, y: 0.37, color: 'azure', count: 2 },
   ],
-  maxThreads: 2,
+  maxThreads: 3,
   par: 2,
   pegs: [
     { id: 'a', x: 0.26, y: 0.25 },

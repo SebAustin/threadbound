@@ -45,9 +45,13 @@ describe('parseLevel', () => {
     if (!result.ok) expect(result.error).toMatch(/outside/i);
   });
 
-  test('rejects par greater than maxThreads', () => {
-    const result = parseLevel({ ...valid, par: 5 });
-    expect(result.ok).toBe(false);
+  // ADR 0005: the thread limit is par + 1, so a spare thread can solve at the cost of a star.
+  test('rejects a thread limit of par, or of par + 2', () => {
+    for (const maxThreads of [1, 3]) {
+      const result = parseLevel({ ...valid, maxThreads });
+      expect(result.ok, `maxThreads ${maxThreads}`).toBe(false);
+      if (!result.ok) expect(result.error).toMatch(/maxThreads must be par \+ 1/);
+    }
   });
 
   test('rejects malformed input with a readable message', () => {
@@ -75,17 +79,18 @@ describe('parseLevel v2 fields', () => {
     expect(r.ok).toBe(false);
   });
 
-  test('rejects a solution that uses more threads than allowed', () => {
+  // Within the thread limit but above par: three stars would be out of reach.
+  test('rejects a stored solution that uses more threads than par', () => {
     const r = parseLevel({
       ...valid,
-      maxThreads: 1,
-      par: 1,
+      pegs: [...valid.pegs, { id: 'p3', x: 0.2, y: 0.3 }],
       solution: [
         { from: 'p1', to: 'p2' },
-        { from: 'p2', to: 'p1' },
+        { from: 'p2', to: 'p3' },
       ],
     });
     expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/more threads than par/);
   });
 });
 
@@ -93,7 +98,7 @@ describe('solution vs presets', () => {
   test('kept presets do not count toward the solution thread limit', () => {
     const r = parseLevel({
       ...valid,
-      maxThreads: 1,
+      maxThreads: 2,
       par: 1,
       presetThreads: [{ from: 'p1', to: 'p2' }],
       solution: [

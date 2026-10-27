@@ -6,28 +6,36 @@ const solvedTwo = { 'w1-01': 3, 'w1-02': 2 };
 
 describe('stepLevel: revisit any level reached so far, never skip ahead', () => {
   test('steps back to an earlier solved level', () => {
-    expect(stepLevel(2, -1, levels, solvedTwo)).toBe(1);
+    expect(stepLevel(2, -1, levels, solvedTwo, [])).toBe(1);
   });
 
   test('steps forward up to the first unsolved level, no further', () => {
-    expect(stepLevel(0, 1, levels, solvedTwo)).toBe(1);
-    expect(stepLevel(1, 1, levels, solvedTwo)).toBe(2);
-    expect(stepLevel(2, 1, levels, solvedTwo)).toBe(2);
+    expect(stepLevel(0, 1, levels, solvedTwo, [])).toBe(1);
+    expect(stepLevel(1, 1, levels, solvedTwo, [])).toBe(2);
+    expect(stepLevel(2, 1, levels, solvedTwo, [])).toBe(2);
   });
 
   test('stops at the first level', () => {
-    expect(stepLevel(0, -1, levels, solvedTwo)).toBe(0);
+    expect(stepLevel(0, -1, levels, solvedTwo, [])).toBe(0);
   });
 
   test('a finished campaign can visit every level', () => {
     const all = Object.fromEntries(levels.map((l) => [l.id, 3]));
-    expect(stepLevel(2, 1, levels, all)).toBe(3);
-    expect(stepLevel(3, 1, levels, all)).toBe(3);
+    expect(stepLevel(2, 1, levels, all, [])).toBe(3);
+    expect(stepLevel(3, 1, levels, all, [])).toBe(3);
+  });
+
+  test('Next steps past a skipped level, and Prev reaches it', () => {
+    // w1-01 solved, w1-02 skipped: the player is up to w1-03.
+    const best = { 'w1-01': 3 };
+    expect(stepLevel(1, 1, levels, best, ['w1-02'])).toBe(2);
+    expect(stepLevel(2, 1, levels, best, ['w1-02'])).toBe(2);
+    expect(stepLevel(2, -1, levels, best, ['w1-02'])).toBe(1);
   });
 
   test('from a daily, stepping lands back in the campaign at the level reached', () => {
-    expect(stepLevel(levels.length + 3, -1, levels, solvedTwo)).toBe(1);
-    expect(stepLevel(levels.length + 3, 1, levels, solvedTwo)).toBe(2);
+    expect(stepLevel(levels.length + 3, -1, levels, solvedTwo, [])).toBe(1);
+    expect(stepLevel(levels.length + 3, 1, levels, solvedTwo, [])).toBe(2);
   });
 });
 

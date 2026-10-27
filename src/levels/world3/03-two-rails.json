@@ -4,7 +4,7 @@
   "world": 3,
   "size": [0.5, 0.4],
   "chutes": [{ "x": 0.25, "y": 0.37, "color": "teal", "count": 3 }],
-  "maxThreads": 1,
+  "maxThreads": 2,
   "par": 1,
   "pegs": [
     { "id": "a", "x": 0.45, "y": 0.28, "rail": { "axis": "x", "min": 0.04, "max": 0.46 } },
