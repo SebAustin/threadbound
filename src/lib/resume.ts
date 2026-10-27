@@ -27,6 +27,17 @@ export function campaignComplete(
   return levels.length > 0 && levels.every((level) => best[level.id] > 0);
 }
 
+/**
+ * At least one campaign level has a real solve: what makes a session a return
+ * visit, and what lets the sun signpost the daily. Dailies and stale ids don't count.
+ */
+export function hasCampaignSolve(
+  levels: readonly { readonly id: string }[],
+  best: Readonly<Record<string, number>>,
+): boolean {
+  return levels.some((level) => best[level.id] > 0);
+}
+
 /** What the game opens on: a campaign level, or today's daily for a finished campaign. */
 export type ResumeTarget =
   | { readonly daily: false; readonly index: number }

@@ -48,6 +48,23 @@ describe('level registry', () => {
     expect(LEVELS).toHaveLength(files.length);
   });
 
+  test('w4-03 keeps its id under its new name, Thrift (saves, the melody book and the level proofs are keyed by id)', async () => {
+    expect(LEVELS[20].id).toBe('w4-03');
+    expect(LEVELS[20].name).toBe('Thrift');
+    const { readdirSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const world4 = readdirSync(join(__dirname, '../../src/levels/world4'));
+    expect(world4).toContain('03-thrift.json');
+    expect(world4).not.toContain('03-budget.json');
+  });
+
+  test('no campaign or daily name says "budget" (the Spool and Thread limit _Avoid_ lists) or "challenge"', () => {
+    for (const level of [...LEVELS, ...DAILY_LEVELS]) {
+      expect(level.name.toLowerCase(), level.id).not.toContain('budget');
+      expect(level.name.toLowerCase(), level.id).not.toContain('challenge');
+    }
+  });
+
   test('the campaign is four worlds of six levels, in world order', () => {
     expect(LEVELS.map((l) => l.world)).toEqual([1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4]);
   });

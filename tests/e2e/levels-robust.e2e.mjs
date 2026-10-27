@@ -3,7 +3,7 @@
 // runs it RUNS times per level and speed, one level per browser lease, because a level must solve
 // every time, not just once: game events fall on frame boundaries, which shift with frame timing.
 // Before the first drop it runs the same steps as levels.e2e.mjs: the level dropped untouched, then
-// reopened. Without them w4-03 Budget's old layout passed here while levels.e2e.mjs failed it.
+// reopened. Without them w4-03's old layout passed here while levels.e2e.mjs failed it.
 // LEVEL=campaign:<campaign index> | daily:<pool index>; SLOW=1 drops in slow motion.
 import {
   hookReady,

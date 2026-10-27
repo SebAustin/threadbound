@@ -11,6 +11,7 @@ import { AmbienceSystem } from './features/audio/AmbienceSystem.js';
 import { AudioUnlockSystem } from './features/audio/AudioUnlockSystem.js';
 import { CaptionSystem } from './features/captions/CaptionSystem.js';
 import { ControlsSystem } from './features/controls/ControlsSystem.js';
+import { SunPulseSystem } from './features/controls/SunPulseSystem.js';
 import { TouchFeedbackSystem } from './features/input/TouchFeedbackSystem.js';
 import { EnvironmentSystem } from './features/environment/EnvironmentSystem.js';
 import { MarbleSystem } from './features/marbles/MarbleSystem.js';
@@ -44,6 +45,8 @@ World.create(
   world.registerSystem(ThreadVibrationSystem);
   world.registerSystem(MarbleSystem);
   world.registerSystem(ControlsSystem);
+  // The sun pulses while today's daily is unsolved; it finds the sun among the ledge buttons each frame.
+  world.registerSystem(SunPulseSystem);
   // Lights and moves whatever a ray, gaze or fingertip touches: buttons, chutes, tabs, pegs, threads.
   world.registerSystem(TouchFeedbackSystem);
   world.registerSystem(SliderSystem);

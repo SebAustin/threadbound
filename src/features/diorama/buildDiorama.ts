@@ -308,7 +308,10 @@ function buildButton(
   const iconMount = new Group();
   iconMount.rotation.x = ICON_TILT;
   iconMount.position.y = h + r * ICON_LIFT;
-  iconMount.add(BUTTON_ICONS[action](r));
+  const icon = BUTTON_ICONS[action](r);
+  iconMount.add(icon);
+  // The sun's pulse scales the icon alone (SunPulseSystem): its walnut material is shared by every icon.
+  group.userData.icon = icon;
   const hit = hitAreaMesh(GEOMETRIES.unitCylinder);
   hit.scale.set(r, h, r);
   hit.position.y = h / 2;

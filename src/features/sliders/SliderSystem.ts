@@ -159,7 +159,7 @@ export class SliderSystem extends createSystem({
       refuse('spool', 'slide');
       return;
     }
-    puzzleStore.update({ pegPositions: { ...pegPositions, [command.pegId]: next }, refusal: null });
+    puzzleStore.update({ pegPositions: { ...pegPositions, [command.pegId]: next }, refusal: null, lastDropMissed: false });
     this.placeVisuals(command.pegId, next.x, next.y);
     this.commitPhysics(command.pegId, next.x, next.y);
     stringSynth.play('settle');

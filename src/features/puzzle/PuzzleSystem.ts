@@ -7,11 +7,12 @@ import { offsetOrigin, originFromCenter, type DioramaOffset } from '../../lib/pl
 import { INITIAL_PROGRESS, loadProgress, recordCompletion, recordDaily, recordSkip, saveProgress } from '../../lib/progress';
 import { browserStorage } from '../../lib/storage';
 import { starsFor } from '../../lib/scoring';
-import { resumeTarget } from '../../lib/resume';
+import { hasCampaignSolve, resumeTarget } from '../../lib/resume';
 import { restoreSteps } from '../../lib/solutionSteps';
 import { playerThreadCount } from '../../lib/threadRules';
 import type { Vec3 } from '../../lib/vec';
-import { dailyIndex, today } from '../../lib/daily';
+import { today } from '../../lib/daily';
+import { dailyPick, reachedMechanics } from '../../lib/dailyPool';
 import { DAILY_LEVELS, isDailyIndex, LEVELS, PLAYABLE } from '../../levels';
 import { buildDiorama } from '../diorama/buildDiorama';
 import { DioramaFrame } from '../diorama/dioramaFrame';
@@ -49,7 +50,8 @@ export class PuzzleSystem extends createSystem({
 
   init(): void {
     const progress = loadProgress(this.storage);
-    puzzleStore.update({ progress });
+    // A save with a campaign solve makes this a return visit: the ledge says when today's daily is ready.
+    puzzleStore.update({ progress, returnVisit: hasCampaignSolve(LEVELS, progress.best) });
     this.cleanupFuncs.push(
       puzzleStore.onCommand((command) => this.handle(command)),
       puzzleStore.subscribe((state) => this.onStateChange(state)),
@@ -84,8 +86,8 @@ export class PuzzleSystem extends createSystem({
       }
       case 'resetProgress':
         saveProgress(this.storage, INITIAL_PROGRESS);
-        // A fresh start forgets the run of misses too, even on the level already open.
-        puzzleStore.update({ progress: INITIAL_PROGRESS, ...NO_ATTEMPTS });
+        // A fresh start forgets the run of misses too, even on the level already open, and is no return visit.
+        puzzleStore.update({ progress: INITIAL_PROGRESS, ...NO_ATTEMPTS, returnVisit: false });
         this.loadLevel(0);
         break;
       case 'skip':
@@ -134,12 +136,14 @@ export class PuzzleSystem extends createSystem({
   /**
    * Today's daily (or pool entry `index`), remembering which campaign level to return to:
    * `returnTo` when given (a reopened finished campaign has no level of its own yet),
-   * else the open daily's, else the current level.
+   * else the open daily's, else the current level. Today's pick only uses mechanics the
+   * player has reached (lib/dailyPool), and opening it ends the return visit's line.
    */
   private openDaily(index?: number, returnTo?: number): void {
-    const { daily, levelIndex } = puzzleStore.get();
+    const { daily, levelIndex, progress } = puzzleStore.get();
     const day = today();
-    const pick = index ?? dailyIndex(day, DAILY_LEVELS.length);
+    const pick = index ?? dailyPick(day, DAILY_LEVELS, reachedMechanics(LEVELS, progress.best));
+    puzzleStore.update({ returnVisit: false });
     this.build(LEVELS.length + pick, { day, returnTo: returnTo ?? daily?.returnTo ?? levelIndex }, 'fresh');
   }
 
@@ -182,6 +186,10 @@ export class PuzzleSystem extends createSystem({
       pegPositions,
       daily,
       refusal: null,
+      lastDropMissed: false,
+      firstSolve: false,
+      // A build stops the melody book (MarbleSystem silences it on levelBuilt).
+      bookPlaying: false,
       melody: EMPTY_MELODY,
       // Every build drops any drag still open (its systems release their pointers on levelBuilt).
       drags: 0,
@@ -204,6 +212,8 @@ export class PuzzleSystem extends createSystem({
     if (state.status !== 'complete' || state.stars > 0 || !state.level) return;
 
     const stars = starsFor({ threadsUsed: playerThreadCount(state.threads), par: state.level.par, drops: state.drops });
+    // Recorded with the solve: a campaign level solved for the first time points to its stars' tune.
+    const firstSolve = !state.daily && (state.progress.best[state.level.id] ?? 0) === 0;
     const progress = state.daily
       ? recordDaily(state.progress, stars, state.daily.day)
       : recordCompletion(state.progress, {
@@ -214,7 +224,7 @@ export class PuzzleSystem extends createSystem({
           melody: state.melody,
         });
     saveProgress(this.storage, progress);
-    puzzleStore.update({ stars, progress });
+    puzzleStore.update({ stars, progress, firstSolve });
   }
 
   /** Rebuild at the new pose now, or once a drop or drag in progress has finished. */
@@ -226,14 +236,14 @@ export class PuzzleSystem extends createSystem({
 
   /** The player moved the diorama: rebuild it there exactly as they left it, solved or not. */
   private relocate(state: PuzzleState): void {
-    const { level, levelIndex, threads, pegPositions, daily, status, scored, stars, melody, drops, missedDrops } = state;
+    const { level, levelIndex, threads, pegPositions, daily, status, scored, stars, melody, drops, missedDrops, firstSolve } = state;
     this.build(levelIndex, daily, 'relocated');
     if (!level) return;
     for (const step of restoreSteps(level, threads, pegPositions)) puzzleStore.dispatch(step);
     // Stars of 0 here means the solve isn't recorded yet; onStateChange records it, tune and drop counts
     // included: they ride in the same update as the status, so a first-drop solve keeps its star.
     // (The build itself keeps both counts for a relocation: lib/attempts' afterBuild.)
-    if (status === 'complete') puzzleStore.update({ status, scored, stars, melody, drops, missedDrops });
+    if (status === 'complete') puzzleStore.update({ status, scored, stars, melody, drops, missedDrops, firstSolve });
   }
 
   private teardown(): void {

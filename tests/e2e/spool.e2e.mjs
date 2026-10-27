@@ -68,6 +68,6 @@ export default async function run({ page, frame }) {
   });
   const limited = await app.evaluate(() => ({ threads: window.__threadbound.state().threads.length, refusal: window.__threadbound.state().refusal }));
   check('the thread limit is explained', limited.threads === 2 && limited.refusal === 'limit' &&
-    await waitFor(app, () => window.__threadbound.ledge()?.text.hint === 'No threads left - snip one first', 2000), `${JSON.stringify(limited)} ${await app.evaluate(hint)}`);
+    await waitFor(app, () => window.__threadbound.ledge()?.text.hint === 'No threads left - pinch one to snip it', 2000), `${JSON.stringify(limited)} ${await app.evaluate(hint)}`);
   return results;
 }

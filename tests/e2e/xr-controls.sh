@@ -1,6 +1,6 @@
 #!/bin/zsh
 # Hand-ray pinches in an emulated Quest 3 session operate the chute, the ledge
-# buttons, the settings face (slow motion, high contrast, Nearer) and thread
+# buttons, the settings face (slow motion, high contrast, Nearer, the melody book's play-all) and thread
 # snipping (taps, not drags), and the ledge strip teaches level 1 from a fresh
 # save. A ray resting on Restart lights it, a pinch presses it in, a released
 # Settings comes back up on the same button, and a pinch beside a thread (inside
@@ -134,5 +134,22 @@ for attempt in 1 2 3 4 5 6 7 8; do
   [ "$N" -gt 0 ] && break
 done
 [ "$N" -gt 0 ] && pass "pinching the stars replays the melody ($N notes)" || fail "pinching the stars replays the melody ($N notes)"
+
+# Ticket 14: the settings face's play-all, pinched, plays the melody book. Let the stars' replay end
+# first (each probe drains the cue log), so every melody cue counted after the pinch is the book's.
+pinch_at "$(field "$(probe)" "['buttons']['settings']")"
+sleep 0.5 # let the settings face lay out
+for attempt in 1 2 3 4 5 6 7 8 9 10; do
+  P=$(probe); [ "$(field "$P" "['playAll']['replaying']")" = "false" ] && break
+done
+P=$(probe); BOOK=$(field "$P" "['playAll']")
+pinch_at "$(field "$P" "['playAll']['world']")"
+N=0
+for attempt in 1 2 3 4 5 6 7 8; do
+  N=$(( N + $(field "$(probe)" "['melodyNotesDrained']") ))
+  [ "$N" -gt 0 ] && break
+done
+BOOK_OK=$(echo "$BOOK" | python3 -c "import sys,json;b=json.load(sys.stdin);print(b['shown'] is True and str(b['label']).startswith('Play all ('))")
+[ "$BOOK_OK" = "True" ] && [ "$N" -gt 0 ] && pass "pinching the settings face's play-all plays the melody book ($N notes, $BOOK)" || fail "pinching the settings face's play-all plays the melody book ($N notes, $BOOK)"
 xr_stop
 exit $FAIL

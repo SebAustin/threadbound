@@ -27,6 +27,16 @@ export interface HudInput {
   readonly campaignComplete?: boolean;
   /** Passthrough found no table, so the diorama floats in front of the player. */
   readonly noTable?: boolean;
+  /** The last drop ended without a solve, and nothing has changed since (PuzzleState.lastDropMissed). */
+  readonly lastDropMissed?: boolean;
+  /** A thread is on the diorama (presets count): the one thing a missed drop's line can point at. */
+  readonly hasThread?: boolean;
+  /** The settings face offers the skip (lib/attempts): a missed drop's line points there instead. */
+  readonly skipOffered?: boolean;
+  /** A campaign level's first solve, whose tune the melody book holds. */
+  readonly firstSolve?: boolean;
+  /** A returning player, on a campaign level, while today's daily is unsolved: the streak to show. */
+  readonly dailyReady?: { readonly streak: number };
 }
 
 export interface HudModel {
@@ -59,27 +69,55 @@ export const LEDGE_HINT_MAX_CHARS = 48;
 export const REFUSAL_HINTS: Readonly<Record<RefusalReason, string>> = {
   'same-peg': '',
   duplicate: 'Those pegs are already joined',
-  limit: 'No threads left - snip one first',
+  // Snipping isn't taught until w1-05, so the limit says how (Q46).
+  limit: 'No threads left - pinch one to snip it',
   spool: 'Not enough spool for that thread',
 };
 
-const DAILY_HINT = 'Poke the sun to return';
+/** Ledge buttons are pressed, so the sun is too. */
+const DAILY_HINT = 'Press the sun to return';
 
 /** Passthrough found no table: Quest's Space Setup is what lets it find one. */
 export const NO_TABLE_HINT = 'No table found - run Space Setup';
 
-const endingHint = (campaignLength: number) => `All ${campaignLength} solved - poke the sun for a daily`;
+/** An unsolved drop with a thread on the diorama: the two ways to try again. */
+const MISSED_DROP_HINT = 'Missed - pinch a thread to snip it, or restart';
+
+/** Skip lives only on the flipped settings face: a stuck player who never opens it learns of it here. */
+const SKIP_POINTER_HINT = 'Stuck? Skip is on the settings face';
+
+/** The plaque's stars replay the level's tune (the melody book). */
+const FIRST_SOLVE_HINT = 'Pinch the stars to hear it again';
+
+const endingHint = (campaignLength: number) => `All ${campaignLength} solved - press the sun for a daily`;
+
+/** ASCII " - " for the spec's middle dot: the panel font has no typographic glyphs. */
+const dailyReadyHint = (streak: number) => (streak > 0 ? `Today's daily is ready - streak ${streak}` : "Today's daily is ready");
+
+/** The missed-drop slot: shown while a missed drop left a thread to snip, pointing to the skip once it is offered. */
+function missedHint(input: HudInput): string {
+  if (!input.lastDropMissed || !input.hasThread) return '';
+  return input.skipOffered ? SKIP_POINTER_HINT : MISSED_DROP_HINT;
+}
+
+/** The return-visit lines, outside a daily: the first solve's stars, then today's waiting daily. */
+function signpostHint(input: HudInput): string {
+  if (input.daily) return '';
+  if (input.firstSolve) return FIRST_SOLVE_HINT;
+  return input.dailyReady ? dailyReadyHint(input.dailyReady.streak) : '';
+}
 
 /**
- * One hint line, most urgent first: why something was refused, onboarding, the
- * mechanic this level introduces, no table found, the campaign's ending, how to
- * leave a daily.
+ * One hint line, most urgent first: why something was refused, what to try after a
+ * missed drop, onboarding, the mechanic this level introduces, no table found, the
+ * campaign's ending, the first solve's stars, today's waiting daily, how to leave a daily.
  */
 function hintFor(input: HudInput): string {
   const refusal = input.refusal ? REFUSAL_HINTS[input.refusal] : '';
   const noTable = input.noTable ? NO_TABLE_HINT : '';
   const ending = input.campaignComplete ? endingHint(input.levels.length) : '';
-  return refusal || input.hint || input.levelHint || noTable || ending || (input.daily ? DAILY_HINT : '');
+  const leave = input.daily ? DAILY_HINT : '';
+  return refusal || missedHint(input) || input.hint || input.levelHint || noTable || ending || signpostHint(input) || leave;
 }
 
 /** Plaque and ledge copy: plain ASCII, because the panel font has no typographic glyphs. */
@@ -119,6 +157,14 @@ export function starsLabel(earned: number, possible: number): string {
 
 /** The settings face's skip offer, shown only while it is offered (CONTEXT.md Skip). */
 export const SKIP_LABEL = 'Skip level';
+
+/**
+ * The melody book's play-all: "Play all (N)" with N tunes in the book, or "Stop" while it plays.
+ * Ticket 12 sized the face for "Play all (24)"; "Play all melodies (N)" doesn't fit its row.
+ */
+export function playAllLabel(tunes: number, playing: boolean): string {
+  return playing ? 'Stop' : `Play all (${tunes})`;
+}
 
 export interface SettingsModel {
   readonly slowLabel: string;

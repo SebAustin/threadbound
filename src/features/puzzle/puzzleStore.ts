@@ -58,6 +58,20 @@ export interface PuzzleState {
   readonly drops: number;
   /** Drops in a row that ended without a solve (lib/attempts): three offer the skip. */
   readonly missedDrops: number;
+  /**
+   * The last drop ended without a solve and nothing has changed since: a drop, a build, a
+   * thread added or snipped, or a slide clears it. The ledge then says what to try next.
+   */
+  readonly lastDropMissed: boolean;
+  /** This completion is the campaign level's first solve (its best was 0): the ledge points to the stars. */
+  readonly firstSolve: boolean;
+  /**
+   * The session loaded a save with a campaign solve, and the player hasn't dropped or opened
+   * the daily yet: the ledge says today's daily is ready. Never saved.
+   */
+  readonly returnVisit: boolean;
+  /** The melody book is playing from the settings face (MarbleSystem starts and ends it). */
+  readonly bookPlaying: boolean;
 }
 
 /** Everything that changes the puzzle goes through here: buttons, placement, tests. */
@@ -76,6 +90,10 @@ export type PuzzleCommand =
   | { readonly type: 'settings'; readonly patch: Partial<Settings> }
   /** Replay this level's melody from the melody book (the plaque's stars). */
   | { readonly type: 'playMelody' }
+  /** Play every tune in the melody book, in campaign order (the settings face's play-all). Not during a drop. */
+  | { readonly type: 'playBook' }
+  /** Stop the melody book mid-play. */
+  | { readonly type: 'stopBook' }
   /** Flip the plaque between the level face and the settings face. */
   | { readonly type: 'toggleSettings' }
   /** The settings face's Skip: move on to the next level unsolved (ignored unless it is offered). */
@@ -141,6 +159,10 @@ const INITIAL: PuzzleState = {
   surface: null,
   drags: 0,
   ...NO_ATTEMPTS,
+  lastDropMissed: false,
+  firstSolve: false,
+  returnVisit: false,
+  bookPlaying: false,
 };
 
 /**

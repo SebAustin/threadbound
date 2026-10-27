@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { campaignComplete, resumeIndex, resumeTarget } from '../../src/lib/resume';
+import { campaignComplete, hasCampaignSolve, resumeIndex, resumeTarget } from '../../src/lib/resume';
 
 const ids = (...list: string[]) => list.map((id) => ({ id }));
 const campaign = ids('w1-01', 'w1-02', 'w2-01', 'w2-02', 'w2-03', 'w3-01');
@@ -60,6 +60,20 @@ describe('campaignComplete: every campaign level has a real solve', () => {
   test('every level solved, with one star or more, finishes it', () => {
     expect(campaignComplete(campaign, allSolved(1))).toBe(true);
     expect(campaignComplete(campaign, { ...allSolved(3), 'w9-99': 3 })).toBe(true);
+  });
+});
+
+describe('hasCampaignSolve: the save holds at least one real campaign solve (the return-visit signposts)', () => {
+  test('a fresh save has none', () => {
+    expect(hasCampaignSolve(campaign, {})).toBe(false);
+  });
+
+  test('one solved campaign level is enough', () => {
+    expect(hasCampaignSolve(campaign, { 'w2-01': 1 })).toBe(true);
+  });
+
+  test('daily stars and stale ids do not count', () => {
+    expect(hasCampaignSolve(campaign, { 'daily-w1-02': 3, 'w9-99': 3 })).toBe(false);
   });
 });
 

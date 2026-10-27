@@ -2,25 +2,14 @@ import { createSystem, type UIKit, type UIKitMLAsset } from '@iwsdk/core';
 import { HUD } from '../../config/constants';
 import { plaqueColors, type PlaqueColors } from '../../lib/colors';
 import { hudModel, starsShown, type HudModel } from '../../lib/hud';
-import { onboardingHint } from '../../lib/onboarding';
-import { onboardingStepOf } from '../onboarding/onboardingState';
-import { playerThreadCount, spoolUsed } from '../../lib/threadRules';
-import { currentStreak } from '../../lib/daily';
-import { dailyStarsOn } from '../../lib/progress';
-import { campaignComplete } from '../../lib/resume';
-import { LEVELS } from '../../levels';
 import { puzzleStore, type PuzzleState } from '../puzzle/puzzleStore';
 import { skipOfferedOf } from '../puzzle/skipOffer';
 import type { PlaqueFace } from '../../lib/viewExtent';
+import { bestStarsOf, hudInputOf } from './hudInput';
 import { LedgeStrip } from './ledgeStrip';
 import { paintPlaque, STAR_IDS } from './paintPlaque';
 import { SettingsFace } from './settingsFace';
 import { onTap } from '../input/onTap';
-
-/** The best stars the plaque stands for: today's daily stars, or the level's best. */
-function bestStarsOf(state: PuzzleState, levelId: string): number {
-  return state.daily ? dailyStarsOn(state.progress, state.daily.day) : (state.progress.best[levelId] ?? 0);
-}
 
 /**
  * The plaque standing on top of the diorama (level title, place in the world,
@@ -152,32 +141,14 @@ export class HudSystem extends createSystem({}) {
     this.settingsFace?.renderLevel(state.levelIndex);
     this.settingsFace?.renderStars(state.progress);
     this.settingsFace?.renderSkip(skipOfferedOf(state));
+    this.settingsFace?.renderPlayAll(state.progress, state.bookPlaying);
     // While placement searches, the plaque and the strip hide with the diorama.
     if (this.panel) this.panel.visible = !state.dioramaHidden;
     this.ledge?.show(!state.dioramaHidden);
     const { level } = state;
     if (!this.panel || !level || !this.changed(state)) return;
     this.shownFrom = state;
-    const hud = hudModel({
-      levels: LEVELS,
-      levelIndex: state.levelIndex,
-      title: level.name,
-      threadsUsed: playerThreadCount(state.threads),
-      maxThreads: level.maxThreads,
-      par: level.par,
-      bestStars: bestStarsOf(state, level.id),
-      solved: state.status === 'complete',
-      hint: onboardingHint(onboardingStepOf(state)),
-      spool:
-        level.spool === undefined ? undefined : { used: spoolUsed(state.threads, state.pegPositions), total: level.spool },
-      daily: state.daily ? { streak: currentStreak(state.progress.streak, state.daily.day) } : undefined,
-      refusal: state.refusal,
-      levelHint: state.status === 'complete' ? undefined : level.hint,
-      // From the save, so the ending survives a reload and shows on any campaign level once all are solved.
-      campaignComplete: !state.daily && campaignComplete(LEVELS, state.progress.best),
-      noTable: state.surface === 'floating',
-    });
-    this.apply(hud);
+    this.apply(hudModel(hudInputOf(state, level)));
   }
 
   /** Snapshots are immutable, so identity tells whether anything shown changed. */
@@ -193,6 +164,12 @@ export class HudSystem extends createSystem({}) {
       last.daily !== state.daily ||
       last.refusal !== state.refusal ||
       last.surface !== state.surface ||
+      // The ledge's missed-drop, skip-pointer, first-solve and daily-ready lines.
+      last.lastDropMissed !== state.lastDropMissed ||
+      last.firstSolve !== state.firstSolve ||
+      last.returnVisit !== state.returnVisit ||
+      last.drops !== state.drops ||
+      last.missedDrops !== state.missedDrops ||
       last.settings.highContrast !== state.settings.highContrast ||
       // Sliding a rail peg changes thread lengths, which only the ledge's spool readout shows.
       (state.level?.spool !== undefined && last.pegPositions !== state.pegPositions)

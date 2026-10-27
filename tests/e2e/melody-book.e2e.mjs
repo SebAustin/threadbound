@@ -3,7 +3,9 @@
 // then closes on the cadence. An entry saved before timing replays at the old fixed step.
 // Unsolved levels stay quiet. Ticket 15's visual caption: each replayed note pulses one of
 // the stars, in step with the sound (never more than one pulse ahead of the melody cues).
-import { canvasMapper, checks, clickCanvas, freshSave, hookReady, isComplete, loadLevel, plaqueElementAt, waitFor } from './lib.mjs';
+// Ticket 14: the settings face plays the whole book, each tune as its stars replay it, 0.8 s apart; a
+// second pinch stops it, and with the book empty the control hides.
+import { canvasMapper, checks, click, clickCanvas, freshSave, hookReady, isComplete, loadLevel, plaqueElementAt, sleep, waitFor } from './lib.mjs';
 
 /** Mirrors MELODY_NOTES_MAX in src/lib/progress.ts (E2E runs in Node and can't import the TS source). */
 const MELODY_NOTES_MAX = 16;
@@ -15,6 +17,10 @@ const GAP_TOLERANCE_S = 0.04;
 /** Margin on top of a replay's own length. */
 const REPLAY_SLACK_MS = 3000;
 const KEY = 'threadbound.progress.v1';
+/** Mirrors BOOK_REST_SECONDS in src/lib/melodyBook.ts: the rest after one tune's cadence before the next. */
+const BOOK_REST_S = 0.8;
+/** Mirrors CADENCE_HZ in src/lib/melody.ts (C5 E5 G5), rounded to 0.1 Hz. */
+const CADENCE = [523.3, 659.3, 784.0];
 
 /**
  * Page side: a cue trace kept across polls (every poll drains the shared log), and at
@@ -84,6 +90,7 @@ export default async function run({ page, frame }) {
   const saved = await solveAndSave(ctx);
   await starsReplayKeepsTiming(ctx, saved);
   await unsolvedStaysQuiet(ctx);
+  await playAllBook(ctx, saved);
   await oldEntryKeepsStep(ctx);
   return results;
 }
@@ -126,6 +133,86 @@ async function unsolvedStaysQuiet({ page, app, at, check }) {
   check('an unsolved level has no tune to replay', !(await waitFor(app, () => window.__collect().some((r) => r.name === 'melody' || r.name === 'cadence'), 1500)));
   const { total } = await app.evaluate(pulseReport);
   check('and pinching its stars pulses nothing', total === 0, `${total} pulses`);
+}
+
+/** Page function: the settings face's play-all as rendered. */
+const playAll = () => {
+  const p = window.__threadbound.plaque();
+  return { label: p?.playAllLabel ?? null, shown: p?.playAllShown ?? null };
+};
+
+/** The trace split into tunes: each tune's melody cues, then its cadence cues (C5 E5 G5 closes it). */
+function bookTunes(trace) {
+  const tunes = [];
+  let current = { melody: [], cadence: [] };
+  for (const record of trace) {
+    if (record.name === 'melody') {
+      if (current.cadence.length > 0) {
+        tunes.push(current);
+        current = { melody: [], cadence: [] };
+      }
+      current.melody.push(record);
+    }
+    if (record.name === 'cadence') current.cadence.push(record);
+  }
+  if (current.melody.length || current.cadence.length) tunes.push(current);
+  return tunes;
+}
+
+/** Solves w1-02 too, opens the settings face and pinches "Play all (2)": both tunes play, in order, 0.8 s apart. */
+async function playWholeBook(ctx, saved) {
+  const { page, app, at, check } = ctx;
+  await app.evaluate(() => {
+    window.__threadbound.solve();
+    window.__threadbound.dispatch({ type: 'drop' });
+  });
+  await waitFor(app, isComplete, 15000);
+  const second = await app.evaluate(() => window.__threadbound.state().progress.melodies['w1-02'] ?? { notes: [], times: [] });
+  await waitFor(app, replayOver, replayMs(second));
+  await click(page, at(await app.evaluate(() => window.__threadbound.button('settings'))));
+  await waitFor(app, () => window.__threadbound.plaque()?.face === 'settings', 2000);
+  const control = await plaqueElementAt(app, 'set-play-all');
+  const slow = await plaqueElementAt(app, 'set-slow');
+  const before = await app.evaluate(playAll);
+  check('the settings face offers "Play all (2)", on one line like Slow-mo', before.label === 'Play all (2)' && before.shown === true && Math.abs((control?.height ?? 0) - (slow?.height ?? -1)) < 1e-4, JSON.stringify({ before, height: control?.height, slowHeight: slow?.height }));
+  await app.evaluate(resetTrace);
+  await clickCanvas(page, app, at, control);
+  const playing = await waitFor(app, () => window.__threadbound.plaque()?.playAllLabel === 'Stop', 2000);
+  const ended = await waitFor(app, replayOver, replayMs(saved) + replayMs(second) + BOOK_REST_S * 1000);
+  const trace = await app.evaluate(() => window.__collect());
+  return { playing, ended, trace, want: saved.notes.length + second.notes.length, counts: [saved.notes.length, second.notes.length] };
+}
+
+/** The book plays both tunes: every saved note, each tune closing on C5 E5 G5, the second 0.8 s after the first's cadence. */
+async function playAllBook(ctx, saved) {
+  const { page, app, at, check } = ctx;
+  const { playing, ended, trace, want, counts } = await playWholeBook(ctx, saved);
+  const melody = trace.filter((r) => r.name === 'melody').length;
+  check('pinching it plays the book: the melody cues equal both entries\' notes summed', playing && ended && melody === want, JSON.stringify({ melody, want, counts }));
+  const tunes = bookTunes(trace);
+  const closes = tunes.map((t) => t.cadence.map((r) => Math.round(r.hz * 10) / 10));
+  check('each tune ends on its cadence (C5 E5 G5)', tunes.length === 2 && closes.every((c) => JSON.stringify(c) === JSON.stringify(CADENCE)) &&
+    tunes.every((t, i) => t.melody.length === counts[i]), JSON.stringify({ closes, melody: tunes.map((t) => t.melody.length) }));
+  const rest = tunes.length === 2 ? tunes[1].melody[0].at - tunes[0].cadence[tunes[0].cadence.length - 1].at : -1;
+  check('the second tune starts at least 0.8 s after the first one\'s cadence', rest >= BOOK_REST_S, `${rest.toFixed(3)} s`);
+  check('the control reads "Play all (2)" again once the book is over', (await app.evaluate(playAll)).label === 'Play all (2)', JSON.stringify(await app.evaluate(playAll)));
+
+  await app.evaluate(resetTrace);
+  await clickCanvas(page, app, at, await plaqueElementAt(app, 'set-play-all'));
+  await waitFor(app, () => window.__collect().some((r) => r.name === 'melody'), 3000);
+  const label = (await app.evaluate(playAll)).label;
+  await clickCanvas(page, app, at, await plaqueElementAt(app, 'set-play-all'));
+  const stopped = await waitFor(app, () => !window.__threadbound.celebration().replaying, 2000);
+  const heard = (await app.evaluate(() => window.__collect())).filter((r) => r.name === 'melody').length;
+  // Listen on past where the next note was due: nothing more may sound.
+  await sleep(1500);
+  const later = (await app.evaluate(() => window.__collect())).filter((r) => r.name === 'melody').length;
+  check('while it plays the control reads "Stop", and Stop mid-play ends the notes', label === 'Stop' && stopped && heard > 0 && heard < want && later === heard && (await app.evaluate(playAll)).label === 'Play all (2)', JSON.stringify({ label, heard, later, want }));
+
+  await app.evaluate(() => window.__threadbound.dispatch({ type: 'resetProgress' }));
+  await waitFor(app, freshSave, 3000);
+  const empty = await waitFor(app, () => window.__threadbound.plaque()?.playAllShown === false, 2000);
+  check('after resetProgress the book is empty and the toggle is hidden', empty, JSON.stringify(await app.evaluate(playAll)));
 }
 
 /** A save from before timing (a bare array of notes) still loads, and replays at the fixed 0.22 s step. */

@@ -1,8 +1,9 @@
 import type { UIKit, UIKitMLAsset } from '@iwsdk/core';
 import { LEVELS } from '../../levels';
 import type { PlaqueColors } from '../../lib/colors';
-import { settingsModel, SKIP_LABEL, starsLabel } from '../../lib/hud';
+import { playAllLabel, settingsModel, SKIP_LABEL, starsLabel } from '../../lib/hud';
 import { levelSelectLabel, stepLevel } from '../../lib/levelSelect';
+import { bookTunes } from '../../lib/melodyBook';
 import { DISARMED, RESET_WINDOW_SECONDS, resetLabel, resetPinch, type ResetGuard } from '../../lib/resetGuard';
 import type { DioramaOffset } from '../../lib/placement';
 import type { Progress } from '../../lib/progress';
@@ -31,6 +32,8 @@ export class SettingsFace {
   private shownLevel = -1;
   private shownProgress: Progress | null = null;
   private shownSkip: boolean | null = null;
+  private shownBook: Progress | null = null;
+  private shownPlaying: boolean | null = null;
   private resetGuard: ResetGuard = DISARMED;
   private disarmTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -60,6 +63,8 @@ export class SettingsFace {
       control('set-next', () => this.stepLevel(1)),
       // Shown only while offered; PuzzleSystem ignores it otherwise. A tap acts on release, so the rebuild is safe.
       control('set-skip', () => puzzleStore.dispatch({ type: 'skip' })),
+      // The melody book: play every tune, or stop it mid-play (hidden while the book is empty).
+      control('set-play-all', () => puzzleStore.dispatch({ type: puzzleStore.get().bookPlaying ? 'stopBook' : 'playBook' })),
       ...(
         [
           ['set-up', 'up', 1],
@@ -108,6 +113,23 @@ export class SettingsFace {
     this.panel
       .getElementById<UIKit.Text>('set-skip')
       ?.setProperties({ text: SKIP_LABEL, visibility: offered ? 'visible' : 'hidden' });
+  }
+
+  /**
+   * The melody book's play-all: "Play all (N)", or "Stop" while the book plays. Hidden while the
+   * book is empty, never emptied, so its text keeps the layout ticket 12 sized for it.
+   */
+  renderPlayAll(progress: Progress, playing: boolean): void {
+    if (progress === this.shownBook && playing === this.shownPlaying) return;
+    this.shownBook = progress;
+    this.shownPlaying = playing;
+    const tunes = bookTunes(LEVELS, progress.melodies);
+    const text = playAllLabel(tunes, playing);
+    this.panel.userData.playAllLabel = text;
+    this.panel.userData.playAllShown = tunes > 0;
+    this.panel
+      .getElementById<UIKit.Text>('set-play-all')
+      ?.setProperties({ text, visibility: tunes > 0 ? 'visible' : 'hidden' });
   }
 
   /** One-handed diorama adjustment: each pinch is one clamped step. */

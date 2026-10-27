@@ -24,7 +24,9 @@ import { Chute, Marble, Thread } from '../puzzle/components';
 import { cupRejected, puzzleStore } from '../puzzle/puzzleStore';
 import { SimulationClockSystem } from '../simulation/SimulationClockSystem';
 import { EMPTY_MELODY, MelodyClimb, replaySchedule, type Melody } from '../../lib/melody';
+import { BOOK_REST_SECONDS, bookPlaylist } from '../../lib/melodyBook';
 import { MELODY_NOTES_MAX } from '../../lib/progress';
+import { LEVELS } from '../../levels';
 import { DEFAULT_ROOT, PENTATONIC_HZ } from '../../lib/threadTuning';
 import { Celebration } from './celebration';
 
@@ -106,6 +108,8 @@ export class MarbleSystem extends createSystem({
       puzzleStore.onCommand((command) => {
         if (command.type === 'drop') this.drop();
         if (command.type === 'playMelody') this.replaySaved();
+        if (command.type === 'playBook') this.playBook();
+        if (command.type === 'stopBook') this.stopBook();
         if (command.type === 'levelBuilt') {
           this.queue = [];
           this.released = 0;
@@ -133,7 +137,20 @@ export class MarbleSystem extends createSystem({
     // A new drop is a new attempt: unscored, so a better solve is recorded on completion.
     // One more drop; a drop still in flight is abandoned, so it counts as missed.
     const attempts = dropStarted(state, { inFlight: state.status === 'dropping' });
-    puzzleStore.update({ status: 'dropping', scored: 0, stars: 0, melody: EMPTY_MELODY, ...attempts });
+    puzzleStore.update({
+      status: 'dropping',
+      scored: 0,
+      stars: 0,
+      melody: EMPTY_MELODY,
+      ...attempts,
+      // A drop clears the ledge's refusal and missed-drop lines, the first solve's pointer to the stars,
+      // and the return visit's daily line; it stops the melody book (silenced above).
+      refusal: null,
+      lastDropMissed: false,
+      firstSolve: false,
+      returnVisit: false,
+      bookPlaying: false,
+    });
   }
 
   /** Every thread climbs from its root again, and the drop clock restarts. Published tunes are copies. */
@@ -185,6 +202,7 @@ export class MarbleSystem extends createSystem({
     this.releaseDue(simDelta);
     // Real time: a replay sounds at normal speed even after a slow-motion solve.
     this.celebration.update(delta);
+    this.endBookIfOver();
     const frame = puzzleStore.frame;
     if (!frame) return;
     let allResting = true;
@@ -204,6 +222,11 @@ export class MarbleSystem extends createSystem({
     for (const marble of this.lost) marble.dispose({ disposeResources: false });
     this.lost.length = 0;
     this.endDropIfSettled(allResting, simDelta);
+  }
+
+  /** The melody book's last note has sounded: the play-all reads "Play all (N)" again. */
+  private endBookIfOver(): void {
+    if (puzzleStore.get().bookPlaying && !this.celebration.playing) puzzleStore.update({ bookPlaying: false });
   }
 
   private releaseDue(delta: number): void {
@@ -246,7 +269,8 @@ export class MarbleSystem extends createSystem({
     if (state.status !== 'dropping') return;
     this.quiet = allResting ? this.quiet + delta : 0;
     if (dropOver({ allReleased: this.released >= this.queue.length, quietSeconds: this.quiet })) {
-      puzzleStore.update({ status: 'idle', ...dropEnded(state, false) });
+      // The ledge says what to try next until the player changes something (lastDropMissed).
+      puzzleStore.update({ status: 'idle', ...dropEnded(state, false), lastDropMissed: true });
     }
   }
 
@@ -351,12 +375,34 @@ export class MarbleSystem extends createSystem({
 
   /** The melody book: replay this level's saved tune with its timing, closing on the cadence (pinching the plaque's stars). */
   private replaySaved(): void {
-    const { level, progress, status } = puzzleStore.get();
+    const { level, progress, status, bookPlaying } = puzzleStore.get();
     const saved = level ? progress.melodies[level.id] : undefined;
     // A drop in progress is already playing its own notes.
     if (!saved || status === 'dropping') return;
     stringSynth.unlock();
     this.celebration.play(replaySchedule(saved, true));
+    // The stars' tune replaces the book's.
+    if (bookPlaying) puzzleStore.update({ bookPlaying: false });
+  }
+
+  /**
+   * The settings face's play-all: every tune in the book, in campaign order, through the stars'
+   * replay path (lib/melodyBook). Never during a drop, which plays its own notes.
+   */
+  private playBook(): void {
+    const { progress, status } = puzzleStore.get();
+    if (status === 'dropping') return;
+    const playlist = bookPlaylist(LEVELS, progress.melodies, BOOK_REST_SECONDS);
+    if (playlist.length === 0) return;
+    stringSynth.unlock();
+    this.celebration.play(playlist);
+    puzzleStore.update({ bookPlaying: true });
+  }
+
+  private stopBook(): void {
+    if (!puzzleStore.get().bookPlaying) return;
+    this.celebration.stop();
+    puzzleStore.update({ bookPlaying: false });
   }
 
   private resetGoalGlow(): void {

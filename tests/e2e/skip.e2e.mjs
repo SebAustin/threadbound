@@ -2,14 +2,18 @@
 // marbles fall past it, so every drop misses. Two misses leave the settings face's Skip hidden, a third
 // shows it, and Skip moves on to level 2 with level 1 saved as skipped: no stars, still reachable with
 // Prev. A skip dispatched while it isn't offered does nothing. One three-miss run per script: a missed
-// drop takes up to ~15 s to settle and a browser lease is capped at 110 s.
+// drop takes up to ~15 s to settle and a browser lease is capped at 110 s. Ticket 14: the ledge says what to
+// try after the second miss, and after the third it points to the skip, before the settings face is ever opened.
 import { canvasMapper, checks, click, clickCanvas, drag, freshSave, plaqueElementAt, waitFor } from './lib.mjs';
 
-/** Page function: the skip offer as the settings face renders it, and the drop counts behind it. */
+const MISSED = 'Missed - pinch a thread to snip it, or restart';
+const SKIP_POINTER = 'Stuck? Skip is on the settings face';
+
+/** Page function: the skip offer as the settings face renders it, the drop counts behind it, the face shown and the ledge's hint. */
 const offer = () => {
   const hook = window.__threadbound;
   const s = hook.state();
-  return { status: s.status, missedDrops: s.missedDrops, skipOffered: hook.plaque()?.skipOffered, skipped: s.progress.skipped };
+  return { status: s.status, missedDrops: s.missedDrops, skipOffered: hook.plaque()?.skipOffered, skipped: s.progress.skipped, face: hook.plaque()?.face, hint: hook.ledge()?.text.hint };
 };
 
 /** A real click on the chute, then the wait until the drop has settled, unsolved. */
@@ -32,12 +36,14 @@ async function threeMisses(page, app, at, check) {
   const first = await missWithClick(page, app, at);
   const second = await missWithClick(page, app, at);
   check('two misses leave Skip hidden', first.missedDrops === 1 && second.missedDrops === 2 && second.skipOffered === false, JSON.stringify({ first, second }));
+  check('after the second miss the ledge shows the missed line', second.hint === MISSED, second.hint);
   await app.evaluate(() => window.__threadbound.dispatch({ type: 'skip' }));
   const ignored = !(await waitFor(app, () => window.__threadbound.state().levelIndex !== 0, 1000));
   const still = await app.evaluate(offer);
   check('a skip dispatched while it is not offered does nothing', ignored && still.skipped.length === 0, JSON.stringify(still));
   const third = await missWithClick(page, app, at);
   check('a third miss shows Skip', third.missedDrops === 3 && third.skipOffered === true, JSON.stringify(third));
+  check(`after the third the ledge reads "${SKIP_POINTER}", before the settings face is ever opened`, third.hint === SKIP_POINTER && third.face === 'level', JSON.stringify({ hint: third.hint, face: third.face }));
 }
 
 /** The settings button, then Skip: level 2, level 1 saved as skipped with no stars. */

@@ -382,7 +382,8 @@ export class ThreadSystem extends createSystem({
 
     puzzleStore.update({
       threads: [...puzzleStore.get().threads, { from: from.id, to: to.id, preset }],
-      ...(preset ? {} : { refusal: null }),
+      // The player's own thread is a success: it clears the refusal and the missed-drop line.
+      ...(preset ? {} : { refusal: null, lastDropMissed: false }),
     });
     if (pluck) stringSynth.play('thread', pitch);
   }
@@ -393,6 +394,7 @@ export class ThreadSystem extends createSystem({
     puzzleStore.update({
       threads: puzzleStore.get().threads.filter((t) => !(t.from === from && t.to === to)),
       refusal: null,
+      lastDropMissed: false,
     });
     stringSynth.play('snip');
     entity.dispose({ disposeResources: false });

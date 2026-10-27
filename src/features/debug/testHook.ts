@@ -46,6 +46,8 @@ interface LedgeProbe {
   height: number;
   /** What it shows ('' for a hidden line). */
   text: { hint: string; threads: string; spool: string };
+  /** The hint line's laid-out size in meters (its height shows how many lines it wraps to). */
+  hintSize: { width: number; height: number };
   visible: boolean;
 }
 
@@ -64,8 +66,11 @@ export interface ThreadboundTestHook {
   state(): ReturnType<typeof puzzleStore.get>;
   levels(): Array<{ id: string; name: string }>;
   dispatch(command: PuzzleCommand): void;
-  /** A ledge button ('restart' | 'next' | 'settings' | 'daily'), null if absent. */
-  button(action: string): (Located & { visible: boolean }) | null;
+  /**
+   * A ledge button ('restart' | 'next' | 'settings' | 'daily'), null if absent. `pulsing` and
+   * `iconScale`: whether the sun signposts today's daily, and its icon's scale right now (1 at rest).
+   */
+  button(action: string): (Located & { visible: boolean; pulsing: boolean; iconScale: number }) | null;
   /**
    * Every touchable part by its root's name ('button-restart', 'chute', 'peg-a', 'handle-a',
    * 'thread-a-b'): its kind, what it shows ('rest' | 'hover' | 'target' | 'press'), how far it
@@ -94,9 +99,18 @@ export interface ThreadboundTestHook {
   hud(): { model: unknown; local: WorldPoint } | null;
   /**
    * Which plaque face is showing, the reset control's label, the settings face's star total
-   * ("Stars N/72"), whether it offers the skip, and the high-contrast toggle's label (all as rendered).
+   * ("Stars N/72"), whether it offers the skip, the high-contrast toggle's label, and the melody
+   * book's play-all label and whether it is shown (all as rendered).
    */
-  plaque(): { face: string; resetLabel: string; starsLabel: string; skipOffered: boolean; contrastLabel: string } | null;
+  plaque(): {
+    face: string;
+    resetLabel: string;
+    starsLabel: string;
+    skipOffered: boolean;
+    contrastLabel: string;
+    playAllLabel: string;
+    playAllShown: boolean;
+  } | null;
   /**
    * The look high contrast applied: the mode the diorama is painted in, the back panel's, the
    * walls' and the plaque header's colours ('#rrggbb'), and whether glyph backings are drawn.
@@ -250,7 +264,9 @@ function sceneProbes(world: World, probe: Probe): Hook<'button' | 'handle' | 'ha
   return {
     button: (action) => {
       const object = world.scene.getObjectByName(`button-${action}`);
-      return object ? { ...probe.locate(object), visible: object.visible } : null;
+      if (!object) return null;
+      const icon = object.userData.icon as Object3D | undefined;
+      return { ...probe.locate(object), visible: object.visible, pulsing: object.userData.pulsing === true, iconScale: icon?.scale.x ?? 1 };
     },
     handle: (pegId) => {
       const object = world.scene.getObjectByName(`handle-${pegId}`);
@@ -347,6 +363,7 @@ function ledgeProbe(world: World): LedgeProbe | null {
     lean: Math.atan2(upLocal.y, -upLocal.z),
     ...elementSize(panel, panel.getElementById('ledge')),
     text: { ...text },
+    hintSize: elementSize(panel, panel.getElementById('ledge-hint')),
     visible: visibleInScene(panel),
   };
 }
@@ -370,6 +387,8 @@ function plaqueProbes(world: World, probe: Probe): Hook<'hud' | 'plaque' | 'plaq
         starsLabel: String(panel.userData.starsLabel ?? ''),
         skipOffered: panel.userData.skipOffered === true,
         contrastLabel: String(panel.userData.contrastLabel ?? ''),
+        playAllLabel: String(panel.userData.playAllLabel ?? ''),
+        playAllShown: panel.userData.playAllShown === true,
       };
     },
     plaqueElement: (id) => sizedElement(probe, plaque(), id),

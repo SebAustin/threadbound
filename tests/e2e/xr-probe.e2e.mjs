@@ -149,6 +149,18 @@ const PROBE_FIELDS = [
   ['skipOffered', () => window.__threadbound.plaque()?.skipOffered],
   ['skipped', () => window.__threadbound.state().progress.skipped],
   ['offset', () => window.__threadbound.state().settings.offset],
+  // The settings face's melody-book play-all (ticket 14): where to aim, its label, whether it is
+  // shown (hidden while the book is empty), and whether a replay (the stars' or the book's) still plays.
+  ['playAll', () => {
+    const hook = window.__threadbound;
+    const plaque = hook.plaque();
+    return {
+      world: hook.plaqueElement('set-play-all')?.world ?? null,
+      label: plaque?.playAllLabel ?? null,
+      shown: plaque?.playAllShown ?? null,
+      replaying: hook.celebration().replaying,
+    };
+  }],
   // The plaque's details row: the world and place, or the daily and its streak.
   ['worldLabel', () => window.__threadbound.hud()?.model?.worldLabel],
   ['stars', () => window.__threadbound.plaqueElement('hud-stars')?.world],
