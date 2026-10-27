@@ -32,44 +32,44 @@
 
 **Blocked by:** 10, 12, 13
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Unit: tests/unit/hud.test.ts, written first:
+- [x] Unit: tests/unit/hud.test.ts, written first:
   - the priority order above, one case per adjacent pair, including level hint over no table and no table over the ending;
   - the missed line needs a thread on the diorama (with none, onboarding shows);
   - with `skipOffered`, the missed slot reads the skip pointer, and with no thread onboarding still shows;
   - daily ready at streak 2 and at streak 0, and never inside a daily;
   - the press wording (the expectations at :78 and :94-96 change);
   - every line `hintFor` returns is ASCII. The missed line, the skip pointer, first solve, daily ready at streak 999 and both press lines join ticket 12's `LEDGE_HINT_MAX_CHARS` test.
-- [ ] Unit: new tests/unit/dailyPool.test.ts:
+- [x] Unit: new tests/unit/dailyPool.test.ts:
   - mechanics of Snip, Fork and Slide, and none for Short Spool;
   - nothing is reached on `{}`, and snip plus color are reached after w1-01 to w2-01;
   - a fresh save picks only w1-02 or w1-04 on each of 28 days;
   - with everything reached, `dailyPick` equals `dailyIndex(day, 7)`;
   - at least two pool entries need no mechanic.
-- [ ] Unit: tests/unit/dailyVariant.test.ts:12-13 expects the given name. Daily names are unique, ASCII, at most 14 characters, never a campaign name, and never "challenge". tests/unit/levels.test.ts: w4-03 keeps its id under its new name, and no campaign or daily name contains "budget" or "challenge".
-- [ ] Unit: new tests/unit/signposts.test.ts. `sunPulses` is off before a campaign solve and on after one, off inside a daily, and off once today's daily has stars. `sunPulseScale` stays in [1, 1.15] and repeats.
-- [ ] Unit: new tests/unit/melodyBook.test.ts. The playlist equals each entry's `replaySchedule` in campaign order, `cue` and `note` included, offset so each tune starts 0.8 s after the previous tune's cadence. Each tune ends on its cadence, levels with no entry are skipped, a bare-array entry keeps the 0.22 s step, and an empty book gives an empty playlist.
-- [ ] Unit: hud.test.ts: the `limit` refusal reads "No threads left - pinch one to snip it" and fits the ledge hint length.
-- [ ] E2E (Q46, written first, red today): new tests/e2e/wrong-first-thread.e2e.mjs, with real mouse drags from a fresh save on w1-03 (one thread allowed until ticket 13, two after it). Fill the limit with wrong threads (c-d first). A further link is refused and the ledge shows the new line. A real click on a wrong thread snips it. Then a-b links, the chute drop solves, and the level is complete. Add it to `test:e2e`.
-- [ ] E2E: extend tests/e2e/missed-drop.e2e.mjs:
+- [x] Unit: tests/unit/dailyVariant.test.ts:12-13 expects the given name. Daily names are unique, ASCII, at most 14 characters, never a campaign name, and never "challenge". tests/unit/levels.test.ts: w4-03 keeps its id under its new name, and no campaign or daily name contains "budget" or "challenge".
+- [x] Unit: new tests/unit/signposts.test.ts. `sunPulses` is off before a campaign solve and on after one, off inside a daily, and off once today's daily has stars. `sunPulseScale` stays in [1, 1.15] and repeats.
+- [x] Unit: new tests/unit/melodyBook.test.ts. The playlist equals each entry's `replaySchedule` in campaign order, `cue` and `note` included, offset so each tune starts 0.8 s after the previous tune's cadence. Each tune ends on its cadence, levels with no entry are skipped, a bare-array entry keeps the 0.22 s step, and an empty book gives an empty playlist.
+- [x] Unit: hud.test.ts: the `limit` refusal reads "No threads left - pinch one to snip it" and fits the ledge hint length.
+- [x] E2E (Q46, written first, red today): new tests/e2e/wrong-first-thread.e2e.mjs, with real mouse drags from a fresh save on w1-03 (one thread allowed until ticket 13, two after it). Fill the limit with wrong threads (c-d first). A further link is refused and the ledge shows the new line. A real click on a wrong thread snips it. Then a-b links, the chute drop solves, and the level is complete. Add it to `test:e2e`.
+- [x] E2E: extend tests/e2e/missed-drop.e2e.mjs:
   - the empty case keeps its checks, and its hint isn't the missed line;
   - on level 1 with thread b-c (the marbles fall past it), a real chute click gives the missed line once idle, not "Now pinch the chute...". A real click that snips b-c removes the line;
   - a-b, then a duplicate a-b, shows "Those pegs are already joined". The refusal is gone once the drop starts, and the solve shows "Pinch the stars to hear it again".
-- [ ] E2E: extend ticket 13's tests/e2e/skip.e2e.mjs: with thread b-c on level 1, the line after the second miss is the missed line, and after the third it reads "Stuck? Skip is on the settings face", before the settings face is ever opened.
-- [ ] E2E: new tests/e2e/daily-signs.e2e.mjs, with real clicks:
+- [x] E2E: extend ticket 13's tests/e2e/skip.e2e.mjs: with thread b-c on level 1, the line after the second miss is the missed line, and after the third it reads "Stuck? Skip is on the settings face", before the settings face is ever opened.
+- [x] E2E: new tests/e2e/daily-signs.e2e.mjs, with real clicks:
   - on a fresh save the sun doesn't pulse on level 1, and it pulses once level 1 is solved;
   - clicking it opens daily-w1-02 or daily-w1-04, not titled with a campaign name. Inside it the sun doesn't pulse, and the hint is "Press the sun to return";
   - after the daily is solved and the player clicks back, the sun stops pulsing.
 
   Update daily.e2e.mjs:31 to the press wording. level-select.e2e.mjs:46 no longer reads the ending once ticket 09 rewrites it, and 09's finished-campaign.e2e and 13's skip-resume.e2e.mjs match only `All ${n} solved`, so none of them needs a wording change here.
-- [ ] E2E: new tests/e2e/return-visit.e2e.mjs:
+- [x] E2E: new tests/e2e/return-visit.e2e.mjs:
   - seed a save: w1-01 to w1-03 solved, streak `{ lastDay: yesterday, count: 2 }`, dailyBest yesterday;
   - reload in-frame (first-melody.e2e.mjs:21-26). Expect "Today's daily is ready - streak 2" and a pulsing sun, and after a drop the line is gone;
   - a save whose daily was solved today shows neither.
-- [ ] E2E: extend tests/e2e/melody-book.e2e.mjs. Solve w1-01 and w1-02, open the settings face, and `clickCanvas` on `set-play-all`: the melody cues equal the two entries' note counts summed. In ticket 10's `cueTrace()`, each tune ends on its cadence (C5 E5 G5), and the second tune starts at least 0.8 s after it. Stop mid-play ends the notes, and after `resetProgress` the toggle is hidden.
-- [ ] XR: tests/e2e/xr-controls.sh pinches `set-play-all`, with a new `playAll` entry in xr-probe.e2e.mjs's `PROBE_FIELDS` (ticket 01's table). Drained melody cues must be > 0, like the stars step (:40-48).
-- [ ] Check: daily-signs and return-visit join `test:e2e` (package.json:18). Typecheck, `npm test`, `test:e2e`, `test:e2e:hands` and `test:e2e:dailies` pass.
+- [x] E2E: extend tests/e2e/melody-book.e2e.mjs. Solve w1-01 and w1-02, open the settings face, and `clickCanvas` on `set-play-all`: the melody cues equal the two entries' note counts summed. In ticket 10's `cueTrace()`, each tune ends on its cadence (C5 E5 G5), and the second tune starts at least 0.8 s after it. Stop mid-play ends the notes, and after `resetProgress` the toggle is hidden.
+- [x] XR: tests/e2e/xr-controls.sh pinches `set-play-all`, with a new `playAll` entry in xr-probe.e2e.mjs's `PROBE_FIELDS` (ticket 01's table). Drained melody cues must be > 0, like the stars step (:40-48).
+- [x] Check: daily-signs and return-visit join `test:e2e` (package.json:18). Typecheck, `npm test`, `test:e2e`, `test:e2e:hands` and `test:e2e:dailies` pass.
 
 **Effort:** L (~2.5 days)
 
@@ -82,3 +82,27 @@
 - **The sun's button:** Restart disposes every ledge button, so the pulse must find the sun through its query on every build. It scales only the icon, leaving the cap to the hover and press feedback (gap 13).
 
 ## Comments
+
+- **Oct 27, agent: landed locally on main as `6385686 feat: dailies with their own names and reached mechanics, a pulsing sun, return-visit hints and the melody book's play-all (ticket 14)`, plus the docs commit carrying these Comments; nothing pushed.** Blockers 10, 12 and 13 are done; ticket 07 had already landed the `noTable` input and line, so this ticket only placed it in the new order.
+  - **The hint order** (src/lib/hud.ts:115 `hintFor`): refusal, missed drop (`missedHint` :98), onboarding, level hint, no table, ending, then `signpostHint` (:104: first-solve stars, then daily ready, both never inside a daily), then the daily's way back. New `HudInput` fields `lastDropMissed`, `hasThread` (presets count), `skipOffered`, `firstSolve`, `dailyReady` (:31-39). Copy: the limit refusal "No threads left - pinch one to snip it" (:73, 38 characters; the ticket's 39 counted one too many), "Press the sun to return" (:78), "Missed - pinch a thread to snip it, or restart" (:84, 46), "Stuck? Skip is on the settings face" (:87, 35), "Pinch the stars to hear it again" (:90), the ending "All 24 solved - press the sun for a daily" (41) and "Today's daily is ready - streak N" / "Today's daily is ready" (35 at streak 999). The skip pointer shows in the missed slot under the same conditions as the missed line (idle after an unsolved drop, a thread on the diorama), once the skip is offered.
+  - **State** (src/features/puzzle/puzzleStore.ts:65-74): `lastDropMissed` (set where an unsolved drop ends, MarbleSystem.ts:273; cleared by a drop :149, a build PuzzleSystem.ts:189, a player thread or snip ThreadSystem.ts:386, :397, and a slide SliderSystem.ts:162), `firstSolve` (set in the update that records a campaign solve whose best was 0, PuzzleSystem.ts:216, :227; cleared by a build or drop; `relocate` carries it with `status`, :246), `returnVisit` (set in `init` from `hasCampaignSolve`, src/lib/resume.ts:34, PuzzleSystem.ts:54; cleared by a drop, by opening the daily :146, and by `resetProgress` :90; never saved) and `bookPlaying` (for the Stop label). The drop's update also carries `refusal: null` (MarbleSystem.ts:148), the live bug fix. HudSystem builds its input in new src/features/hud/hudInput.ts (moved out of `render`) and `changed()` now watches `lastDropMissed`, `firstSolve`, `returnVisit`, `drops` and `missedDrops` (HudSystem.ts:168-172).
+  - **The daily:** `dailyVariant(level, name)` (src/lib/dailyVariant.ts:12); `DAILY_BASES` is `{ base, name }` pairs with the draft names (src/levels/index.ts), ids still `daily-<base>`. New src/lib/dailyPool.ts: `levelMechanics` (:32; Slide is `snip` + `rail`, since it carries a preset), `reachedMechanics` (:40), `dailyPick` (:53, falling back to the plain rotation if nothing were eligible). `openDaily` uses it when no index is given (PuzzleSystem.ts:145). w4-03 is "Thrift" in src/levels/world4/03-thrift.json (id unchanged); the old title is gone from code and tests (tests/e2e/levels-robust.e2e.mjs:6's comment reworded).
+  - **The sun:** src/lib/signposts.ts (`sunPulses` :16, `sunPulseScale` :26, 1.6 s period, 1 to 1.15). New src/features/controls/SunPulseSystem.ts, registered right after ControlsSystem (src/index.ts): it works the pulse out on store changes (only when `progress` or `daily` changed) and in `update()` scales `userData.icon` of the daily `ControlButton` found through its query, allocation-free; buildDiorama now tags each button's icon mesh (`group.userData.icon`), so the shared walnut material is untouched. The hook's `button()` returns `pulsing` and `iconScale`.
+  - **Melody book play-all:** src/lib/melodyBook.ts (`BOOK_REST_SECONDS` 0.8, `hasTune`, `bookTunes`, `bookPlaylist` :34, built only from `replaySchedule`). Bus commands `playBook` / `stopBook` (puzzleStore.ts:94-96); MarbleSystem plays the playlist through the stars' replay path (`playBook` :392, `stopBook` :402, end detected in `update` :229); a drop or a build stops it, a stars replay replaces it, and it never starts during a drop. `set-play-all` is bound with `onTap` and rendered by `SettingsFace.renderPlayAll` (hidden while the book is empty, never emptied; no layout or id change).
+  - **One wording differs from the ticket: the control reads "Play all (N)", not "Play all melodies (N)".** Ticket 12 measured that the longer label doesn't fit row 2 and sized the face for its "Play all (24)" placeholder, and this ticket changes no layout. melody-book.e2e checks "Play all (2)" lays out 2.25 cm tall, like Slow-mo (one line). `playAllLabel` (src/lib/hud.ts:165). User: rename if you prefer other words that fit 13 characters.
+  - **Hook additions** (src/features/debug/testHook.ts): `button().pulsing/iconScale`, `plaque().playAllLabel/playAllShown`, `ledge().hintSize`. xr-probe's new `playAll` field is `{ world, label, shown, replaying }`.
+- **Red first** (logs `.scratch/week8/logs/ticket14-*.log`, gitignored):
+  - Unit, before any src change (`ticket14-unit-red.log`): 27 failed in 7 files of 753 tests (dailyPool, signposts and melodyBook couldn't import; 20 hud cases, 2 dailyVariant, 2 levels, 3 resume).
+  - E2E against the old src (`ticket14-e2e-red.log`): wrong-first-thread 5 PASS 1 FAIL (the ledge read "No threads left - snip one first"), missed-drop 8/4 FAIL ("Now pinch the chute to drop the marbles" after the miss; the refusal held through the drop), skip 8/2 FAIL, daily-signs 1/7 FAIL (the fresh-save sun opened daily-w3-04 "Crossfade"), return-visit 2/3 FAIL, melody-book 11/7 FAIL, daily 11/1 FAIL, spool 10/1 FAIL. The XR play-all step was not run against the old src.
+- **Evidence on the final tree** (Oct 27; dev server restarted with `dev up --headless --allow-browser-automation`, `browserCommandReady: true`, no Vite overlay in any frame before the runs):
+  - `npm run typecheck` exit 0. `npm test`: 54 files, 780 tests passed (`ticket14-unit.log`); coverage of src/lib 98.04 % statements, 96.57 % branches, and the new dailyPool, signposts and melodyBook are at 100 % lines.
+  - The new and changed scripts alone: wrong-first-thread 6/6, missed-drop 12/12 (the missed line lays out 20.3 x 2.64 cm: two ledge lines, as ticket 12 measured for the 47-character onboarding line), skip 10/10, daily-signs 8/8 (the sun opened daily-w1-02 "Hairpin Turn"; the icon swelled 1.004 to 1.121), return-visit 5/5 (and 3 more runs alone, 15/15), melody-book 18/18 (12 melody cues = 6 + 6, both tunes closing on C5 E5 G5, the second tune's first note 1.016 s after the first's cadence; Stop after 1 note, none for 1.5 s after), daily 12/12, spool 11/11.
+  - `npm run test:e2e`: all 38 scripts, 320 PASS, 0 FAIL, exit 0 (`ticket14-e2e.log`). The first full run (`ticket14-e2e-1-stopped.log`) stopped after 179 PASS, 0 FAIL on an ERROR in return-visit's cleanup: the hook was undefined, so the page was mid-reload and the cleanup's error hid the original one (most likely the known `waitFor` navigation flake, .scratch/week9/spec.md item 13). return-visit now polls across its own reloads with any failed poll counted as "not yet", and its cleanup waits for the game; the shared `waitFor` is left to week 9.
+  - `npm run test:e2e:hands`: all 9 scripts, 65 PASS, 0 FAIL, exit 0 (`ticket14-hands.log`), including `pinching the settings face's play-all plays the melody book (5 notes, label "Play all (1)")`. iwsdk.config.json had no diff after gaze-pinch.
+  - `test:e2e:levels` 24/24 (busiest w2-06, 57 calls; none self-solved; w4-03 reported as "w4-03 Thrift"), `test:e2e:levels:slow` 24/24 (busiest w2-06, 58 calls), `test:e2e:dailies` 21/21, all exit 0.
+  - `RUNS=3 npm run test:e2e:levels:robust`: 558 of 558 drops solved, all 24 levels and 7 dailies 3/3 in all six conditions (normal and slow, at the study pose and on the table at 0 and 90 degrees), "every level solved 3/3 in every condition", exit 0 (`ticket14-robust.log`, 186 leases in 65 minutes).
+  - `NODE_ENV=production npm run build` exit 0; `npm run test:smoke` 19 PASS, 0 FAIL, 5 NOTE, exit 0 (`ticket14-build-smoke.log`).
+- **For the main session and the user:**
+  - docs/submission.md:116-121's "[if shipped] Best Reason to Come Back" author note waits on tickets 13 and 14; both have now landed locally, so week 9's copy pass can decide whether to name that award.
+  - On level 1, after a missed drop with a thread, the ledge now says "Missed - ..." while the ghost hand still points at the chute (onboarding step `drop`). The ticket covers the ledge line only; the ghost hand is unchanged.
+  - The return-visit line also shows after a reload in other scripts that leave a campaign solve in the save (plaque, resume-insert, skip-resume and finished-campaign logs read "Today's daily is ready"), which is the intended behaviour; no check depends on it.
