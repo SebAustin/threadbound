@@ -122,6 +122,7 @@ export const SKIP_LABEL = 'Skip level';
 
 export interface SettingsModel {
   readonly slowLabel: string;
+  readonly contrastLabel: string;
   readonly offsetLabel: string;
 }
 
@@ -131,6 +132,7 @@ const signed = (n: number) => (n > 0 ? `+${n}` : String(n));
 export function settingsModel(settings: Settings): SettingsModel {
   return {
     slowLabel: `Slow-mo: ${settings.slowMotion ? 'On' : 'Off'}`,
+    contrastLabel: `High contrast: ${settings.highContrast ? 'On' : 'Off'}`,
     offsetLabel: `Height ${signed(settings.offset.up)}   Distance ${signed(settings.offset.near)}`,
   };
 }

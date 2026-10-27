@@ -9,6 +9,7 @@ import { World } from '@iwsdk/core';
 import projectOptions from 'virtual:iwsdk-project';
 import { AmbienceSystem } from './features/audio/AmbienceSystem.js';
 import { AudioUnlockSystem } from './features/audio/AudioUnlockSystem.js';
+import { CaptionSystem } from './features/captions/CaptionSystem.js';
 import { ControlsSystem } from './features/controls/ControlsSystem.js';
 import { TouchFeedbackSystem } from './features/input/TouchFeedbackSystem.js';
 import { EnvironmentSystem } from './features/environment/EnvironmentSystem.js';
@@ -16,6 +17,7 @@ import { MarbleSystem } from './features/marbles/MarbleSystem.js';
 import { PlacementSystem } from './features/placement/PlacementSystem.js';
 import { RevealSystem } from './features/placement/RevealSystem.js';
 import { PuzzleSystem } from './features/puzzle/PuzzleSystem.js';
+import { ContrastSystem } from './features/settings/ContrastSystem.js';
 import { SettingsSystem } from './features/settings/SettingsSystem.js';
 import { SimulationClockSystem } from './features/simulation/SimulationClockSystem.js';
 import { SliderSystem } from './features/sliders/SliderSystem.js';
@@ -34,6 +36,8 @@ World.create(
   world.registerSystem(EnvironmentSystem);
   // Settings first: the first level's marbles read them.
   world.registerSystem(SettingsSystem);
+  // Right after the settings load: paints the diorama's shared materials for high contrast.
+  world.registerSystem(ContrastSystem);
   world.registerSystem(SimulationClockSystem);
   world.registerSystem(PuzzleSystem);
   world.registerSystem(ThreadSystem);
@@ -48,6 +52,8 @@ World.create(
   world.registerSystem(RevealSystem);
   world.registerSystem(PanelSystem);
   world.registerSystem(HudSystem);
+  // After the plaque: always-on visual captions (a wrong cup blinks, a replayed note pulses a star).
+  world.registerSystem(CaptionSystem);
   world.registerSystem(OnboardingSystem);
   world.registerSystem(AudioUnlockSystem);
   world.registerSystem(AmbienceSystem);

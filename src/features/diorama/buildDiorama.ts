@@ -45,6 +45,8 @@ export interface BuiltDiorama {
   readonly entities: readonly Entity[];
   readonly goals: readonly GoalRange[];
   readonly goalMeshes: readonly Mesh[];
+  /** Each cup's left and right wall, in `goals` order: a cup that rejects a marble blinks them (CaptionSystem). */
+  readonly cupWalls: readonly (readonly [Mesh, Mesh])[];
   /** Shown only once the puzzle is solved. */
   readonly nextButton: Entity;
   /** Grounds the case on a table; hidden while the diorama floats. */
@@ -112,7 +114,8 @@ function buildCase(world: World, frame: DioramaFrame, level: Level): Entity[] {
   const outerW = w + wall * 2;
   return [
     staticBox(world, frame, [outerW, slab, depth + slab * 2], [w / 2, -slab / 2, 0], MATERIALS.cream),
-    staticBox(world, frame, [outerW, h + slab, slab], [w / 2, h / 2, -(chd + slab / 2)], MATERIALS.walnut),
+    // The back panel has its own material: high contrast darkens it, not the ledge or the frame.
+    staticBox(world, frame, [outerW, h + slab, slab], [w / 2, h / 2, -(chd + slab / 2)], MATERIALS.backPanel),
     // Invisible front glass keeps marbles in the channel; hands reach through it freely.
     staticBox(world, frame, [outerW, h + slab, slab], [w / 2, h / 2, chd + slab / 2], null),
     staticBox(world, frame, [wall, h, depth], [-wall / 2, h / 2, 0], MATERIALS.walnutFrame),
@@ -154,13 +157,13 @@ function buildGoal(
   world: World,
   frame: DioramaFrame,
   goal: Level['goals'][number],
-): { entities: Entity[]; range: GoalRange; mesh: Mesh } {
+): { entities: Entity[]; range: GoalRange; mesh: Mesh; walls: readonly [Mesh, Mesh] } {
   const depth = DIORAMA.channelHalfDepth * 2;
   const wall = DIORAMA.wallThickness * 0.6;
   const half = goal.width / 2;
   const wallY = GOAL.wallHeight / 2;
-  const left = staticBox(world, frame, [wall, GOAL.wallHeight, depth], [goal.x - half - wall / 2, wallY, 0], MATERIALS.walnut);
-  const right = staticBox(world, frame, [wall, GOAL.wallHeight, depth], [goal.x + half + wall / 2, wallY, 0], MATERIALS.walnut);
+  const left = staticBox(world, frame, [wall, GOAL.wallHeight, depth], [goal.x - half - wall / 2, wallY, 0], MATERIALS.wall);
+  const right = staticBox(world, frame, [wall, GOAL.wallHeight, depth], [goal.x + half + wall / 2, wallY, 0], MATERIALS.wall);
 
   // Glowing floor inset: purely visual, the base slab is the collider.
   const floor = new Mesh(new BoxGeometry(goal.width, GOAL.insetThickness, depth), goalMaterial(goal.color, false));
@@ -175,6 +178,7 @@ function buildGoal(
     entities: [left, right, floorEntity, ...markerEntities],
     range: { minX: goal.x - half, maxX: goal.x + half, color: goal.color },
     mesh: floor,
+    walls: [left.object3D as Mesh, right.object3D as Mesh],
   };
 }
 
@@ -206,7 +210,7 @@ function buildChute(world: World, frame: DioramaFrame, chute: ChuteSpec, index: 
 function buildWalls(world: World, frame: DioramaFrame, level: Level): Entity[] {
   const depth = DIORAMA.channelHalfDepth * 2;
   return level.walls.map((wall) =>
-    staticBox(world, frame, [wall.w, wall.h, depth], [wall.x + wall.w / 2, wall.y + wall.h / 2, 0], MATERIALS.walnut),
+    staticBox(world, frame, [wall.w, wall.h, depth], [wall.x + wall.w / 2, wall.y + wall.h / 2, 0], MATERIALS.wall),
   );
 }
 
@@ -383,6 +387,7 @@ export function buildDiorama(world: World, frame: DioramaFrame, level: Level): B
     ],
     goals: goals.map((g) => g.range),
     goalMeshes: goals.map((g) => g.mesh),
+    cupWalls: goals.map((g) => g.walls),
     nextButton,
     contactShadow,
   };

@@ -1,4 +1,4 @@
-import { Box3, Object3D, PokeInteractable, Quaternion, Vector3, type UIKitMLAsset, type World } from '@iwsdk/core';
+import { Box3, Object3D, PokeInteractable, Quaternion, Vector3, type Material, type Mesh, type MeshStandardMaterial, type UIKitMLAsset, type World } from '@iwsdk/core';
 import { AIM_PLANE_Z, CHUTE, PERF_BUDGET } from '../../config/constants';
 import { LEVELS } from '../../levels';
 import { budgetBreaches, type FrameStats } from '../../lib/perfBudget';
@@ -13,6 +13,9 @@ import { PlacementSystem } from '../placement/PlacementSystem';
 import { RevealSystem } from '../placement/RevealSystem';
 import { Thread } from '../puzzle/components';
 import { TouchFeedbackSystem, type TouchMirror } from '../input/TouchFeedbackSystem';
+import type { CupCaption } from '../captions/CaptionSystem';
+import { MATERIALS } from '../diorama/palette';
+import { ContrastSystem } from '../settings/ContrastSystem';
 import { PerfProbeSystem } from './PerfProbeSystem';
 
 interface ScreenPoint {
@@ -29,8 +32,8 @@ interface WorldPoint {
 /** Where something is on screen (for real clicks) and in the world (for aiming emulated hands). */
 type Located = ScreenPoint & { world: WorldPoint };
 
-/** A UIKit element: where it is, plus its rendered width and height in meters. */
-type Sized = Located & { width: number; height: number };
+/** A UIKit element: where it is, its rendered width and height in meters, and its background right now ('#rrggbb', hover and press included). */
+type Sized = Located & { width: number; height: number; background: string | null };
 
 /** The ledge strip as drawn (src/features/hud/ledgeStrip.ts). */
 interface LedgeProbe {
@@ -91,9 +94,19 @@ export interface ThreadboundTestHook {
   hud(): { model: unknown; local: WorldPoint } | null;
   /**
    * Which plaque face is showing, the reset control's label, the settings face's star total
-   * ("Stars N/72") and whether it offers the skip (both as rendered).
+   * ("Stars N/72"), whether it offers the skip, and the high-contrast toggle's label (all as rendered).
    */
-  plaque(): { face: string; resetLabel: string; starsLabel: string; skipOffered: boolean } | null;
+  plaque(): { face: string; resetLabel: string; starsLabel: string; skipOffered: boolean; contrastLabel: string } | null;
+  /**
+   * The look high contrast applied: the mode the diorama is painted in, the back panel's, the
+   * walls' and the plaque header's colours ('#rrggbb'), and whether glyph backings are drawn.
+   */
+  appearance(): { highContrast: boolean; backPanel: string; wall: string; header: string; glyphBackings: boolean };
+  /**
+   * Visual captions: star pulses since the page loaded (one per replayed saved note), and for each
+   * cup, in `goals` order, its walls' colour right now, the blinks it has started and whether it is blinking.
+   */
+  captions(): { starPulses: number; cups: Array<{ color: string; flashes: number; flashing: boolean }> };
   plaqueElement(id: string): Sized | null;
   /** The ledge strip: its pose on the ledge, its size, what it shows and whether it is drawn. */
   ledge(): LedgeProbe | null;
@@ -306,10 +319,18 @@ function elementSize(panel: UIKitMLAsset, element: unknown): { width: number; he
   return { width: size[0] * scale, height: size[1] * scale };
 }
 
-/** Where a plaque element is, and how big it is drawn. */
+/** A UIKit element's effective background colour (its layers, hover and press included), or null. */
+function elementBackground(element: unknown): string | null {
+  const value = (element as { properties?: { peek(): { backgroundColor?: unknown } } } | undefined)?.properties?.peek().backgroundColor;
+  return typeof value === 'string' ? value.toLowerCase() : null;
+}
+
+/** Where a plaque element is, how big it is drawn, and its background. */
 function sizedElement(probe: Probe, panel: UIKitMLAsset | undefined, id: string): Sized | null {
   const located = locateElement(probe, panel, id);
-  return panel && located ? { ...located, ...elementSize(panel, panel.getElementById(id)) } : null;
+  if (!panel || !located) return null;
+  const element = panel.getElementById(id);
+  return { ...located, ...elementSize(panel, element), background: elementBackground(element) };
 }
 
 function ledgeProbe(world: World): LedgeProbe | null {
@@ -348,6 +369,7 @@ function plaqueProbes(world: World, probe: Probe): Hook<'hud' | 'plaque' | 'plaq
         resetLabel: String(panel.userData.resetLabel ?? 'Reset progress'),
         starsLabel: String(panel.userData.starsLabel ?? ''),
         skipOffered: panel.userData.skipOffered === true,
+        contrastLabel: String(panel.userData.contrastLabel ?? ''),
       };
     },
     plaqueElement: (id) => sizedElement(probe, plaque(), id),
@@ -392,6 +414,29 @@ function celebrationProbe(world: World): Hook<'celebration'> {
   };
 }
 
+const hexOf = (material: Material | Material[]) =>
+  Array.isArray(material) ? '' : `#${(material as MeshStandardMaterial).color?.getHexString() ?? ''}`;
+
+function accessibilityProbes(world: World): Hook<'appearance' | 'captions'> {
+  const plaque = () => world.getSceneObject<UIKitMLAsset>('hud-plaque');
+  return {
+    appearance: () => ({
+      highContrast: world.getSystem(ContrastSystem)?.highContrast ?? false,
+      backPanel: hexOf(MATERIALS.backPanel),
+      wall: hexOf(MATERIALS.wall),
+      header: String(plaque()?.userData.headerColor ?? ''),
+      glyphBackings: MATERIALS.glyphBacking.visible,
+    }),
+    captions: () => ({
+      starPulses: Number(plaque()?.userData.starPulses ?? 0),
+      cups: (puzzleStore.diorama?.cupWalls ?? []).map(([left]) => {
+        const caption = left.userData.caption as CupCaption | undefined;
+        return { color: hexOf(left.material), flashes: caption?.flashes ?? 0, flashing: caption?.flashing ?? false };
+      }),
+    }),
+  };
+}
+
 function placementProbes(world: World): Hook<'placement' | 'recenter'> {
   return {
     placement: () => {
@@ -429,8 +474,11 @@ function sessionProbes(world: World): Hook<'gazeAvailable' | 'room' | 'frameStat
     meshBreakdown: () => {
       const counts: Record<string, number> = {};
       world.scene.traverse((o) => {
-        // A mesh on a layer the camera doesn't draw (a hit area) costs no draw call.
+        // A mesh on a layer the camera doesn't draw (a hit area), or with a hidden material (a glyph
+        // backing outside high contrast), costs no draw call.
         if (!(o as { isMesh?: boolean }).isMesh || !visibleInScene(o) || !o.layers.test(world.camera.layers)) return;
+        const material = (o as Mesh).material;
+        if (!Array.isArray(material) && material && !material.visible) return;
         const owner = ownerOf(o);
         counts[owner] = (counts[owner] ?? 0) + 1;
       });
@@ -483,5 +531,6 @@ export function installTestHook(world: World): void {
     ...sessionProbes(world),
     ...placementProbes(world),
     ...celebrationProbe(world),
+    ...accessibilityProbes(world),
   };
 }

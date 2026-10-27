@@ -91,6 +91,10 @@ export const GLYPH = {
   radius: 0.011,
   /** Gap in front of the chute / ledge face so the glyph never z-fights. */
   standoff: 0.002,
+  /** The dark disc behind a glyph in high contrast: a ring of it shows around the glyph. */
+  backingRadius: 0.015,
+  /** The backing sits this far behind its glyph, still in front of the chute or ledge face. */
+  backingGap: 0.001,
 } as const;
 
 /** Front ledge with pokeable Restart / Next buttons (no floating menus). */
@@ -114,10 +118,6 @@ export const HUD = {
   lift: 0.015,
   /** Flush with the back panel, behind the marble channel. */
   depth: -0.012,
-  playingColor: '#3d2f2a',
-  solvedColor: '#b8862f',
-  starOn: '#f2c14e',
-  starOff: '#3d2f2a',
   /**
    * The plaque's faces stay within these (public/ui/hud.uikitml; settings.e2e
    * measures them), so the field-of-view test can rely on them. 44 cm is inside

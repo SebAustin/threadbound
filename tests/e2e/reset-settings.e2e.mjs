@@ -1,7 +1,7 @@
 // Helper: put settings back to defaults after an XR test or a video take changed them.
 
 /** DEFAULT_SETTINGS in src/lib/settings.ts (a Playwright script can't import the app's TypeScript). */
-export const DEFAULT_SETTINGS = { slowMotion: false, offset: { up: 0, near: 0 } };
+export const DEFAULT_SETTINGS = { slowMotion: false, highContrast: false, offset: { up: 0, near: 0 } };
 
 /** True when the app's settings match DEFAULT_SETTINGS on every key the defaults name. */
 export function settingsAtDefaults(app) {

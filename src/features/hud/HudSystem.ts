@@ -1,5 +1,6 @@
 import { createSystem, type UIKit, type UIKitMLAsset } from '@iwsdk/core';
 import { HUD } from '../../config/constants';
+import { plaqueColors, type PlaqueColors } from '../../lib/colors';
 import { hudModel, starsShown, type HudModel } from '../../lib/hud';
 import { onboardingHint } from '../../lib/onboarding';
 import { onboardingStepOf } from '../onboarding/onboardingState';
@@ -12,10 +13,9 @@ import { puzzleStore, type PuzzleState } from '../puzzle/puzzleStore';
 import { skipOfferedOf } from '../puzzle/skipOffer';
 import type { PlaqueFace } from '../../lib/viewExtent';
 import { LedgeStrip } from './ledgeStrip';
+import { paintPlaque, STAR_IDS } from './paintPlaque';
 import { SettingsFace } from './settingsFace';
 import { onTap } from '../input/onTap';
-
-const STAR_IDS = ['hud-star-1', 'hud-star-2', 'hud-star-3'] as const;
 
 /** The best stars the plaque stands for: today's daily stars, or the level's best. */
 function bestStarsOf(state: PuzzleState, levelId: string): number {
@@ -43,6 +43,8 @@ export class HudSystem extends createSystem({}) {
   private sinceSolve: number | null = null;
   /** Stars currently lit on the plaque. */
   private starsLit = -1;
+  /** The colours the plaque, the settings face and the strip were last painted with (null: not yet). */
+  private colors: PlaqueColors | null = null;
 
   init(): void {
     this.panel = this.world.getSceneObject<UIKitMLAsset>('hud-plaque');
@@ -106,11 +108,23 @@ export class HudSystem extends createSystem({}) {
   private lightStars(count: number): void {
     const panel = this.panel;
     if (!panel) return;
+    const { starOn, starOff } = this.colors ?? plaqueColors(false);
     this.starsLit = count;
     panel.userData.starsShown = count;
     STAR_IDS.forEach((id, i) => {
-      panel.getElementById(id)?.setProperties({ backgroundColor: i < count ? HUD.starOn : HUD.starOff });
+      panel.getElementById(id)?.setProperties({ backgroundColor: i < count ? starOn : starOff });
     });
+  }
+
+  /** High contrast switched (or the first render): repaint every panel colour that doesn't follow the puzzle. */
+  private paint(highContrast: boolean): void {
+    const colors = plaqueColors(highContrast);
+    if (!this.panel || colors === this.colors) return;
+    this.colors = colors;
+    paintPlaque(this.panel, colors);
+    this.settingsFace?.paint(colors);
+    this.ledge?.paint(colors);
+    if (this.starsLit >= 0) this.lightStars(this.starsLit);
   }
 
   private showFace(face: PlaqueFace): void {
@@ -133,6 +147,7 @@ export class HudSystem extends createSystem({}) {
   }
 
   private render(state: PuzzleState): void {
+    this.paint(state.settings.highContrast);
     this.settingsFace?.render(state.settings);
     this.settingsFace?.renderLevel(state.levelIndex);
     this.settingsFace?.renderStars(state.progress);
@@ -178,6 +193,7 @@ export class HudSystem extends createSystem({}) {
       last.daily !== state.daily ||
       last.refusal !== state.refusal ||
       last.surface !== state.surface ||
+      last.settings.highContrast !== state.settings.highContrast ||
       // Sliding a rail peg changes thread lengths, which only the ledge's spool readout shows.
       (state.level?.spool !== undefined && last.pegPositions !== state.pegPositions)
     );
@@ -191,9 +207,10 @@ export class HudSystem extends createSystem({}) {
     text('hud-title', hud.title);
     text('hud-world', hud.worldLabel);
     this.ledge?.render(hud);
-    panel
-      .getElementById('hud-header')
-      ?.setProperties({ backgroundColor: hud.status === 'solved' ? HUD.solvedColor : HUD.playingColor });
+    const colors = this.colors ?? plaqueColors(false);
+    const header = hud.status === 'solved' ? colors.headerSolved : colors.headerPlaying;
+    panel.userData.headerColor = header;
+    panel.getElementById('hud-header')?.setProperties({ backgroundColor: header });
     // While a fresh solve's stars are lighting one by one, update() owns them.
     if (this.sinceSolve !== null) return;
     this.bestStars = hud.stars.filter(Boolean).length;

@@ -138,6 +138,10 @@ const PROBE_FIELDS = [
   ['face', () => window.__threadbound.plaque()?.face],
   ['slowToggle', () => window.__threadbound.plaqueElement('set-slow')?.world],
   ['slowMotion', () => window.__threadbound.state().settings.slowMotion],
+  // The settings face's high-contrast toggle, the setting, and the look it applied (appearance()).
+  ['contrastToggle', () => window.__threadbound.plaqueElement('set-contrast')?.world],
+  ['highContrast', () => window.__threadbound.state().settings.highContrast],
+  ['appearance', () => window.__threadbound.appearance?.() ?? null],
   ['raiseToggle', () => window.__threadbound.plaqueElement('set-up')?.world],
   ['nearToggle', () => window.__threadbound.plaqueElement('set-near')?.world],
   // The settings face's Skip (laid out even while hidden), whether it is offered, and the saved skips.

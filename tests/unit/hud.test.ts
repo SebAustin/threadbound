@@ -65,13 +65,18 @@ describe('hudModel: what the diorama plaque says', () => {
 
 describe('settingsModel: the plaque settings face', () => {
   test('labels each toggle with its current state (ASCII)', () => {
-    expect(settingsModel({ slowMotion: false, offset: { up: 0, near: 0 } }).slowLabel).toBe('Slow-mo: Off');
-    expect(settingsModel({ slowMotion: true, offset: { up: 0, near: 0 } }).slowLabel).toBe('Slow-mo: On');
+    expect(settingsModel({ slowMotion: false, highContrast: false, offset: { up: 0, near: 0 } }).slowLabel).toBe('Slow-mo: Off');
+    expect(settingsModel({ slowMotion: true, highContrast: false, offset: { up: 0, near: 0 } }).slowLabel).toBe('Slow-mo: On');
+  });
+
+  test('labels the high-contrast toggle Off or On (ticket 15)', () => {
+    expect(settingsModel({ slowMotion: false, highContrast: false, offset: { up: 0, near: 0 } }).contrastLabel).toBe('High contrast: Off');
+    expect(settingsModel({ slowMotion: false, highContrast: true, offset: { up: 0, near: 0 } }).contrastLabel).toBe('High contrast: On');
   });
 
   test('shows where the diorama has been moved, in signed steps', () => {
-    expect(settingsModel({ slowMotion: false, offset: { up: 2, near: -1 } }).offsetLabel).toBe('Height +2   Distance -1');
-    expect(settingsModel({ slowMotion: false, offset: { up: 0, near: 0 } }).offsetLabel).toBe('Height 0   Distance 0');
+    expect(settingsModel({ slowMotion: false, highContrast: false, offset: { up: 2, near: -1 } }).offsetLabel).toBe('Height +2   Distance -1');
+    expect(settingsModel({ slowMotion: false, highContrast: false, offset: { up: 0, near: 0 } }).offsetLabel).toBe('Height 0   Distance 0');
   });
 
   test('the star total reads earned out of possible (ASCII)', () => {

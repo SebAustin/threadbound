@@ -6,6 +6,7 @@ import {
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
+  type MeshStandardMaterialParameters,
   PlaneGeometry,
   SphereGeometry,
   SRGBColorSpace,
@@ -14,6 +15,7 @@ import {
   type Texture,
 } from '@iwsdk/core';
 import { DIORAMA, GLYPH, MARBLE, PEG } from '../../config/constants';
+import { dioramaPalette, type Paint, type PaintName } from '../../lib/colors';
 import { colorGlyph, type MarbleColor, type SortingColor } from '../../lib/marbleColors';
 import { mergeParts } from '../geometry/mergeParts';
 
@@ -22,36 +24,11 @@ import { mergeParts } from '../geometry/mergeParts';
  * shadow), so it must never be imported by the asset manifest or anything the
  * editor realm evaluates (see src/assets.ts rules).
  *
- * Art direction: a warm walnut-and-brass music box. Threads are coral "strings",
- * marbles are sea-glass teal so they read against both wood and passthrough.
- * Shared materials/geometries — entities using them must dispose with
- * { disposeResources: false }.
+ * The shared materials every diorama draws with, painted from lib/colors (the
+ * palette as data) and repainted in place by `applyPalette` when high contrast
+ * switches: no rebuild, no recompiled shader. Entities using them must dispose
+ * with { disposeResources: false }.
  */
-export const COLORS = {
-  walnut: 0x5b3a29,
-  /** The frame is a shade darker than the back panel it holds, so the case reads as layered. */
-  walnutFrame: 0x4a2e20,
-  cream: 0xefe3cf,
-  /** Lit forms of touchable parts (TouchFeedbackSystem): the same hue, brighter and glowing. */
-  creamHot: 0xfff4dc,
-  brass: 0xc9a14a,
-  brassHot: 0xffd479,
-  /** The peg a pull would attach to: brighter than a hovered peg. */
-  brassTarget: 0xfff0b8,
-  thread: 0xff6b5a,
-  threadHot: 0xff9a86,
-  threadPreview: 0xffb3a8,
-  /** Authored "snip me" threads read differently from the player's coral strings. */
-  threadPreset: 0x9b7fd1,
-  threadPresetHot: 0xc4aaf5,
-  marble: 0x3fb7c6,
-  /** World 2 sorting colors: amber vs azure stay distinct under common color-vision deficiencies. */
-  amber: 0xff6f1a,
-  azure: 0x3f7fd6,
-  goal: 0x8fd694,
-  goalHot: 0xb8f2bc,
-  goalDone: 0xfff1a8,
-} as const;
 
 const GRAIN = {
   size: 256,
@@ -144,40 +121,51 @@ function shadowTexture(): Texture | null {
   return new CanvasTexture(canvas);
 }
 
+/** Which palette entry paints each shared material (applyPalette walks it). */
+const PAINTED = new Map<MeshStandardMaterial, PaintName>();
+const DEFAULT_PALETTE = dioramaPalette(false);
+const BLACK = '#000000';
+
+/** Colour, glow (emissive in its own colour) and visibility from `paint`; nothing else. */
+function applyPaint(material: MeshStandardMaterial, paint: Paint): void {
+  material.color.set(paint.color);
+  material.emissive.set(paint.glow > 0 ? paint.color : BLACK);
+  material.emissiveIntensity = paint.glow;
+  material.visible = paint.visible;
+}
+
+/** A shared material painted by palette entry `name`; `params` hold everything a repaint keeps. */
+function painted(name: PaintName, params: MeshStandardMaterialParameters = {}): MeshStandardMaterial {
+  const material = new MeshStandardMaterial(params);
+  applyPaint(material, DEFAULT_PALETTE[name]);
+  PAINTED.set(material, name);
+  return material;
+}
+
 /** A lit form of a touchable part: its colour glowing, so it reads under any light. */
-const hotMaterial = (color: number, emissiveIntensity: number) =>
-  new MeshStandardMaterial({ color, emissive: color, emissiveIntensity, metalness: 0.4, roughness: 0.3 });
+const hot = (name: PaintName) => painted(name, { metalness: 0.4, roughness: 0.3 });
+const walnutGrain = (name: PaintName, roughness: number) => painted(name, { map: WOOD_GRAIN, roughness });
 
 export const MATERIALS = {
-  walnut: new MeshStandardMaterial({ color: COLORS.walnut, map: WOOD_GRAIN, roughness: 0.62 }),
-  walnutFrame: new MeshStandardMaterial({ color: COLORS.walnutFrame, map: WOOD_GRAIN, roughness: 0.55 }),
-  cream: new MeshStandardMaterial({ color: COLORS.cream, roughness: 0.9 }),
-  creamHot: hotMaterial(COLORS.creamHot, 0.35),
-  brass: new MeshStandardMaterial({ color: COLORS.brass, metalness: 0.85, roughness: 0.28 }),
-  brassHot: hotMaterial(COLORS.brassHot, 0.6),
-  brassTarget: hotMaterial(COLORS.brassTarget, 1),
-  thread: new MeshStandardMaterial({
-    color: COLORS.thread,
-    emissive: COLORS.thread,
-    emissiveIntensity: 0.25,
-    roughness: 0.5,
-  }),
-  threadHot: hotMaterial(COLORS.threadHot, 0.6),
-  threadPreset: new MeshStandardMaterial({
-    color: COLORS.threadPreset,
-    emissive: COLORS.threadPreset,
-    emissiveIntensity: 0.3,
-    roughness: 0.5,
-  }),
-  threadPresetHot: hotMaterial(COLORS.threadPresetHot, 0.6),
-  threadPreview: new MeshStandardMaterial({
-    color: COLORS.threadPreview,
-    transparent: true,
-    opacity: 0.6,
-  }),
-  marble: new MeshStandardMaterial({ color: COLORS.marble, metalness: 0.1, roughness: 0.15 }),
-  goal: new MeshStandardMaterial({ color: COLORS.goal, roughness: 0.8 }),
-  goalHot: hotMaterial(COLORS.goalHot, 0.4),
+  walnut: walnutGrain('walnut', 0.62),
+  walnutFrame: walnutGrain('walnutFrame', 0.55),
+  /** The back panel the pegs stand on: its own material, so high contrast darkens it alone. */
+  backPanel: walnutGrain('backPanel', 0.62),
+  /** Cup walls and inner walls: their own material, so high contrast outlines them in cream. */
+  wall: walnutGrain('wall', 0.62),
+  cream: painted('cream', { roughness: 0.9 }),
+  creamHot: hot('creamHot'),
+  brass: painted('brass', { metalness: 0.85, roughness: 0.28 }),
+  brassHot: hot('brassHot'),
+  brassTarget: hot('brassTarget'),
+  thread: painted('thread', { roughness: 0.5 }),
+  threadHot: hot('threadHot'),
+  threadPreset: painted('threadPreset', { roughness: 0.5 }),
+  threadPresetHot: hot('threadPresetHot'),
+  threadPreview: painted('threadPreview', { transparent: true, opacity: 0.6 }),
+  marble: painted('marble', { metalness: 0.1, roughness: 0.15 }),
+  goal: painted('goal', { roughness: 0.8 }),
+  goalHot: hot('goalHot'),
   /** Unlit and never writes depth, so it only darkens what is under the diorama. */
   contactShadow: new MeshBasicMaterial({
     map: shadowTexture(),
@@ -188,12 +176,23 @@ export const MATERIALS = {
     polygonOffsetFactor: -2,
     polygonOffsetUnits: -2,
   }),
-  goalDone: new MeshStandardMaterial({
-    color: COLORS.goalDone,
-    emissive: COLORS.goalDone,
-    emissiveIntensity: 0.8,
-  }),
+  goalDone: painted('goalDone'),
+  /** The dark disc behind every glyph: drawn only in high contrast (its `visible` follows the setting). */
+  glyphBacking: painted('glyphBacking', { roughness: 0.9 }),
+  /** A wrong cup's walls blink between these two (CaptionSystem), then go back to `wall`. */
+  wallBlinkBright: walnutGrain('wallBlinkBright', 0.62),
+  wallBlinkDark: walnutGrain('wallBlinkDark', 0.62),
 } as const;
+
+/**
+ * Repaints every shared diorama material for the mode, in place: colour, glow and
+ * visibility only, so switching rebuilds nothing, recompiles no shader and leaves
+ * the fade's opacity alone (ContrastSystem calls it).
+ */
+export function applyPalette(highContrast: boolean): void {
+  const palette = dioramaPalette(highContrast);
+  for (const [material, name] of PAINTED) applyPaint(material, palette[name]);
+}
 
 export const GEOMETRIES = {
   /** Unit cylinder; threads scale a child mesh so physics entities stay unscaled. */
@@ -215,23 +214,17 @@ export const GEOMETRIES = {
 
 const MARBLE_MATERIALS: Record<MarbleColor, MeshStandardMaterial> = {
   teal: MATERIALS.marble,
-  amber: new MeshStandardMaterial({ color: COLORS.amber, metalness: 0.1, roughness: 0.15 }),
-  azure: new MeshStandardMaterial({ color: COLORS.azure, metalness: 0.1, roughness: 0.15 }),
+  amber: painted('marbleAmber', { metalness: 0.1, roughness: 0.15 }),
+  azure: painted('marbleAzure', { metalness: 0.1, roughness: 0.15 }),
 };
 
-const cupMaterial = (color: number, done: boolean) =>
-  new MeshStandardMaterial({
-    color,
-    emissive: color,
-    emissiveIntensity: done ? 0.9 : 0.15,
-    roughness: 0.8,
-  });
+const cupFloor = (name: PaintName) => painted(name, { roughness: 0.8 });
 
 /** Uncolored cups accept any marble; colored cups exist only for sorting colors. */
 const GOAL_MATERIALS: Record<SortingColor | 'any', { idle: MeshStandardMaterial; done: MeshStandardMaterial }> = {
   any: { idle: MATERIALS.goal, done: MATERIALS.goalDone },
-  amber: { idle: cupMaterial(COLORS.amber, false), done: cupMaterial(COLORS.amber, true) },
-  azure: { idle: cupMaterial(COLORS.azure, false), done: cupMaterial(COLORS.azure, true) },
+  amber: { idle: cupFloor('cupAmber'), done: cupFloor('cupAmberFilled') },
+  azure: { idle: cupFloor('cupAzure'), done: cupFloor('cupAzureFilled') },
 };
 
 export function marbleMaterial(color: MarbleColor): MeshStandardMaterial {
@@ -247,11 +240,13 @@ export function goalMaterial(color: SortingColor | undefined, done: boolean): Me
 const GLYPH_GEOMETRIES = {
   triangle: new CircleGeometry(GLYPH.radius, 3),
   circle: new CircleGeometry(GLYPH.radius, 24),
+  /** The dark disc behind a glyph (high contrast). */
+  backing: new CircleGeometry(GLYPH.backingRadius, 24),
 } as const;
 
 const GLYPH_MATERIALS: Partial<Record<MarbleColor, MeshStandardMaterial>> = {
-  amber: new MeshStandardMaterial({ color: COLORS.amber, emissive: COLORS.amber, emissiveIntensity: 0.6 }),
-  azure: new MeshStandardMaterial({ color: COLORS.azure, emissive: COLORS.azure, emissiveIntensity: 0.6 }),
+  amber: painted('glyphAmber'),
+  azure: painted('glyphAzure'),
 };
 
 /**
@@ -316,7 +311,10 @@ export function hitAreaMesh(geometry: BufferGeometry): Mesh {
   return mesh;
 }
 
-/** A flat, player-facing shape for a sorting color, or null for colors without one. */
+/**
+ * A flat, player-facing shape for a sorting color, or null for colors without one. Behind it
+ * sits a dark backing disc, drawn only in high contrast (an amber glyph on a brass chute is 1.15:1).
+ */
 export function glyphMesh(color: MarbleColor): Mesh | null {
   const glyph = colorGlyph(color);
   const material = GLYPH_MATERIALS[color];
@@ -324,5 +322,9 @@ export function glyphMesh(color: MarbleColor): Mesh | null {
   const mesh = new Mesh(GLYPH_GEOMETRIES[glyph], material);
   if (glyph === 'triangle') mesh.rotation.z = Math.PI / 2; // point up
   mesh.name = `glyph-${glyph}`;
+  const backing = new Mesh(GLYPH_GEOMETRIES.backing, MATERIALS.glyphBacking);
+  backing.name = 'glyph-backing';
+  backing.position.z = -GLYPH.backingGap;
+  mesh.add(backing);
   return mesh;
 }

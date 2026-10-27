@@ -30,6 +30,8 @@ const settingsSchema = (limit: (limits: Limits) => z.ZodType<number>) =>
   z.object({
     /** Marbles fall and release more slowly; every solution stays valid. */
     slowMotion: z.boolean(),
+    /** Darker back panel, cream wall outlines, glyph backings and 7:1 plaque text (lib/colors). Older saves load it off. */
+    highContrast: z.boolean().default(false),
     /** Player adjustment of the diorama's height and distance, in whole steps. */
     offset: z
       .object({ up: limit(OFFSET_LIMITS.up), near: limit(OFFSET_LIMITS.near) })
@@ -44,7 +46,11 @@ const SavedSettingsSchema = settingsSchema(savedAxis);
 
 export type Settings = Readonly<z.infer<typeof SettingsSchema>>;
 
-export const DEFAULT_SETTINGS: Settings = Object.freeze({ slowMotion: false, offset: Object.freeze({ up: 0, near: 0 }) });
+export const DEFAULT_SETTINGS: Settings = Object.freeze({
+  slowMotion: false,
+  highContrast: false,
+  offset: Object.freeze({ up: 0, near: 0 }),
+});
 
 /**
  * One step of the offset along `axis`, clamped to the comfortable range. At the

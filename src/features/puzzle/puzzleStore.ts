@@ -83,6 +83,10 @@ export type PuzzleCommand =
   | { readonly type: 'drop' }
   /** Emitted once a drop solves the level, after the solve's state is published: the celebration starts. */
   | { readonly type: 'solved' }
+  /** Emitted when a marble settles in cup `cup` (its index in the level's `goals`) that doesn't accept it. */
+  | { readonly type: 'cupRejected'; readonly cup: number }
+  /** Emitted when a replay (a solve's, or the melody book's) sounds saved note `index`. */
+  | { readonly type: 'melodyNote'; readonly index: number }
   | { readonly type: 'addThread'; readonly from: string; readonly to: string }
   | { readonly type: 'snip'; readonly from: string; readonly to: string }
   | { readonly type: 'place'; readonly origin: Vec3; readonly yaw: number; readonly surface: PlacementSurface }
@@ -100,6 +104,21 @@ export type PuzzleCommand =
   | { readonly type: 'pegMoved'; readonly pegId: string }
   /** Emitted after a level's diorama is (re)built, and why. */
   | { readonly type: 'levelBuilt'; readonly reason: BuildReason };
+
+type CupRejected = Extract<PuzzleCommand, { type: 'cupRejected' }>;
+type MelodyNote = Extract<PuzzleCommand, { type: 'melodyNote' }>;
+const cupRejectedCommands: CupRejected[] = [];
+const melodyNoteCommands: MelodyNote[] = [];
+
+/** The `cupRejected` event for a cup, built once per index, so a frame that emits it allocates nothing. */
+export function cupRejected(cup: number): CupRejected {
+  return (cupRejectedCommands[cup] ??= Object.freeze({ type: 'cupRejected', cup }));
+}
+
+/** The `melodyNote` event for a saved note, built once per index. */
+export function melodyNote(index: number): MelodyNote {
+  return (melodyNoteCommands[index] ??= Object.freeze({ type: 'melodyNote', index }));
+}
 
 type Listener = (state: PuzzleState) => void;
 type CommandListener = (command: PuzzleCommand) => void;

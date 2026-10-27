@@ -1,5 +1,6 @@
 import type { UIKit, UIKitMLAsset } from '@iwsdk/core';
 import { LEVELS } from '../../levels';
+import type { PlaqueColors } from '../../lib/colors';
 import { settingsModel, SKIP_LABEL, starsLabel } from '../../lib/hud';
 import { levelSelectLabel, stepLevel } from '../../lib/levelSelect';
 import { DISARMED, RESET_WINDOW_SECONDS, resetLabel, resetPinch, type ResetGuard } from '../../lib/resetGuard';
@@ -15,6 +16,14 @@ const now = () => performance.now() / 1000;
 
 /** Repaint just after the reset window closes, so the label is never caught mid-expiry. */
 const DISARM_REPAINT_MS = RESET_WINDOW_SECONDS * 1000 + 50;
+
+/** Every control on the face (ticket 12's layout), hidden placeholders included, and its other text. */
+const TOGGLE_IDS = [
+  'set-slow', 'set-contrast', 'set-reset',
+  'set-prev', 'set-next', 'set-skip', 'set-play-all',
+  'set-up', 'set-down', 'set-near', 'set-far',
+] as const;
+const READOUT_IDS = ['set-level', 'set-stars', 'set-offset'] as const;
 
 /** The plaque's settings face: each control dispatches a settings change on the bus. */
 export class SettingsFace {
@@ -39,6 +48,11 @@ export class SettingsFace {
       control('set-slow', () => {
         const { slowMotion } = puzzleStore.get().settings;
         puzzleStore.dispatch({ type: 'settings', patch: { slowMotion: !slowMotion } });
+      }),
+      // A patch keeps the offset's identity (applySettingsPatch), so this never relocates the diorama.
+      control('set-contrast', () => {
+        const { highContrast } = puzzleStore.get().settings;
+        puzzleStore.dispatch({ type: 'settings', patch: { highContrast: !highContrast } });
       }),
       control('set-reset', () => this.pinchReset()),
       // Revisit any level reached so far (its stars and melody), never skipping ahead.
@@ -122,7 +136,28 @@ export class SettingsFace {
     if (settings === this.shown) return;
     this.shown = settings;
     const model = settingsModel(settings);
+    this.panel.userData.contrastLabel = model.contrastLabel;
     this.panel.getElementById<UIKit.Text>('set-slow')?.setProperties({ text: model.slowLabel });
+    // Ticket 12 laid it out hidden, with placeholder text: shown from the first render on.
+    this.panel.getElementById<UIKit.Text>('set-contrast')?.setProperties({ text: model.contrastLabel, visibility: 'visible' });
     this.panel.getElementById<UIKit.Text>('set-offset')?.setProperties({ text: model.offsetLabel });
+  }
+
+  /**
+   * Every control's colours, and its hover and press: set as conditional properties, so a
+   * repaint's hover and press replace the stylesheet's (a plain backgroundColor alone would
+   * leave the default hover colour lit in high contrast).
+   */
+  paint(colors: PlaqueColors): void {
+    const toggle = {
+      backgroundColor: colors.toggle,
+      borderColor: colors.toggleBorder,
+      color: colors.toggleText,
+      hover: { backgroundColor: colors.toggleHover },
+      active: { backgroundColor: colors.toggleActive },
+    };
+    for (const id of TOGGLE_IDS) this.panel.getElementById(id)?.setProperties(toggle);
+    for (const id of READOUT_IDS) this.panel.getElementById(id)?.setProperties({ color: colors.readout });
+    this.panel.getElementById('settings-title')?.setProperties({ color: colors.faceTitle });
   }
 }

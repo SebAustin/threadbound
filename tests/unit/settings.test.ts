@@ -47,7 +47,7 @@ describe('diorama offset', () => {
   test('settings saved before offsets existed keep their slow motion choice', () => {
     const storage = memoryStorage();
     storage.setItem('threadbound.settings.v1', '{"slowMotion":true}');
-    expect(loadSettings(storage)).toEqual({ slowMotion: true, offset: { up: 0, near: 0 } });
+    expect(loadSettings(storage)).toEqual({ slowMotion: true, highContrast: false, offset: { up: 0, near: 0 } });
   });
 
   test('steps clamp to a comfortable range', () => {
@@ -70,7 +70,7 @@ describe('Nearer stops at +2 (gap 56)', () => {
   test('a save from when Nearer reached +3 loads as +2 and keeps slow motion', () => {
     const storage = memoryStorage();
     storage.setItem('threadbound.settings.v1', '{"slowMotion":true,"offset":{"up":1,"near":3}}');
-    expect(loadSettings(storage)).toEqual({ slowMotion: true, offset: { up: 1, near: 2 } });
+    expect(loadSettings(storage)).toEqual({ slowMotion: true, highContrast: false, offset: { up: 1, near: 2 } });
   });
 
   test('a patch past the limit is still ignored', () => {
@@ -102,5 +102,33 @@ describe('applySettingsPatch', () => {
 
   test('ignores a patch that would leave settings out of range', () => {
     expect(applySettingsPatch(DEFAULT_SETTINGS, { offset: { up: 40, near: 0 } })).toBe(DEFAULT_SETTINGS);
+  });
+});
+
+describe('high contrast (ticket 15)', () => {
+  test('defaults to off', () => {
+    expect(DEFAULT_SETTINGS.highContrast).toBe(false);
+    expect(loadSettings(memoryStorage()).highContrast).toBe(false);
+  });
+
+  test('a save from before the setting existed loads, keeping its slow motion and offset', () => {
+    const storage = memoryStorage();
+    storage.setItem('threadbound.settings.v1', '{"slowMotion":true,"offset":{"up":2,"near":-1}}');
+    expect(loadSettings(storage)).toEqual({ slowMotion: true, highContrast: false, offset: { up: 2, near: -1 } });
+  });
+
+  test('round-trips through storage', () => {
+    const storage = memoryStorage();
+    saveSettings(storage, { ...DEFAULT_SETTINGS, highContrast: true });
+    expect(loadSettings(storage).highContrast).toBe(true);
+  });
+
+  test('a patch flips it and keeps the offset identical, so toggling never relocates the diorama', () => {
+    const on = applySettingsPatch(DEFAULT_SETTINGS, { highContrast: true });
+    expect(on.highContrast).toBe(true);
+    expect(on.offset).toBe(DEFAULT_SETTINGS.offset);
+    const off = applySettingsPatch(on, { highContrast: false });
+    expect(off.highContrast).toBe(false);
+    expect(off.offset).toBe(DEFAULT_SETTINGS.offset);
   });
 });

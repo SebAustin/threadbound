@@ -21,7 +21,7 @@ import { spawnOffsetX } from '../../lib/spawnOffset';
 import { stringSynth } from '../audio/stringSynth';
 import { GEOMETRIES, goalMaterial, marbleMaterial } from '../diorama/palette';
 import { Chute, Marble, Thread } from '../puzzle/components';
-import { puzzleStore } from '../puzzle/puzzleStore';
+import { cupRejected, puzzleStore } from '../puzzle/puzzleStore';
 import { SimulationClockSystem } from '../simulation/SimulationClockSystem';
 import { EMPTY_MELODY, MelodyClimb, replaySchedule, type Melody } from '../../lib/melody';
 import { MELODY_NOTES_MAX } from '../../lib/progress';
@@ -299,7 +299,7 @@ export class MarbleSystem extends createSystem({
     const index = this.cupAt(x, y);
     if (index < 0 || this.speedOf(marble) > SETTLED_SPEED) return;
     if (!goalAccepts(goals[index].color, color)) {
-      this.reject(marble);
+      this.reject(marble, index);
       return;
     }
     marble.setValue(Marble, 'scored', true);
@@ -331,11 +331,12 @@ export class MarbleSystem extends createSystem({
     puzzleStore.dispatch({ type: 'solved' });
   }
 
-  /** A marble settled in the wrong cup: a dull thud, once. */
-  private reject(marble: Entity): void {
+  /** A marble settled in cup `cup`, which doesn't accept it: a dull thud and a blink of that cup's walls, once. */
+  private reject(marble: Entity, cup: number): void {
     if (marble.getValue(Marble, 'rejected')) return;
     marble.setValue(Marble, 'rejected', true);
     stringSynth.play('cupWrong');
+    puzzleStore.dispatch(cupRejected(cup));
   }
 
   /** Index of the cup a marble centre at (x, y) sits in, or -1 (one stacked layer allowed). */

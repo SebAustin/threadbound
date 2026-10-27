@@ -1,9 +1,10 @@
 #!/bin/zsh
 # Hand-ray pinches in an emulated Quest 3 session operate the chute, the ledge
-# buttons, the settings face and thread snipping (taps, not drags), and the ledge
-# strip teaches level 1 from a fresh save. A ray resting on Restart lights it, a
-# pinch presses it in, a released Settings comes back up on the same button, and a
-# pinch beside a thread (inside its hit area) snips it.
+# buttons, the settings face (slow motion, high contrast, Nearer) and thread
+# snipping (taps, not drags), and the ledge strip teaches level 1 from a fresh
+# save. A ray resting on Restart lights it, a pinch presses it in, a released
+# Settings comes back up on the same button, and a pinch beside a thread (inside
+# its hit area) snips it.
 # Exit 1 on any failure.
 cd "$(dirname "$0")/../.."
 source tests/e2e/xr-lib.sh
@@ -82,6 +83,11 @@ F=$(field "$(probe)" "['face']"); [ "$F" = "settings" ] && pass "pinching the se
 sleep 0.5 # let the settings face lay out
 pinch_at "$(field "$(probe)" "['slowToggle']")"
 M=$(field "$(probe)" "['slowMotion']"); [ "$M" = "true" ] && pass "pinching a plaque toggle works in XR" || fail "pinching a plaque toggle works in XR (slowMotion=$M)"
+# Ticket 15: a hand-ray pinch on the high-contrast toggle flips the setting and repaints the diorama.
+pinch_at "$(field "$(probe)" "['contrastToggle']")"
+P=$(probe); HC=$(field "$P" "['highContrast']"); LOOK=$(field "$P" "['appearance']")
+LOOK_ON=$(echo "$LOOK" | python3 -c "import sys,json;a=json.load(sys.stdin);print(bool(a) and a['highContrast'] and a['glyphBackings'])")
+[ "$HC" = "true" ] && [ "$LOOK_ON" = "True" ] && pass "pinching the high-contrast toggle turns high contrast on in XR" || fail "pinching the high-contrast toggle turns high contrast on in XR (highContrast=$HC, appearance=$LOOK)"
 # Nearer three times: each pinch lands (a press cue) and moves the diorama a step toward the
 # player, and the third lands on the toggle and changes nothing. After each pinch, wait until the
 # offset and the moved toggle read the same twice, so the next pinch aims where the toggle now is.

@@ -1,7 +1,7 @@
 import { CADENCE_HZ, CADENCE_STRUM_SECONDS, type ScheduledNote } from '../../lib/melody';
 import { stringSynth } from '../audio/stringSynth';
 import { goalMaterial } from '../diorama/palette';
-import { puzzleStore } from '../puzzle/puzzleStore';
+import { melodyNote, puzzleStore } from '../puzzle/puzzleStore';
 
 /** Seconds the lit cups swell and settle while the cadence rings. */
 const CUP_PULSE_SECONDS = 0.6;
@@ -98,6 +98,8 @@ export class Celebration {
     while (this.replayNext < this.replay.length && this.replay[this.replayNext].at <= this.replayClock) {
       const item = this.replay[this.replayNext];
       stringSynth.play(item.cue, item.hz);
+      // A saved note's visual caption (a star pulse); a replay's closing cadence has none.
+      if (item.cue === 'melody') puzzleStore.dispatch(melodyNote(item.note));
       this.replayNext += 1;
     }
   }

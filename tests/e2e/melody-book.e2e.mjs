@@ -1,7 +1,8 @@
 // E2E (real input): the melody book. A solve saves the tune its drop played, with when
 // each note sounded; poking the plaque's stars replays it note for note with that timing,
 // then closes on the cadence. An entry saved before timing replays at the old fixed step.
-// Unsolved levels stay quiet.
+// Unsolved levels stay quiet. Ticket 15's visual caption: each replayed note pulses one of
+// the stars, in step with the sound (never more than one pulse ahead of the melody cues).
 import { canvasMapper, checks, clickCanvas, freshSave, hookReady, isComplete, loadLevel, plaqueElementAt, waitFor } from './lib.mjs';
 
 /** Mirrors MELODY_NOTES_MAX in src/lib/progress.ts (E2E runs in Node and can't import the TS source). */
@@ -15,18 +16,28 @@ const GAP_TOLERANCE_S = 0.04;
 const REPLAY_SLACK_MS = 3000;
 const KEY = 'threadbound.progress.v1';
 
-/** Page side: a cue trace kept across polls (every poll drains the shared log). */
+/**
+ * Page side: a cue trace kept across polls (every poll drains the shared log), and at
+ * each poll the star pulses since the reset against the melody cues heard so far.
+ */
 const installTrace = () => {
   window.__trace = [];
+  window.__pulsePolls = [];
+  window.__pulsesAtReset = window.__threadbound.captions().starPulses;
   window.__collect = () => {
     window.__trace.push(...window.__threadbound.cueTrace());
+    const pulses = window.__threadbound.captions().starPulses - window.__pulsesAtReset;
+    window.__pulsePolls.push({ pulses, melody: window.__trace.filter((r) => r.name === 'melody').length });
     return window.__trace;
   };
 };
 const resetTrace = () => {
   window.__threadbound.cueTrace();
   window.__trace = [];
+  window.__pulsePolls = [];
+  window.__pulsesAtReset = window.__threadbound.captions().starPulses;
 };
+const pulseReport = () => ({ polls: window.__pulsePolls, total: window.__threadbound.captions().starPulses - window.__pulsesAtReset });
 const replayOver = () => {
   window.__collect();
   return !window.__threadbound.celebration().replaying;
@@ -38,13 +49,13 @@ function replayMs({ notes, times }) {
   return Math.round((STEP_S + span + STEP_S + 2 * STRUM_S) * 1000) + REPLAY_SLACK_MS;
 }
 
-/** Pokes the stars and returns the trace of the replay, once it has finished. */
+/** Pokes the stars and returns the trace of the replay, and its star pulses, once it has finished. */
 async function pokeStars({ page, app, at }, timeoutMs) {
   await app.evaluate(resetTrace);
   await clickCanvas(page, app, at, await plaqueElementAt(app, 'hud-stars'));
   await waitFor(app, () => window.__collect().length > 0, 2000);
   const ended = await waitFor(app, replayOver, timeoutMs);
-  return { ended, trace: await app.evaluate(() => window.__collect()) };
+  return { ended, trace: await app.evaluate(() => window.__collect()), pulses: await app.evaluate(pulseReport) };
 }
 
 /** The replayed melody gaps against `want` gaps (seconds), and the cadence after the last note. */
@@ -93,15 +104,19 @@ async function solveAndSave({ app, check }) {
   return saved;
 }
 
-/** Poking the stars replays every saved note with its saved gaps, then the cadence. */
+/** Poking the stars replays every saved note with its saved gaps, then the cadence; each note pulses a star. */
 async function starsReplayKeepsTiming(ctx, saved) {
-  const { ended, trace } = await pokeStars(ctx, replayMs(saved));
+  const { ended, trace, pulses } = await pokeStars(ctx, replayMs(saved));
   const wantGaps = saved.times.slice(1).map((t, i) => t - saved.times[i]);
   const report = replayReport(trace, wantGaps);
   const detail = JSON.stringify({ ...report, want: wantGaps.map((g) => g.toFixed(3)).join(' ') });
   ctx.check('poking the stars replays the tune, note for note', ended && report.melody === saved.notes.length, detail);
   ctx.check(`the replayed gaps match the saved times within ${GAP_TOLERANCE_S * 1000} ms`, report.melody > 1 && report.worstGapError <= GAP_TOLERANCE_S, detail);
   ctx.check('the replay closes on 3 cadence cues after its last note', report.cadenceAfter, detail);
+  const pulseDetail = JSON.stringify({ saved: saved.notes.length, total: pulses.total, polls: pulses.polls.length });
+  ctx.check('the stars pulse exactly once per saved note (the cadence pulses none)', ended && pulses.total === saved.notes.length, pulseDetail);
+  const ahead = pulses.polls.filter((p) => p.pulses > p.melody + 1);
+  ctx.check('at every poll the pulses are at most one ahead of the melody cues', pulses.polls.length > 1 && ahead.length === 0, ahead.length ? JSON.stringify(ahead.slice(0, 3)) : pulseDetail);
 }
 
 async function unsolvedStaysQuiet({ page, app, at, check }) {
@@ -109,6 +124,8 @@ async function unsolvedStaysQuiet({ page, app, at, check }) {
   await app.evaluate(resetTrace);
   await clickCanvas(page, app, at, await plaqueElementAt(app, 'hud-stars'));
   check('an unsolved level has no tune to replay', !(await waitFor(app, () => window.__collect().some((r) => r.name === 'melody' || r.name === 'cadence'), 1500)));
+  const { total } = await app.evaluate(pulseReport);
+  check('and pinching its stars pulses nothing', total === 0, `${total} pulses`);
 }
 
 /** A save from before timing (a bare array of notes) still loads, and replays at the fixed 0.22 s step. */

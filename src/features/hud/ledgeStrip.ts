@@ -1,5 +1,6 @@
 import { Quaternion, Vector3, type UIKit, type UIKitMLAsset } from '@iwsdk/core';
 import { LEDGE_STRIP } from '../../config/constants';
+import type { PlaqueColors } from '../../lib/colors';
 import type { HudModel } from '../../lib/hud';
 import { ledgeStripPose } from '../../lib/ledge';
 import type { DioramaFrame } from '../diorama/dioramaFrame';
@@ -38,6 +39,13 @@ export class LedgeStrip {
     if (width === this.width) return;
     this.width = width;
     this.panel.getElementById('ledge')?.setProperties({ width });
+  }
+
+  /** The strip's colours: the plaque's (high contrast repaints both). */
+  paint(colors: PlaqueColors): void {
+    this.panel.getElementById('ledge')?.setProperties({ backgroundColor: colors.ledge, borderColor: colors.ledgeBorder });
+    this.panel.getElementById('ledge-hint')?.setProperties({ color: colors.ledgeHint });
+    for (const id of ['ledge-threads', 'ledge-spool']) this.panel.getElementById(id)?.setProperties({ color: colors.ledgeDetail });
   }
 
   /** Drawn or not (it hides with the diorama while placement searches). */
