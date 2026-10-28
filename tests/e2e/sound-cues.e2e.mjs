@@ -72,10 +72,13 @@ async function cupsChimeOrThud({ app, check }) {
   const thuds = (await app.evaluate(trace)).filter((r) => r.name === 'cupWrong');
   check('a marble in the wrong cup thuds instead', thuds.length > 0);
   const { cups } = await app.evaluate(expectedSources);
+  // Each rejection also blinks the rejecting cup's walls once (ticket 15), so per cup: thuds = blinks.
+  const blinks = await app.evaluate(() => window.__threadbound.captions().cups.map((cup) => cup.flashes));
+  const heardAt = cups.map((cup) => thuds.filter((r) => dist(r.source, cup) <= MM).length);
   check(
-    'the thud is heard from a cup\'s centre (within 1 mm), the cup that took the marble',
-    thuds.length > 0 && thuds.every((r) => cups.some((cup) => dist(r.source, cup) <= MM)),
-    JSON.stringify({ cups, thuds: thuds.map((r) => r.source) }),
+    'each thud is heard from the centre (within 1 mm) of the cup that took the marble, the cup that blinks',
+    thuds.length > 0 && heardAt.reduce((sum, n) => sum + n, 0) === thuds.length && heardAt.every((n, i) => n === blinks[i]),
+    JSON.stringify({ heardAt, blinks, thuds: thuds.map((r) => r.source) }),
   );
 }
 

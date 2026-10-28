@@ -1,11 +1,5 @@
 import type { CueName } from '../../lib/soundCues';
-
-/** A world point in metres. */
-export interface CuePoint {
-  readonly x: number;
-  readonly y: number;
-  readonly z: number;
-}
+import type { Point3 } from '../../lib/vec';
 
 /**
  * One cue a game event asked for: which, at what pitch, when (seconds, `performance.now()` clock),
@@ -16,7 +10,7 @@ export interface CueRecord {
   readonly name: CueName;
   readonly hz: number;
   readonly at: number;
-  readonly source: CuePoint | null;
+  readonly source: Point3 | null;
   readonly spatial: boolean;
 }
 
@@ -30,7 +24,7 @@ const MAX_LOG = 200;
 
 const mm = (metres: number): number => Math.round(metres * 1000) / 1000;
 
-export function recordCue(name: CueName, hz: number, source: CuePoint | null, spatial: boolean): void {
+export function recordCue(name: CueName, hz: number, source: Point3 | null, spatial: boolean): void {
   if (!import.meta.env.DEV) return;
   const place = source ? { x: mm(source.x), y: mm(source.y), z: mm(source.z) } : null;
   log.push({ name, hz, at: performance.now() / 1000, source: place, spatial });

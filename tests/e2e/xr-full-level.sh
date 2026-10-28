@@ -8,19 +8,10 @@
 cd "$(dirname "$0")/../.."
 source tests/e2e/xr-lib.sh
 xr_start
-# Sit the player at the emulated room's dining table (0.79 m high), facing it, and
-# enter passthrough again so placement runs from a seated pose.
-iw xr set-transform --input-json '{"device":"headset","position":{"x":-0.85,"y":1.15,"z":0.2}}' >/dev/null 2>&1
-iw xr look-at --input-json '{"device":"headset","target":{"x":-1.5,"y":0.79,"z":0.2}}' >/dev/null 2>&1
-iw xr exit --input-json '{}' >/dev/null 2>&1
-iw xr enter --input-json '{}' >/dev/null 2>&1
-settle session
+seat_at_table
 P=$(probe load0)
-# The first pinch anywhere, even at nothing, unlocks audio (a WebXR select is a user gesture).
-iw xr set-transform --input-json '{"device":"hand-right","position":{"x":-0.5,"y":1.0,"z":0.6}}' >/dev/null 2>&1
-iw xr look-at --input-json '{"device":"hand-right","target":{"x":-0.5,"y":2.5,"z":2}}' >/dev/null 2>&1; sleep 0.3
-iw xr set-select-value --input-json '{"device":"hand-right","value":1}' >/dev/null 2>&1; sleep 0.3
-iw xr set-select-value --input-json '{"device":"hand-right","value":0}' >/dev/null 2>&1; sleep 0.3
+# The first pinch anywhere, even at nothing, unlocks audio.
+pinch_unlock
 AUDIO=$(field "$(probe)" "['audio']")
 [ "$AUDIO" != "locked" ] && pass "the first XR pinch, even at nothing, unlocks sound ($AUDIO)" || fail "the first XR pinch, even at nothing, unlocks sound ($AUDIO)"
 WHERE=$(field "$P" "['placement']['placedOn']"); PLANES=$(field "$P" "['placement']['planesSeen']")

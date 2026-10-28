@@ -4,6 +4,7 @@ import { LEVELS } from '../../levels';
 import { budgetBreaches, type FrameStats } from '../../lib/perfBudget';
 import { handleOffset } from '../../lib/rail';
 import { solutionSteps } from '../../lib/solutionSteps';
+import type { Point3 } from '../../lib/vec';
 import { puzzleStore, type PuzzleCommand } from '../puzzle/puzzleStore';
 import type { CueName } from '../../lib/soundCues';
 import { drainCues, drainCueTrace, type CueRecord } from '../audio/cueLog';
@@ -23,14 +24,8 @@ interface ScreenPoint {
   y: number;
 }
 
-interface WorldPoint {
-  x: number;
-  y: number;
-  z: number;
-}
-
 /** Where something is on screen (for real clicks) and in the world (for aiming emulated hands). */
-type Located = ScreenPoint & { world: WorldPoint };
+type Located = ScreenPoint & { world: Point3 };
 
 /** A UIKit element: where it is, its rendered width and height in meters, and its background right now ('#rrggbb', hover and press included). */
 type Sized = Located & { width: number; height: number; background: string | null };
@@ -38,7 +33,7 @@ type Sized = Located & { width: number; height: number; background: string | nul
 /** The ledge strip as drawn (src/features/hud/ledgeStrip.ts). */
 interface LedgeProbe {
   /** Diorama-local position of the panel's origin: the middle of its bottom edge. */
-  local: WorldPoint;
+  local: Point3;
   /** Radians its face is raised from lying flat on the ledge, toward the player. */
   lean: number;
   /** Rendered size in meters, along its face. */
@@ -87,16 +82,16 @@ export interface ThreadboundTestHook {
   solve(): void;
   /** Current diorama frame: origin (bottom-left, world) and yaw. */
   frame(): { origin: number[]; yaw: number } | null;
-  marbles(): Array<WorldPoint & { color: string }>;
+  marbles(): Array<Point3 & { color: string }>;
   /** World-space position of a diorama-local point (for aiming emulated hands). */
-  worldOf(x: number, y: number, z?: number): WorldPoint;
+  worldOf(x: number, y: number, z?: number): Point3;
   /**
    * The virtual study: shown or not, its background, the session's blend mode, and the world y of its
    * table's top and of its feet (the floor is y = 0).
    */
   room(): { visible: boolean; background: boolean; blendMode: string | null; tableTop: number | null; tableBottom: number | null };
   /** What the diorama plaque last rendered, and where it sits in diorama-local space. */
-  hud(): { model: unknown; local: WorldPoint } | null;
+  hud(): { model: unknown; local: Point3 } | null;
   /**
    * Which plaque face is showing, the reset control's label, the settings face's star total
    * ("Stars N/72"), whether it offers the skip, the high-contrast toggle's label, and the melody
@@ -160,7 +155,12 @@ export interface ThreadboundTestHook {
    * Where the synth's audio listener is (world metres; null while sound is locked) and where the
    * player's head is. In an XR session IWSDK's AudioListener carries the first with the second.
    */
-  listener(): { listener: WorldPoint | null; head: WorldPoint };
+  listener(): { listener: Point3 | null; head: Point3 };
+  /**
+   * The synth's notes: spatial ones still ringing (each gives its panner back when it ends) and
+   * notes ever started while the audio context was suspended (each waits for the next resume).
+   */
+  voices(): { liveSpatial: number; startedSuspended: number };
   /**
    * A solve's celebration: stars lit on the plaque (they refill one by one after a fresh solve),
    * whether a cadence or replay is still playing, and each thread's vibration energy.
@@ -183,7 +183,7 @@ declare global {
 }
 
 const round3 = (n: number) => Math.round(n * 1000) / 1000;
-const plain = (v: Vector3): WorldPoint => ({ x: v.x, y: v.y, z: v.z });
+const plain = (v: Vector3): Point3 => ({ x: v.x, y: v.y, z: v.z });
 
 /** Screen and world placement helpers shared by every probe. */
 class Probe {
@@ -293,7 +293,7 @@ function sceneProbes(world: World, probe: Probe): Hook<'button' | 'handle' | 'ha
     },
     marbles: () => {
       const frame = puzzleStore.frame;
-      const found: Array<WorldPoint & { color: string }> = [];
+      const found: Array<Point3 & { color: string }> = [];
       if (!frame) return found;
       const worldPos = new Vector3();
       const local = new Vector3();
@@ -493,13 +493,14 @@ function studyTableSpan(world: World): { top: number; bottom: number } | null {
   return { top: box.max.y, bottom: box.min.y };
 }
 
-/** Sound: its state, the cue log and where the synth's listener is next to the head. */
-function audioProbes(world: World): Hook<'audio' | 'cues' | 'cueTrace' | 'listener'> {
+/** Sound: its state, the cue log, where the synth's listener is next to the head, and its notes. */
+function audioProbes(world: World): Hook<'audio' | 'cues' | 'cueTrace' | 'listener' | 'voices'> {
   return {
     audio: () => stringSynth.state,
     cues: () => drainCues(),
     cueTrace: () => drainCueTrace(),
     listener: () => ({ listener: stringSynth.listenerPosition(), head: plain(world.player.head.getWorldPosition(new Vector3())) }),
+    voices: () => stringSynth.voices,
   };
 }
 

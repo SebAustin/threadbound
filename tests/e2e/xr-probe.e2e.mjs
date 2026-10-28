@@ -174,6 +174,8 @@ const PROBE_FIELDS = [
   ['audio', () => window.__threadbound.audio()],
   // Where the synth's audio listener is (null while sound is locked) and where the headset is, as world points.
   ['listener', () => window.__threadbound.listener?.() ?? null],
+  // The synth's spatial notes still ringing, and notes ever started on a suspended audio context.
+  ['voices', () => window.__threadbound.voices?.() ?? null],
   ['frame', () => window.__threadbound.frameStats()],
 ];
 

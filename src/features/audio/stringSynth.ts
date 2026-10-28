@@ -1,8 +1,9 @@
 import { AudioContext as ThreeAudioContext } from '@iwsdk/core';
 import { cueRoute, PANNER } from '../../lib/cueSpace';
-import { CUE_CEILING, CUES, cuePitches, type CueName } from '../../lib/soundCues';
+import { CUE_CEILING, CUES, cuePitches, noteCanStart, type CueName } from '../../lib/soundCues';
 import { PENTATONIC_HZ } from '../../lib/threadTuning';
-import { recordCue, type CuePoint } from './cueLog';
+import type { Point3 } from '../../lib/vec';
+import { recordCue } from './cueLog';
 
 const NOTE_SECONDS = 1.4;
 const LIMITER = { thresholdDb: -3, ratio: 20, attackSeconds: 0.001, releaseSeconds: 0.1 } as const;
@@ -27,6 +28,10 @@ class StringSynth {
   /** Spatial notes still ringing; each lowers it when it ends. */
   private liveSpatial = 0;
   private pannerFailed = false;
+  /** The game's own resume is under way: the unlocking gesture's cue may wait for it. */
+  private resuming = false;
+  /** DEV: notes started while the context was suspended (each waits for the next resume). */
+  private notesWhileSuspended = 0;
 
   /** 'locked' until the first unlock; then the AudioContext's own state. */
   get state(): 'locked' | AudioContextState {
@@ -63,6 +68,11 @@ class StringSynth {
     }
   }
 
+  /** DEV probes: spatial notes still ringing, and notes ever started on a suspended context. */
+  get voices(): { liveSpatial: number; startedSuspended: number } {
+    return { liveSpatial: this.liveSpatial, startedSuspended: this.notesWhileSuspended };
+  }
+
   /** In an XR session or not (AudioUnlockSystem follows the session). */
   setImmersive(on: boolean): void {
     this.immersive = on;
@@ -72,8 +82,9 @@ class StringSynth {
    * The sound for a game event (see lib/soundCues). `hz` overrides the cue's pitch
    * (a thread's climb, a replayed note, a cadence note, the ambience phrase); `gain` scales its volume (impact).
    * `source` is the world point a positional cue comes from; its numbers are copied, so a scratch vector will do.
+   * The cue log records the cue even when no note starts (sound locked, or suspended with no resume asked for).
    */
-  play(name: CueName, hz = CUES[name].hz, gain = 1, source?: CuePoint): void {
+  play(name: CueName, hz = CUES[name].hz, gain = 1, source?: Point3): void {
     const panAt = cueRoute(CUES[name], source, this.immersive, this.liveSpatial) === 'spatial' ? source : undefined;
     const spatial = this.pluck(hz, Math.min(CUE_CEILING, CUES[name].volume * gain), panAt);
     recordCue(name, hz, source ?? null, spatial);
@@ -86,16 +97,20 @@ class StringSynth {
   }
 
   /** Where the context's listener is (world metres, for the DEV hook); null while locked. */
-  listenerPosition(): CuePoint | null {
+  listenerPosition(): Point3 | null {
     const listener = this.ctx?.listener;
     if (!listener?.positionX) return null;
     return { x: listener.positionX.value, y: listener.positionY.value, z: listener.positionZ.value };
   }
 
-  /** Plays one note, through a panner at `panAt` when given. Returns whether it was panned. */
-  pluck(hz: number, velocity = 1, panAt?: CuePoint): boolean {
+  /**
+   * Plays one note, through a panner at `panAt` when given. Returns whether it was panned. While the
+   * context is suspended and nobody is resuming it (IWSDK suspends it when an XR session ends), the
+   * note is dropped: started there it would wait, and sound with every other waiting note at the next click.
+   */
+  pluck(hz: number, velocity = 1, panAt?: Point3): boolean {
     const ctx = this.ctx;
-    if (!ctx || !this.master) return false;
+    if (!ctx || !this.master || !noteCanStart(ctx.state, this.resuming)) return false;
     const note = ctx.createBufferSource();
     const gain = ctx.createGain();
     gain.gain.value = Math.min(1, Math.max(0.05, velocity));
@@ -103,13 +118,21 @@ class StringSynth {
     note.connect(gain);
     const spatial = panAt !== undefined && this.panThrough(ctx, note, gain, panAt);
     if (!spatial) gain.connect(this.master);
+    if (import.meta.env.DEV && ctx.state === 'suspended') this.notesWhileSuspended += 1;
     note.start();
     return spatial;
   }
 
   private resume(): void {
-    if (this.ctx?.state !== 'suspended') return;
-    this.ctx.resume().catch((error: unknown) => console.warn('[Threadbound] audio did not resume', error));
+    const ctx = this.ctx;
+    if (ctx?.state !== 'suspended') return;
+    this.resuming = true;
+    ctx
+      .resume()
+      .catch((error: unknown) => console.warn('[Threadbound] audio did not resume', error))
+      .finally(() => {
+        this.resuming = false;
+      });
   }
 
   /** Any pitch plays: render it on first use (a pitch missing here used to fail silently). */
@@ -126,7 +149,7 @@ class StringSynth {
    * Puts a panner at `at` between the note's gain and the master, released when the note ends.
    * False when the browser refuses one: the note then plays mono, as before.
    */
-  private panThrough(ctx: AudioContext, note: AudioBufferSourceNode, gain: GainNode, at: CuePoint): boolean {
+  private panThrough(ctx: AudioContext, note: AudioBufferSourceNode, gain: GainNode, at: Point3): boolean {
     let panner: PannerNode;
     try {
       panner = new PannerNode(ctx, { ...PANNER, positionX: at.x, positionY: at.y, positionZ: at.z });

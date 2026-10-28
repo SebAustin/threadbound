@@ -93,3 +93,13 @@ export function ambienceRests(context: AmbienceContext): boolean {
 export function ambienceHz(step: number): number {
   return AMBIENCE_PHRASE[step % AMBIENCE_PHRASE.length];
 }
+
+/**
+ * Whether a note asked for now may start. A suspended audio context's clock is frozen, so a note
+ * started on it waits and sounds with every other waiting note at the next resume. Only the game's
+ * own resume (the unlocking gesture, whose cue waits for it) is worth waiting for; while IWSDK holds
+ * the shared context suspended after an XR session, cues are dropped until the next click.
+ */
+export function noteCanStart(state: AudioContextState, resuming: boolean): boolean {
+  return state !== 'suspended' || resuming;
+}

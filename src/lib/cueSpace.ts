@@ -6,16 +6,13 @@
  */
 import { GOAL } from '../config/constants';
 import type { Cue } from './soundCues';
-import type { Vec3 } from './vec';
+import type { Point3, Vec3 } from './vec';
 
 /** A cup's span along the base (the diorama's cup ranges carry these). */
 export interface CupSpan {
   readonly minX: number;
   readonly maxX: number;
 }
-
-/** A place a cue comes from: a frame point, or a world point. */
-export type CueSource = Vec3 | { readonly x: number; readonly y: number; readonly z: number };
 
 /** Through a panner at its source, or straight to the master as before. */
 export type CueRoute = 'spatial' | 'mono';
@@ -59,10 +56,10 @@ export function cadenceSource(cups: readonly CupSpan[]): Vec3 | null {
 }
 
 /**
- * 'spatial' only for a positional cue with a source, inside an XR session (the head is tracked
+ * 'spatial' only for a positional cue with a source (a world point), inside an XR session (the head is tracked
  * only there), while fewer than MAX_SPATIAL_VOICES spatial notes ring. Otherwise 'mono'.
  */
-export function cueRoute(cue: Cue, source: CueSource | null | undefined, immersive: boolean, liveSpatial: number): CueRoute {
-  const placed = cue.positional === true && source !== null && source !== undefined;
+export function cueRoute(cue: Cue, source: Point3 | undefined, immersive: boolean, liveSpatial: number): CueRoute {
+  const placed = cue.positional === true && source !== undefined;
   return placed && immersive && liveSpatial < MAX_SPATIAL_VOICES ? 'spatial' : 'mono';
 }

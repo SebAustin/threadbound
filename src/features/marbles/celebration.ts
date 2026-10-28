@@ -1,6 +1,6 @@
 import { Vector3 } from '@iwsdk/core';
 import { CADENCE_HZ, CADENCE_STRUM_SECONDS, type ScheduledNote } from '../../lib/melody';
-import type { CuePoint } from '../audio/cueLog';
+import type { Point3 } from '../../lib/vec';
 import { stringSynth } from '../audio/stringSynth';
 import { goalMaterial } from '../diorama/palette';
 import { melodyNote, puzzleStore } from '../puzzle/puzzleStore';
@@ -37,7 +37,7 @@ export class Celebration {
   }
 
   /** A live solve: strum the cadence now, from `source` (copied) while the lit cups pulse. */
-  strum(source?: CuePoint): void {
+  strum(source?: Point3): void {
     this.strumPlaced = source !== undefined;
     if (source) this.strumAt.copy(source);
     this.strummed = 0;

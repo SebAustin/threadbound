@@ -29,7 +29,7 @@
 
 **Blocked by:** 10
 
-**Status:** done
+**Status:** done except: MAX_SPATIAL_VOICES 16 vs 8 awaits the user; Human headphones box (user)
 
 - [x] Unit: new tests/unit/cueSpace.test.ts:
   - `threadSource` is the midpoint at z = 0, whichever way round the thread is given;
@@ -88,3 +88,15 @@
   - `RUNS=3 npm run test:e2e:levels:robust`: "every level solved 3/3 in every condition", 558 of 558 drops, exit 0 (`ticket16-levels-robust.log`).
   - `NODE_ENV=production npm run build` exit 0 (bundle `assets/index-BGACLpmb.js`); `npm run test:smoke` 19 PASS, 0 FAIL, 5 NOTE, exit 0, no console or page errors (`ticket16-build-smoke.log`).
 - **Left open:** the Human headphones box (user). Per the ticket it doesn't hold `done` or ticket 17's gate.
+- **Oct 28, agent: review fixes, landed locally on main, nothing pushed.** One commit, `fix: ticket 16 review findings` (hash in the workflow report). Status now reads `done except` (finding 2). Every box stays proven.
+  - **Medium, cues piled up while IWSDK held sound suspended (fixed).** After an XR session ends, `pluck` (src/features/audio/stringSynth.ts:113) no longer starts a note while the shared context is suspended and nobody is resuming it. The rule is `noteCanStart(state, resuming)` (src/lib/soundCues.ts:103). `resume()` (:126) sets `resuming` before `ctx.resume()` and clears it when the promise settles, so the unlocking gesture's own cue still waits for its resume and plays. It calls `ctx.resume()` on every unlock while suspended, even with one pending, because a resume asked for outside a gesture stays pending until a later gesture resumes. `play()` still records every cue; a dropped one logs `spatial: false`. A DEV count of notes started while suspended (:121) and `liveSpatial` are the hook's new `voices()` (src/features/debug/testHook.ts:163, :503) and xr-probe's `voices` field.
+  - **Its regression check:** after `xr_stop`, tests/e2e/audio-click.e2e.mjs now idles until the study's hum has been asked for (polled in-page, at most 8 s: one 6 s ambience interval plus slack). It returns the cues asked for and the notes started on the suspended context meanwhile, then clicks. xr-spatial-audio.sh requires at least one hum and 0 notes started.
+  - **Low findings, all fixed:**
+    - MAX_SPATIAL_VOICES: still 16 (src/lib/cueSpace.ts:27). Status names the open decision, and ticket 17's Comments has a "From ticket 16's review" line for it.
+    - The thud's cup: sound-cues.e2e.mjs now counts thuds per cup and requires them to equal that cup's blinks (`captions().cups[i].flashes`, one per rejection, ticket 15). w2-03: thuds `[0, 2]` = blinks `[0, 2]`.
+    - Voices given back: xr-spatial-audio.sh requires `voices().liveSpatial` to be 0 once the solve's notes have rung out (up to 5 probes). Mutation check: with `onended`'s decrement commented out, it fails with liveSpatial 12 (`ticket16-review-xr-mutant-onended.log`).
+    - One point type: `Point3` in src/lib/vec.ts:13 replaces cueLog's `CuePoint`, testHook's `WorldPoint` and cueSpace's `CueSource`. `cueRoute` takes `Point3 | undefined`. The Vec3 and null cases are gone, along with the separate world-point test: cueSpace.test's `SOURCE` is now a world point (13 tests).
+    - DRY: `seat_at_table` and `pinch_unlock` in tests/e2e/xr-lib.sh (:37, :45), used by xr-full-level.sh and xr-spatial-audio.sh.
+  - **Test-first evidence** (logs `.scratch/week8/logs/ticket16-review-*.log`, gitignored): unit RED, 3 `noteCanStart` tests failing (`-unit-red`), then 17/17 in soundCues (`-unit-green`). XR RED with the counter and the flag but no guard: 7 PASS, 1 FAIL, "idle out of XR, the cues asked for (["ambience"]) start no note on the suspended context (1 started)" (`-xr-red`). After the guard: 8/8 (`-xr-green`).
+  - **Regression on the final tree** (dev server headless with browser automation, `browserCommandReady: true`, `no-overlay.e2e.mjs` true): `npm run typecheck` exit 0. `npm run coverage`: 55 files, 797 tests passed; src/lib 98.07 % statements, 96.64 % branches, 99.37 % functions, 98.46 % lines; cueSpace.ts and soundCues.ts 100 %. `npm run test:e2e` (xr-lib.sh changed, so the whole chain): all 38 scripts, 325 PASS, 0 FAIL, exit 0 (`-e2e`); sound-cues 16/16. `npm run test:e2e:hands`: all 10 scripts, 73 PASS, 0 FAIL, exit 0 (`-hands`). xr-spatial-audio passed 8/8 (5 bounces all panned, worst 0.3 mm; strum 3 of 3 panned; listener 0.0 m from the head before and after the sidestep; liveSpatial 0; 0 notes started while idle; one click from suspended to running). xr-full-level still closes on 3 cadence cues with 6 distinct notes, using the new helpers. `NODE_ENV=production npm run build` exit 0; `npm run test:smoke` 19 PASS, 0 FAIL, 5 NOTE, no console or page errors (`-build-smoke`). Not re-run: levels, dailies and robust, because nothing in physics or levels changed.
+  - **Left open:** the MAX_SPATIAL_VOICES choice, 16 or 8 (user), and the Human headphones box (user).

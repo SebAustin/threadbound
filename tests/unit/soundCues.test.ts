@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { AMBIENCE_INTERVAL_SECONDS, ambienceHz, ambienceRests, CUE_CEILING, CUES, cuePitches, type CueName } from '../../src/lib/soundCues';
+import { AMBIENCE_INTERVAL_SECONDS, ambienceHz, ambienceRests, CUE_CEILING, CUES, cuePitches, noteCanStart, type CueName } from '../../src/lib/soundCues';
 import { CADENCE_HZ } from '../../src/lib/melody';
 import { PENTATONIC_HZ } from '../../src/lib/threadTuning';
 
@@ -90,5 +90,20 @@ describe('ambienceRests: the background never competes with the puzzle', () => {
     expect(ambienceRests({ ...open, roomVisible: false })).toBe(true);
     expect(ambienceRests({ ...open, paused: true })).toBe(true);
     expect(ambienceRests({ ...open, dropping: true })).toBe(true);
+  });
+});
+
+describe('noteCanStart: no note waits on sound that nobody is bringing back', () => {
+  test('a running context plays the note now', () => {
+    expect(noteCanStart('running', false)).toBe(true);
+  });
+
+  test('a suspended context with no resume asked for drops it (after XR, IWSDK holds sound suspended)', () => {
+    // Its clock is frozen: the note would wait and sound with every other waiting note at the next click.
+    expect(noteCanStart('suspended', false)).toBe(false);
+  });
+
+  test("while the game's own resume is under way, the unlocking gesture's cue waits for it", () => {
+    expect(noteCanStart('suspended', true)).toBe(true);
   });
 });

@@ -9,6 +9,13 @@ export interface Point2 {
   readonly y: number;
 }
 
+/** A point in space (meters): a world point, such as where a cue is heard from. */
+export interface Point3 {
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+}
+
 /** Live peg positions by peg id. */
 export type PegPositions = Readonly<Record<string, Point2>>;
 

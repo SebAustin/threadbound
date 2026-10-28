@@ -3,7 +3,7 @@ import { GOAL } from '../../src/config/constants';
 import { cadenceSource, cueRoute, cupSource, MAX_SPATIAL_VOICES, PANNER, threadSource } from '../../src/lib/cueSpace';
 import { ACCEPT_REACH } from '../../src/lib/placement';
 import { CUES, type CueName } from '../../src/lib/soundCues';
-import type { Vec3 } from '../../src/lib/vec';
+import type { Point3, Vec3 } from '../../src/lib/vec';
 
 const HALF_WALL = GOAL.wallHeight / 2;
 const near = (actual: Vec3 | null, expected: Vec3) => {
@@ -11,7 +11,8 @@ const near = (actual: Vec3 | null, expected: Vec3) => {
   for (let i = 0; i < 3; i++) expect(actual![i]).toBeCloseTo(expected[i], 9);
 };
 const POSITIONAL: readonly CueName[] = ['bounce', 'thread', 'cupCorrect', 'cupWrong', 'cadence'];
-const SOURCE: Vec3 = [0.2, 0.15, 0];
+/** A world point, as the call sites pass (frame points turned into world space). */
+const SOURCE: Point3 = { x: 0.2, y: 1.15, z: -0.4 };
 
 describe('threadSource: a pluck is heard from the middle of its thread', () => {
   test('the midpoint of the two pegs, in the marble channel plane (z = 0)', () => {
@@ -55,11 +56,6 @@ describe('cueRoute: only a placed cue in an XR session goes through a panner', (
 
   test('a positional cue with no source is mono (a melody-book cadence)', () => {
     expect(cueRoute(CUES.cadence, undefined, true, 0)).toBe('mono');
-    expect(cueRoute(CUES.cadence, null, true, 0)).toBe('mono');
-  });
-
-  test('a world point ({ x, y, z }) counts as a source too', () => {
-    expect(cueRoute(CUES.cupCorrect, { x: 0, y: 1, z: -0.4 }, true, 0)).toBe('spatial');
   });
 
   test(`at most ${MAX_SPATIAL_VOICES} spatial notes ring at once; the next one is mono`, () => {

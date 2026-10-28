@@ -2,9 +2,10 @@
 # Week 8 ticket 16 in an emulated Quest 3 passthrough session: plucks and cup chimes are heard from
 # where they happen. Seated at the table with sound unlocked by a pinch, a solve's bounces go through
 # a panner at the thread's midpoint, the live cadence strum comes from the mean of the cup centres,
-# and the synth's audio listener follows the head, also after the headset moves 0.4 m sideways.
-# After leaving XR, one canvas click brings sound back. Automation can't hear, so this proves the
-# routing and the positions, not the direction a player hears. Exit 1 on any failure.
+# and the synth's audio listener follows the head, also after the headset moves 0.4 m sideways;
+# every panned note gives its panner back. After leaving XR, the cues asked for while IWSDK holds
+# sound suspended start no note, and one canvas click brings sound back. Automation can't hear, so
+# this proves the routing and the positions, not the direction a player hears. Exit 1 on any failure.
 cd "$(dirname "$0")/../.."
 source tests/e2e/xr-lib.sh
 # Cue sources are rounded to 1 mm; the listener follows the head within a frame's ramp.
@@ -33,19 +34,9 @@ print(round(math.dist(*[(p['x'],p['y'],p['z']) for p in (l['listener'],l['head']
 }
 
 xr_start
-# Seat the player at the emulated room's dining table, facing it, and enter passthrough again so
-# placement runs from a seated pose (as xr-full-level.sh does).
-iw xr set-transform --input-json '{"device":"headset","position":{"x":-0.85,"y":1.15,"z":0.2}}' >/dev/null 2>&1
-iw xr look-at --input-json '{"device":"headset","target":{"x":-1.5,"y":0.79,"z":0.2}}' >/dev/null 2>&1
-iw xr exit --input-json '{}' >/dev/null 2>&1
-iw xr enter --input-json '{}' >/dev/null 2>&1
-settle session
+seat_at_table
 probe load0 >/dev/null
-# The first pinch anywhere, even at nothing, unlocks audio (a WebXR select is a user gesture).
-iw xr set-transform --input-json '{"device":"hand-right","position":{"x":-0.5,"y":1.0,"z":0.6}}' >/dev/null 2>&1
-iw xr look-at --input-json '{"device":"hand-right","target":{"x":-0.5,"y":2.5,"z":2}}' >/dev/null 2>&1; sleep 0.3
-iw xr set-select-value --input-json '{"device":"hand-right","value":1}' >/dev/null 2>&1; sleep 0.3
-iw xr set-select-value --input-json '{"device":"hand-right","value":0}' >/dev/null 2>&1; sleep 0.3
+pinch_unlock
 AUDIO=$(field "$(probe)" "['audio']")
 [ "$AUDIO" = "running" ] && pass "seated in passthrough, a pinch unlocks sound ($AUDIO)" || fail "seated in passthrough, a pinch unlocks sound ($AUDIO)"
 
@@ -75,8 +66,25 @@ python3 -c "import sys;sys.exit(0 if '$STEP' != 'inf' and abs($STEP - $SIDESTEP)
   pass "after the headset moves ${SIDESTEP} m sideways (head moved ${STEP} m), the listener follows it (${GAP} m)" ||
   fail "after the headset moves ${SIDESTEP} m sideways (head moved ${STEP} m), the listener follows it (${GAP} m)"
 
+# Every panned note gives its panner back when it ends (1.4 s), or later cues would play mono. The
+# solve setup waits out its replay, so the strum ended long ago; poll a few probes in case it hasn't.
+LIVE=$(field "$M" "['voices']['liveSpatial']" 2>/dev/null)
+for attempt in 1 2 3 4 5; do
+  [ "$LIVE" = "0" ] && break
+  LIVE=$(field "$(probe)" "['voices']['liveSpatial']" 2>/dev/null)
+done
+[ "$LIVE" = "0" ] && pass "once the solve's notes have rung out, no spatial note is left ringing (liveSpatial $LIVE)" ||
+  fail "once the solve's notes have rung out, no spatial note is left ringing (liveSpatial $LIVE)"
+
+# Out of XR, IWSDK suspends the shared context while the study keeps humming: idle past an ambience
+# interval, then click. A cue asked for meanwhile must start no note (it would wait for the click).
 xr_stop
 C=$(iw browser run tests/e2e/audio-click.e2e.mjs 2>/dev/null | python3 -c "import sys,json;print(json.dumps(json.load(sys.stdin)['data']['result']))" 2>/dev/null)
+ASKED=$(field "$C" "['asked']" 2>/dev/null); STARTED=$(field "$C" "['startedSuspended']" 2>/dev/null)
+HUMS=$(echo "$ASKED" | python3 -c "import sys,json;print(json.load(sys.stdin).count('ambience'))" 2>/dev/null || echo 0)
+[ "${HUMS:-0}" -ge 1 ] && [ "$STARTED" = "0" ] &&
+  pass "idle out of XR, the cues asked for ($ASKED) start no note on the suspended context ($STARTED started)" ||
+  fail "idle out of XR, the cues asked for ($ASKED) start no note on the suspended context ($STARTED started)"
 BEFORE=$(field "$C" "['before']" 2>/dev/null); AFTER=$(field "$C" "['after']" 2>/dev/null)
 [ "$AFTER" = "running" ] && pass "after leaving XR (sound $BEFORE), one canvas click brings it back ($AFTER)" ||
   fail "after leaving XR (sound $BEFORE), one canvas click brings it back ($AFTER)"
