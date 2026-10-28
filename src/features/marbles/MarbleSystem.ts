@@ -56,7 +56,7 @@ const NUDGE_SPEED = 0.12;
  * the diorama plane each frame (allocation-free).
  */
 export class MarbleSystem extends createSystem({
-  /** Pinch (ray/gaze), poke or click a chute: IWSDK tags it Pressed for every input kind. */
+  /** Pinch (ray or gaze) or click a chute: IWSDK tags it Pressed for every input kind. Chutes take no fingertip press. */
   pressedChutes: { required: [Chute, Pressed] },
   marbles: { required: [Marble] },
   threads: { required: [Thread] },

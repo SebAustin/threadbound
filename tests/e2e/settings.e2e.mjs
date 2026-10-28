@@ -167,7 +167,7 @@ export default async function run({ page, frame }) {
   check('the ledge buttons stay on screen below it', view.ledge, JSON.stringify(view.detail));
   if (!toggle) return results;
   await clickCanvas(page, app, at, toggle);
-  check('poking it turns slow motion on', await waitFor(app, () => window.__threadbound.state().settings.slowMotion, 2000));
+  check('pinching it turns slow motion on', await waitFor(app, () => window.__threadbound.state().settings.slowMotion, 2000));
   const saved = await app.evaluate(() => localStorage.getItem('threadbound.settings.v1'));
   check('the setting is remembered', /"slowMotion":true/.test(saved ?? ''), saved);
 

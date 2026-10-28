@@ -70,7 +70,7 @@ export class ThreadSystem extends createSystem({
   /** Pegs that take a pinch: every peg but the preset-only ones (built without RayInteractable). */
   pinchablePegs: { required: [Peg, RayInteractable] },
   threads: { required: [Thread] },
-  /** A thread pinched, poked or clicked is snipped on release (works for every input kind). */
+  /** A thread pinched or clicked is snipped on release (every ray input; threads take no fingertip press). */
   pressedThreads: { required: [Thread, Pressed] },
   releasedThreads: { required: [Thread, TapReleased] },
 }) {

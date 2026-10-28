@@ -73,7 +73,7 @@ async function arriveAsGuest(app, check) {
   check('settings start at their defaults (the saved slow motion and offset are not read)', defaultSettings(a), JSON.stringify(a.settings));
 }
 
-/** Level 1 by a real drag and a real chute click (as onboarding.e2e.mjs), then slow motion by a real poke. */
+/** Level 1 by a real drag and a real chute click (as onboarding.e2e.mjs), then slow motion by a real click. */
 async function playAsGuest(page, app, check) {
   const at = await canvasMapper(app);
   const [from, to] = await app.evaluate(() => {

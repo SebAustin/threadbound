@@ -7,7 +7,7 @@ describe('localDayKey: the calendar day where the player is', () => {
   });
 });
 
-describe('dailyIndex: one challenge per day from the pool', () => {
+describe('dailyIndex: one daily per day from the pool', () => {
   test('is deterministic and in range', () => {
     const i = dailyIndex('2026-11-01', 7);
     expect(i).toBe(dailyIndex('2026-11-01', 7));

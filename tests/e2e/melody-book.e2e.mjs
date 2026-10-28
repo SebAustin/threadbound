@@ -1,5 +1,5 @@
 // E2E (real input): the melody book. A solve saves the tune its drop played, with when
-// each note sounded; poking the plaque's stars replays it note for note with that timing,
+// each note sounded; pinching the plaque's stars replays it note for note with that timing,
 // then closes on the cadence. An entry saved before timing replays at the old fixed step.
 // Unsolved levels stay quiet. Ticket 15's visual caption: each replayed note pulses one of
 // the stars, in step with the sound (never more than one pulse ahead of the melody cues).
@@ -55,8 +55,8 @@ function replayMs({ notes, times }) {
   return Math.round((STEP_S + span + STEP_S + 2 * STRUM_S) * 1000) + REPLAY_SLACK_MS;
 }
 
-/** Pokes the stars and returns the trace of the replay, and its star pulses, once it has finished. */
-async function pokeStars({ page, app, at }, timeoutMs) {
+/** Pinches the stars and returns the trace of the replay, and its star pulses, once it has finished. */
+async function pinchStars({ page, app, at }, timeoutMs) {
   await app.evaluate(resetTrace);
   await clickCanvas(page, app, at, await plaqueElementAt(app, 'hud-stars'));
   await waitFor(app, () => window.__collect().length > 0, 2000);
@@ -106,18 +106,18 @@ async function solveAndSave({ app, check }) {
   check('a solve saves the melody its drop played, with a time per note', saved.notes.length > 0 && saved.notes.length <= MELODY_NOTES_MAX && saved.times.length === saved.notes.length, JSON.stringify(saved));
   const stored = await app.evaluate((key) => localStorage.getItem(key), KEY);
   check('the melody book is saved with progress, timing included', (stored ?? '').includes('"melodies":{"w1-01":{"notes":[') && (stored ?? '').includes('"times":['), stored);
-  // Let the solve's own cadence and replay finish before poking the stars.
+  // Let the solve's own cadence and replay finish before pinching the stars.
   await waitFor(app, replayOver, replayMs(saved));
   return saved;
 }
 
-/** Poking the stars replays every saved note with its saved gaps, then the cadence; each note pulses a star. */
+/** Pinching the stars replays every saved note with its saved gaps, then the cadence; each note pulses a star. */
 async function starsReplayKeepsTiming(ctx, saved) {
-  const { ended, trace, pulses } = await pokeStars(ctx, replayMs(saved));
+  const { ended, trace, pulses } = await pinchStars(ctx, replayMs(saved));
   const wantGaps = saved.times.slice(1).map((t, i) => t - saved.times[i]);
   const report = replayReport(trace, wantGaps);
   const detail = JSON.stringify({ ...report, want: wantGaps.map((g) => g.toFixed(3)).join(' ') });
-  ctx.check('poking the stars replays the tune, note for note', ended && report.melody === saved.notes.length, detail);
+  ctx.check('pinching the stars replays the tune, note for note', ended && report.melody === saved.notes.length, detail);
   ctx.check(`the replayed gaps match the saved times within ${GAP_TOLERANCE_S * 1000} ms`, report.melody > 1 && report.worstGapError <= GAP_TOLERANCE_S, detail);
   ctx.check('the replay closes on 3 cadence cues after its last note', report.cadenceAfter, detail);
   const pulseDetail = JSON.stringify({ saved: saved.notes.length, total: pulses.total, polls: pulses.polls.length });
@@ -235,7 +235,7 @@ async function oldEntryKeepsStep(ctx) {
   await loadLevel(app, 'w1-01');
   const loaded = await app.evaluate(() => window.__threadbound.state().progress.melodies['w1-01']);
   check('an entry saved before timing loads with its notes and no times', JSON.stringify(loaded) === JSON.stringify({ notes: OLD, times: [] }), JSON.stringify(loaded));
-  const { ended, trace } = await pokeStars(ctx, replayMs({ notes: OLD, times: [] }));
+  const { ended, trace } = await pinchStars(ctx, replayMs({ notes: OLD, times: [] }));
   const report = replayReport(trace, OLD.slice(1).map(() => STEP_S));
   check(`it replays at ${STEP_S} s +- ${GAP_TOLERANCE_S * 1000} ms, then the cadence`, ended && report.melody === OLD.length && report.worstGapError <= GAP_TOLERANCE_S && report.cadenceAfter, JSON.stringify(report));
 }
