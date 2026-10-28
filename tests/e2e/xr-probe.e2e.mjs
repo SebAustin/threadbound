@@ -172,14 +172,19 @@ const PROBE_FIELDS = [
   // The hint line the hud model carries (the ledge strip shows it: `ledge.text.hint`).
   ['hint', () => window.__threadbound.hud()?.model?.hint ?? null],
   ['audio', () => window.__threadbound.audio()],
+  // Where the synth's audio listener is (null while sound is locked) and where the headset is, as world points.
+  ['listener', () => window.__threadbound.listener?.() ?? null],
   ['frame', () => window.__threadbound.frameStats()],
 ];
 
 /**
- * Drains the cue log, once and last, as records. Draining `cues()` (or ticket 10's
- * `cueTrace()`) empties both, so no other entry may drain.
+ * Drains the cue log, once and last, as `cueTrace()` records (name, hz, at, source, spatial).
+ * Draining `cues()` or `cueTrace()` empties both, so no other entry may drain.
  */
-const cueDrain = () => window.__threadbound.cues().map((name) => ({ name }));
+const cueDrain = () => window.__threadbound.cueTrace();
+
+/** Cues heard from a place on the diorama in an XR session (src/lib/soundCues.ts, `positional`). */
+const POSITIONAL = ['bounce', 'thread', 'cupCorrect', 'cupWrong', 'cadence'];
 
 /** One [name, Node function] per field derived from the drained cue records. */
 const CUE_FIELDS = [
@@ -192,6 +197,10 @@ const CUE_FIELDS = [
   ['cadenceDrained', (records) => records.filter((c) => c.name === 'cadence').length],
   // Pulls released away from every peg they could attach to, since the last probe.
   ['dragMissDrained', (records) => records.filter((c) => c.name === 'dragMiss').length],
+  // Plucks and cup chimes since the last probe: where each was heard from (world metres, null for
+  // none) and whether it went through a panner.
+  ['positionalDrained', (records) =>
+    records.filter((c) => POSITIONAL.includes(c.name)).map(({ name, source, spatial }) => ({ name, source, spatial }))],
 ];
 
 export default async function run({ page, frame }) {

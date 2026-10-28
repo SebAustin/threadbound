@@ -45,6 +45,12 @@ describe('sound cues: every event the player causes has its own sound', () => {
     expect(CUES.dragMiss.volume).toBeLessThan(CUES.refused.volume);
   });
 
+  test('exactly the cues that come from a place on the diorama are positional (bounce, thread, cupCorrect, cupWrong, cadence)', () => {
+    const positional = (Object.keys(CUES) as CueName[]).filter((name) => CUES[name].positional === true);
+    expect(positional.sort()).toEqual(['bounce', 'cadence', 'cupCorrect', 'cupWrong', 'thread']);
+    expect(Object.keys(CUES).sort()).toEqual([...ALL].sort());
+  });
+
   test('a scored marble and a wrong cup are told apart', () => {
     expect(CUES.cupCorrect.hz).not.toBe(CUES.cupWrong.hz);
   });

@@ -1,10 +1,23 @@
 import type { CueName } from '../../lib/soundCues';
 
-/** One cue a game event asked for: which, at what pitch, and when (seconds, `performance.now()` clock). */
+/** A world point in metres. */
+export interface CuePoint {
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+}
+
+/**
+ * One cue a game event asked for: which, at what pitch, when (seconds, `performance.now()` clock),
+ * where it was heard from (world metres rounded to 1 mm, or null for a cue with no place) and
+ * whether it went through a panner (only in an XR session, lib/cueSpace).
+ */
 export interface CueRecord {
   readonly name: CueName;
   readonly hz: number;
   readonly at: number;
+  readonly source: CuePoint | null;
+  readonly spatial: boolean;
 }
 
 /**
@@ -15,9 +28,12 @@ const log: CueRecord[] = [];
 /** Bounded so a long dev session never grows it without limit. */
 const MAX_LOG = 200;
 
-export function recordCue(name: CueName, hz: number): void {
+const mm = (metres: number): number => Math.round(metres * 1000) / 1000;
+
+export function recordCue(name: CueName, hz: number, source: CuePoint | null, spatial: boolean): void {
   if (!import.meta.env.DEV) return;
-  log.push({ name, hz, at: performance.now() / 1000 });
+  const place = source ? { x: mm(source.x), y: mm(source.y), z: mm(source.z) } : null;
+  log.push({ name, hz, at: performance.now() / 1000, source: place, spatial });
   if (log.length > MAX_LOG) log.shift();
 }
 

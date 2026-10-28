@@ -1,4 +1,6 @@
+import { Vector3 } from '@iwsdk/core';
 import { CADENCE_HZ, CADENCE_STRUM_SECONDS, type ScheduledNote } from '../../lib/melody';
+import type { CuePoint } from '../audio/cueLog';
 import { stringSynth } from '../audio/stringSynth';
 import { goalMaterial } from '../diorama/palette';
 import { melodyNote, puzzleStore } from '../puzzle/puzzleStore';
@@ -19,6 +21,9 @@ export class Celebration {
   /** Cadence notes strummed so far (all of them: no strum), and seconds since the strum began. */
   private strummed = CADENCE_HZ.length;
   private strumClock = 0;
+  /** Where the strum is heard from (world, the mean of the cup centres), copied at `strum`; unset: no place. */
+  private readonly strumAt = new Vector3();
+  private strumPlaced = false;
   /** Seconds left in the lit cups' pulse. */
   private pulseLeft = 0;
   private replay: readonly ScheduledNote[] = [];
@@ -31,8 +36,10 @@ export class Celebration {
     return this.strummed < CADENCE_HZ.length || this.replayNext < this.replay.length;
   }
 
-  /** A live solve: strum the cadence now while the lit cups pulse. */
-  strum(): void {
+  /** A live solve: strum the cadence now, from `source` (copied) while the lit cups pulse. */
+  strum(source?: CuePoint): void {
+    this.strumPlaced = source !== undefined;
+    if (source) this.strumAt.copy(source);
     this.strummed = 0;
     this.strumClock = 0;
     this.pulseLeft = CUP_PULSE_SECONDS;
@@ -66,7 +73,7 @@ export class Celebration {
     if (this.strummed >= CADENCE_HZ.length) return;
     this.strumClock += delta;
     while (this.strummed < CADENCE_HZ.length && this.strumClock >= this.strummed * CADENCE_STRUM_SECONDS) {
-      stringSynth.play('cadence', CADENCE_HZ[this.strummed]);
+      stringSynth.play('cadence', CADENCE_HZ[this.strummed], 1, this.strumPlaced ? this.strumAt : undefined);
       this.strummed += 1;
     }
   }

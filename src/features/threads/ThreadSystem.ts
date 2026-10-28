@@ -14,6 +14,7 @@ import {
   type Object3D,
 } from '@iwsdk/core';
 import { PEG, THREAD_TUNING } from '../../config/constants';
+import { threadSource } from '../../lib/cueSpace';
 import { THREAD_HIT_DIAMETER } from '../../lib/hitArea';
 import { createTrail, push, reset, stableRelease } from '../../lib/releaseTrail';
 import { segmentTransform } from '../../lib/threadGeometry';
@@ -22,6 +23,7 @@ import { PENTATONIC_HZ, restitutionForLength, rootIndex } from '../../lib/thread
 import { HIT_ORDER } from '../../lib/touchFeedback';
 import { stringSynth } from '../audio/stringSynth';
 import { devLog } from '../debug/devLog';
+import type { DioramaFrame } from '../diorama/dioramaFrame';
 import { GEOMETRIES, hitAreaMesh, MATERIALS } from '../diorama/palette';
 import { Peg, SnapTarget, tagRelease, TapReleased, Thread, Touchable, TouchKinds } from '../puzzle/components';
 import { puzzleStore, type PuzzleCommand } from '../puzzle/puzzleStore';
@@ -79,6 +81,8 @@ export class ThreadSystem extends createSystem({
   private dragPoint = { x: 0, y: 0 };
   private tmpDir = new Vector3();
   private tmpQuat = new Quaternion();
+  /** Where a newly strung thread's pluck comes from, in world space (the synth copies it). */
+  private tmpSource = new Vector3();
   /** Pegs a pull may attach to, listed once when it starts (and again if a rail peg settles). */
   private snapPegs: readonly PegPoint[] = [];
   /** The peg a release would attach to right now, tagged SnapTarget; null for none. */
@@ -385,7 +389,13 @@ export class ThreadSystem extends createSystem({
       // The player's own thread is a success: it clears the refusal and the missed-drop line.
       ...(preset ? {} : { refusal: null, lastDropMissed: false }),
     });
-    if (pluck) stringSynth.play('thread', pitch);
+    if (pluck) this.pluckStrung(frame, from, to, pitch);
+  }
+
+  /** A newly strung thread's pluck, heard from its middle (in an XR session; lib/cueSpace). */
+  private pluckStrung(frame: DioramaFrame, from: PegPoint, to: PegPoint, pitch: number): void {
+    const [x, y, z] = threadSource(from.x, from.y, to.x, to.y);
+    stringSynth.play('thread', pitch, 1, frame.localToWorld(x, y, z, this.tmpSource));
   }
 
   private snip(entity: Entity): void {

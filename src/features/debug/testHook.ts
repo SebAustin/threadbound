@@ -151,8 +151,16 @@ export interface ThreadboundTestHook {
   gazeAvailable(): boolean;
   /** Names of the sound cues the game asked for since the last drain (see features/audio/cueLog). */
   cues(): CueName[];
-  /** The same cues with pitch and time (seconds). Draining either this or cues() empties both. */
+  /**
+   * The same cues with pitch, time (seconds), where each was heard from (world metres to 1 mm, or
+   * null) and whether it went through a panner. Draining either this or cues() empties both.
+   */
   cueTrace(): CueRecord[];
+  /**
+   * Where the synth's audio listener is (world metres; null while sound is locked) and where the
+   * player's head is. In an XR session IWSDK's AudioListener carries the first with the second.
+   */
+  listener(): { listener: WorldPoint | null; head: WorldPoint };
   /**
    * A solve's celebration: stars lit on the plaque (they refill one by one after a fresh solve),
    * whether a cadence or replay is still playing, and each thread's vibration energy.
@@ -485,11 +493,18 @@ function studyTableSpan(world: World): { top: number; bottom: number } | null {
   return { top: box.max.y, bottom: box.min.y };
 }
 
-function sessionProbes(world: World): Hook<'gazeAvailable' | 'room' | 'frameStats' | 'meshBreakdown' | 'cues' | 'cueTrace' | 'audio'> {
+/** Sound: its state, the cue log and where the synth's listener is next to the head. */
+function audioProbes(world: World): Hook<'audio' | 'cues' | 'cueTrace' | 'listener'> {
   return {
     audio: () => stringSynth.state,
     cues: () => drainCues(),
     cueTrace: () => drainCueTrace(),
+    listener: () => ({ listener: stringSynth.listenerPosition(), head: plain(world.player.head.getWorldPosition(new Vector3())) }),
+  };
+}
+
+function sessionProbes(world: World): Hook<'gazeAvailable' | 'room' | 'frameStats' | 'meshBreakdown'> {
+  return {
     meshBreakdown: () => {
       const counts: Record<string, number> = {};
       world.scene.traverse((o) => {
@@ -548,6 +563,7 @@ export function installTestHook(world: World): void {
     ...plaqueProbes(world, probe),
     ...welcomeProbes(world, probe),
     ...sessionProbes(world),
+    ...audioProbes(world),
     ...placementProbes(world),
     ...celebrationProbe(world),
     ...accessibilityProbes(world),

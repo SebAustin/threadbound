@@ -23,12 +23,16 @@ export class AudioUnlockSystem extends createSystem({}) {
     );
   }
 
-  /** Follow the active session: listen on a new one, stop listening on an ended one. */
+  /**
+   * Follow the active session: listen on a new one, stop listening on an ended one. The head is
+   * tracked only inside a session, so only there are positional cues panned.
+   */
   private watchSession(): void {
     const session = this.world.session ?? null;
     if (session === this.session) return;
     this.unwatch();
     this.session = session;
+    stringSynth.setImmersive(session !== null);
     for (const type of XR_GESTURES) session?.addEventListener(type, this.unlock);
   }
 

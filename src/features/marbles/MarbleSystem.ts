@@ -15,6 +15,7 @@ import { dropEnded, dropStarted } from '../../lib/attempts';
 import { dropOver, isStalled, nudgeDirection, restTimer } from '../../lib/dropWatch';
 import { goalAccepts } from '../../lib/goalMatch';
 import { isMarbleColor } from '../../lib/marbleColors';
+import { cadenceSource, cupSource, threadSource } from '../../lib/cueSpace';
 import { releaseOrder, type Release } from '../../lib/releaseOrder';
 import { segmentDistanceSq2d } from '../../lib/segment2d';
 import { spawnOffsetX } from '../../lib/spawnOffset';
@@ -28,6 +29,7 @@ import { BOOK_REST_SECONDS, bookPlaylist } from '../../lib/melodyBook';
 import { MELODY_NOTES_MAX } from '../../lib/progress';
 import { LEVELS } from '../../levels';
 import { DEFAULT_ROOT, PENTATONIC_HZ } from '../../lib/threadTuning';
+import type { Vec3 } from '../../lib/vec';
 import { Celebration } from './celebration';
 
 /** Contact band around a thread that counts as a "pluck". */
@@ -79,6 +81,8 @@ export class MarbleSystem extends createSystem({
   private tmpWorld = new Vector3();
   private tmpLocal = new Vector3();
   private tmpNudge = new Vector3();
+  /** Where a pluck or chime comes from, in world space (the synth copies it). */
+  private tmpSource = new Vector3();
   /** Seconds each marble has been at rest, keyed by marble index. */
   private rest = new Map<number, number>();
   /** Nudges each marble has needed, keyed by marble index. */
@@ -278,22 +282,19 @@ export class MarbleSystem extends createSystem({
     const touching = this.contacts.get(marble.index);
     if (!touching) return;
     for (const thread of this.queries.threads.entities) {
-      const d2 = segmentDistanceSq2d(
-        x,
-        y,
-        thread.getValue(Thread, 'ax') ?? 0,
-        thread.getValue(Thread, 'ay') ?? 0,
-        thread.getValue(Thread, 'bx') ?? 0,
-        thread.getValue(Thread, 'by') ?? 0,
-      );
-      const inContact = d2 <= CONTACT_DIST_SQ;
+      const ax = thread.getValue(Thread, 'ax') ?? 0;
+      const ay = thread.getValue(Thread, 'ay') ?? 0;
+      const bx = thread.getValue(Thread, 'bx') ?? 0;
+      const by = thread.getValue(Thread, 'by') ?? 0;
+      const inContact = segmentDistanceSq2d(x, y, ax, ay, bx, by) <= CONTACT_DIST_SQ;
       const wasInContact = touching.has(thread.index);
       if (inContact && !wasInContact) {
         touching.add(thread.index);
         // The thread's next note: its climb is shared by every marble of the drop.
         const pitch = PENTATONIC_HZ[this.climb.next(thread.index, thread.getValue(Thread, 'root') ?? DEFAULT_ROOT)];
         const strength = this.speedOf(marble) / FULL_VOLUME_SPEED;
-        stringSynth.play('bounce', pitch, strength);
+        // Heard from the thread's middle (in an XR session; lib/cueSpace).
+        stringSynth.play('bounce', pitch, strength, this.inWorld(threadSource(ax, ay, bx, by)));
         thread.setValue(Thread, 'energy', Math.min(1, Math.max(MIN_PLUCK_ENERGY, strength)));
         this.recordNote(pitch);
       } else if (!inContact && wasInContact) {
@@ -327,7 +328,7 @@ export class MarbleSystem extends createSystem({
       return;
     }
     marble.setValue(Marble, 'scored', true);
-    stringSynth.play('cupCorrect');
+    stringSynth.play('cupCorrect', undefined, 1, this.inWorld(cupSource(goals[index])));
     const goalMesh = puzzleStore.diorama?.goalMeshes[index];
     if (goalMesh) goalMesh.material = goalMaterial(goals[index].color, true);
 
@@ -346,21 +347,29 @@ export class MarbleSystem extends createSystem({
     this.celebrate(melody);
   }
 
-  /** The cups strum the cadence and pulse, every thread shimmers, then the solve's tune replays. */
+  /** The cups strum the cadence (heard from among them) and pulse, every thread shimmers, then the solve's tune replays. */
   private celebrate(melody: Melody): void {
-    this.celebration.strum();
+    this.celebration.strum(this.inWorld(cadenceSource(puzzleStore.diorama?.goals ?? [])));
     for (const thread of this.queries.threads.entities) thread.setValue(Thread, 'energy', 1);
     // The live strum has just played the cadence, so this replay stops on its last note.
     this.celebration.play(replaySchedule(melody, false), REPLAY_AFTER_CADENCE_SECONDS);
     puzzleStore.dispatch({ type: 'solved' });
   }
 
-  /** A marble settled in cup `cup`, which doesn't accept it: a dull thud and a blink of that cup's walls, once. */
+  /** A marble settled in cup `cup`, which doesn't accept it: a dull thud from that cup and a blink of its walls, once. */
   private reject(marble: Entity, cup: number): void {
     if (marble.getValue(Marble, 'rejected')) return;
     marble.setValue(Marble, 'rejected', true);
-    stringSynth.play('cupWrong');
+    const range = puzzleStore.diorama?.goals[cup];
+    stringSynth.play('cupWrong', undefined, 1, range ? this.inWorld(cupSource(range)) : undefined);
     puzzleStore.dispatch(cupRejected(cup));
+  }
+
+  /** A diorama-frame point in world space, written into the scratch source; undefined without a frame or a point. */
+  private inWorld(local: Vec3 | null): Vector3 | undefined {
+    const frame = puzzleStore.frame;
+    if (!frame || !local) return undefined;
+    return frame.localToWorld(local[0], local[1], local[2], this.tmpSource);
   }
 
   /** Index of the cup a marble centre at (x, y) sits in, or -1 (one stacked layer allowed). */
