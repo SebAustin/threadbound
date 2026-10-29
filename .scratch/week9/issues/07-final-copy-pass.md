@@ -59,3 +59,5 @@ Evidence names a test that passes in `.scratch/week8/regression-final.log` (run 
 - A number quoted from a log that isn't the final one (unit count, draw calls, first-melody time) is the commonest overclaim; re-read each from week 9's final log.
 
 ## Comments
+
+- **From ticket 17 review (low):** tests/unit/legibility.test.ts:47-53 hard-codes the strip inset 0.001 and omits its 0.15 cm border; read padding-bottom and border-width from public/ui/ledge.uikitml as HINT_FONT_CM is.
